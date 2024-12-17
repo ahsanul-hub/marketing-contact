@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"app/database"
@@ -17,28 +18,26 @@ func FindPaymentMethodBySlug(slug string, defaultValue interface{}) (*model.Paym
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	collection := database.GetCollection("redpay", "settings")
+	collection := database.GetCollection("dcb", "settings")
 
 	var paymentMethod model.PaymentMethod
+
 	filter := bson.M{"slug": slug}
 
 	err := collection.FindOne(ctx, filter).Decode(&paymentMethod)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, nil
-		}
 		return nil, err
 	}
+	// log.Printf("paymentMethod: %+v\n", paymentMethod)
 
 	return &paymentMethod, nil
 }
 
-func GetPrice(prefix string, amount float64) (float64, error) {
+func GetPrice(prefix string, amount float32) (float32, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Collection reference
-	collection := database.GetCollection("redpay", "settings")
+	collection := database.GetCollection("dcb", "settings")
 
 	// Build slug
 	slug := fmt.Sprintf("%s_charging", prefix)
@@ -55,16 +54,20 @@ func GetPrice(prefix string, amount float64) (float64, error) {
 	}
 
 	// Validate if Denom exists
-	if len(paymentMethod.Value.Denom) == 0 {
+	if len(paymentMethod.Denom) == 0 {
 		return 0, fmt.Errorf("no denominated values available for prefix: %s", prefix)
 	}
 
 	// Loop through Denom to find the price for the given amount
-	for denom, price := range paymentMethod.Value.Denom {
+	for denom, price := range paymentMethod.Denom {
 		// Convert denom (key) to float64 and compare
-		denomFloat := convertDenomToFloat(denom)
-		if denomFloat == amount {
-			return price, nil
+		denomFloat := convertDenomToFloat(fmt.Sprintf("%d", denom))
+		if float32(denomFloat) == amount {
+			priceFloat, err := strconv.ParseFloat(price, 32)
+			if err != nil {
+				return 0, err
+			}
+			return float32(priceFloat), nil
 		}
 	}
 
@@ -73,8 +76,8 @@ func GetPrice(prefix string, amount float64) (float64, error) {
 }
 
 // Helper function to convert denom key (string) to float64
-func convertDenomToFloat(denom string) float64 {
-	var denomFloat float64
+func convertDenomToFloat(denom string) float32 {
+	var denomFloat float32
 	fmt.Sscanf(denom, "%f", &denomFloat)
 	return denomFloat
 }

@@ -1,54 +1,98 @@
 package model
 
-// PaymentMethod represents an individual payment method for a client.
-// type PaymentMethodClient struct {
-// 	Name   string                 `json:"name"`
-// 	Status int                    `json:"status"`
-// 	Msisdn int                    `json:"msisdn"`
-// 	Route  map[string]interface{} `json:"route"`
-// }
-
-// // Client represents a client in the system.
-// type Client struct {
-// 	ID                string                `json:"_id"`
-// 	ClientAppKey      string                `json:"client_appkey"`
-// 	ClientSecret      string                `json:"client_secret"`
-// 	ClientName        string                `json:"client_name"`
-// 	AppName           string                `json:"app_name"`
-// 	ClientStatus      int                   `json:"client_status"`
-// 	Mobile            int                   `json:"mobile"`
-// 	Testing           int                   `json:"testing"`
-// 	PaymentMethods    []PaymentMethodClient `json:"payment_methods"`
-// 	Lang              string                `json:"lang"`
-// 	CallbackURL       string                `json:"callback_url"`
-// 	FailCallback      string                `json:"fail_callback"`
-// 	IsImportAvailable bool                  `json:"is_import_available"`
-// 	// Route             string                `json:"route"`
-// }
-
-type Client struct {
-	ID             string                `json:"_id"`
-	UID            string                `json:"u_id"`
-	ClientName     string                `json:"client_name"`
-	ClientAppkey   string                `json:"client_appkey"`
-	ClientSecret   string                `json:"client_secret"`
-	ClientAppid    string                `json:"client_appid"`
-	AppName        string                `json:"app_name"`
-	Mobile         string                `json:"mobile"`
-	ClientStatus   int                   `json:"client_status"`
-	Testing        int                   `json:"testing"`
-	Lang           string                `json:"lang"`
-	CallbackURL    string                `json:"callback_url"`
-	PaymentMethods []PaymentMethodClient `json:"payment_methods"`
-	FailCallback   string                `json:"fail_callback"`
-	Isdcb          string                `json:"isdcb"`
-	UpdatedAt      string                `json:"updated_at"`
-	CreatedAt      string                `json:"created_at"`
-}
+import (
+	"encoding/json"
+	"time"
+)
 
 type PaymentMethodClient struct {
-	Name   string              `json:"name"`
-	Route  map[string][]string `json:"route"`
-	Status int                 `json:"status"`
-	Msisdn int                 `json:"msisdn"`
+	ID       uint            `gorm:"primaryKey" json:"id"`
+	Name     string          `gorm:"size:255;not null" json:"name"`
+	Route    json.RawMessage `gorm:"type:jsonb" json:"route"`
+	Status   int             `json:"status"`
+	Msisdn   int             `json:"msisdn"`
+	ClientID string          `gorm:"size:50;not null" json:"client_id"`
 }
+
+type SettlementClient struct {
+	ID                uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	ClientID          string    `gorm:"size:50;not null" json:"client_id"`
+	Name              string    `gorm:"size:255;not null" json:"name"`
+	IsBhpuso          string    `json:"is_bhpuso"`
+	ServiceCharge     *string   `json:"servicecharge"`
+	Tax23             *string   `json:"tax23"`
+	Ppn               *float32  `json:"ppn"`
+	Mdr               string    `json:"mdr"`
+	MdrType           string    `json:"mdr_type"`
+	AdditionalFee     *uint     `json:"additionalfee"`
+	AdditionalPercent *float32  `json:"additional_percent"`
+	AdditionalFeeType *int      `json:"additionalfee_type"`
+	PaymentType       string    `json:"payment_type"`
+	ShareRedision     *uint     `json:"share_redision"`
+	SharePartner      *uint     `json:"share_partner"`
+	IsDivide1Poin1    string    `json:"is_divide_1poin1"`
+	UpdatedAt         time.Time `gorm:"not null" json:"updated_at"`
+	CreatedAt         time.Time `gorm:"not null" json:"created_at"`
+}
+
+type Client struct {
+	UID            string                `gorm:"size:50;primaryKey" json:"u_id"`
+	ClientName     string                `gorm:"size:255;not null" json:"client_name"`
+	ClientAppkey   string                `gorm:"size:255;not null;unique" json:"client_appkey"`
+	ClientSecret   string                `gorm:"size:255;not null;unique" json:"client_secret"`
+	ClientAppID    string                `gorm:"size:255;not null;unique" json:"client_appid"`
+	AppName        string                `gorm:"size:255;not null" json:"app_name"`
+	Mobile         string                `gorm:"size:50;not null" json:"mobile"`
+	ClientStatus   int                   `gorm:"not null" json:"client_status"`
+	Testing        int                   `gorm:"size:10;not null" json:"testing"`
+	Lang           string                `gorm:"size:10;not null" json:"lang"`
+	CallbackURL    string                `gorm:"size:255;not null" json:"callback_url"`
+	FailCallback   string                `gorm:"size:10;not null" json:"fail_callback"`
+	Isdcb          string                `gorm:"size:10;not null" json:"isdcb"`
+	UpdatedAt      time.Time             `gorm:"not null" json:"updated_at"`
+	CreatedAt      time.Time             `gorm:"not null" json:"created_at"`
+	PaymentMethods []PaymentMethodClient `gorm:"foreignKey:ClientID" json:"payment_methods"`
+	Settlements    []SettlementClient    `gorm:"foreignKey:ClientID" json:"settlements"`
+}
+
+type InputClientRequest struct {
+	ClientName     *string               `json:"client_name"`
+	AppName        *string               `json:"app_name"`
+	Mobile         *string               `json:"mobile"`
+	ClientStatus   *int                  `json:"client_status"`
+	Testing        *int                  `json:"testing"`
+	Lang           *string               `json:"lang"`
+	CallbackURL    *string               `json:"callback_url"`
+	FailCallback   *string               `json:"fail_callback"`
+	Isdcb          *string               `json:"isdcb"`
+	PaymentMethods []PaymentMethodClient `json:"payment_methods"`
+	Settlements    []SettlementClient    `json:"settlements"`
+}
+
+// type PaymentMethodClient struct {
+// 	Name   string                 `bson:"name" json:"name"`
+// 	Route  map[string]interface{} `bson:"route" json:"route"`
+// 	Status int                    `bson:"status" json:"status"`
+// 	Msisdn int                    `bson:"msisdn" json:"msisdn"`
+// }
+
+// type Client struct {
+// 	gorm.Model
+// 	ID             string                `bson:"_id" json:"_id"`
+// 	UID            string                `bson:"u_id" json:"u_id"`
+// 	ClientName     string                `bson:"client_name" json:"client_name"`
+// 	ClientAppkey   string                `bson:"client_appkey" json:"client_appkey"`
+// 	ClientSecret   string                `bson:"client_secret" json:"client_secret"`
+// 	ClientAppid    string                `bson:"client_appid" json:"client_appid"`
+// 	AppName        string                `bson:"app_name" json:"app_name"`
+// 	Mobile         string                `bson:"mobile" json:"mobile"`
+// 	ClientStatus   int                   `bson:"client_status" json:"client_status"`
+// 	Testing        string                `bson:"testing" json:"testing"`
+// 	Lang           string                `bson:"lang" json:"lang"`
+// 	CallbackURL    string                `bson:"callback_url" json:"callback_url"`
+// 	PaymentMethods []PaymentMethodClient `gorm:"type:jsonb" bson:"payment_methods" json:"payment_methods"`
+// 	FailCallback   string                `bson:"fail_callback" json:"fail_callback"`
+// 	Isdcb          string                `bson:"isdcb" json:"isdcb"`
+// 	UpdatedAt      time.Time             `bson:"updated_at" json:"updated_at"`
+// 	CreatedAt      time.Time             `bson:"created_at" json:"created_at"`
+// }

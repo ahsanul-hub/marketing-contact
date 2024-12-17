@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"app/repository"
 	"strings"
 )
 
@@ -36,6 +37,31 @@ func BeautifyIDNumber(mdn string, zero bool) string {
 	}
 
 	return mdn
+}
+
+func ByPrefixNumber(method string, userMdn string) (bool, error) {
+	// Log start time (optional)
+	// log.Printf("Settings@byPrefixNumber starts at %s", time.Now().Format("2006-01-02 15:04:05"))
+
+	exist := false
+	charging, err := repository.FindPaymentMethodBySlug(method, "") //getSettingsBySlug(method)
+	if err != nil {
+		return false, err
+	}
+
+	if charging != nil {
+		prefixes := charging.Prefix
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(userMdn, prefix) {
+				exist = true
+				break
+			}
+		}
+	}
+
+	// Log end time (optional)
+	// log.Printf("Settings@byPrefixNumber ends at %s", time.Now().Format("2006-01-02 15:04:05"))
+	return exist, nil
 }
 
 // isNumeric checks if a string is numeric

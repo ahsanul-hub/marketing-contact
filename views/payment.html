@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Page</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        /* align-items: ; */
+        height: 100vh;
+        background-color: #f8f9fa;
+        font-family: "Roboto", sans-serif;
+      }
+      .payment-container {
+        background: white;
+        margin-top: 50px !important;
+        padding-top: 16px !important;
+        padding: 20px;
+        border-radius: 8px;
+        height: fit-content;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 400px;
+      }
+      .btn-custom {
+        width: 100%;
+        cursor: pointer;
+      }
+      .vertical-divider {
+        border-left: 1px solid #ccc;
+        height: 100%;
+        position: absolute;
+        left: 50%;
+        top: 0;
+        transform: translateX(-50%);
+      }
+      .divider {
+        margin: 20px 0;
+      }
+      .custom-hr {
+        border: 0;
+        height: 1px;
+        background-color: #e5dddd;
+      }
+      .vertical-divider {
+        border-left: 1px solid #ccc;
+        height: auto;
+      }
+      .btn-custom {
+        width: 100%;
+        background-color: white;
+        border: 1px solid #5e5e5e;
+        padding: 6px;
+        font-size: 12px;
+        transition: background-color 0.3s;
+      }
+      .btn-next {
+        color: #0552bf;
+        border-top-right-radius: 4px;
+        border-bottom-right-radius: 4px;
+      }
+      .btn-back {
+        border-top-left-radius: 4px;
+        border-bottom-left-radius: 4px;
+      }
+      .btn-custom:hover {
+        background-color: #0552bf;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="payment-container">
+      <p style="font-size: 24px">{{ .PaymentMethodStr}}</p>
+      <div class="divider">
+        <hr class="custom-hr" />
+      </div>
+      <div style="display: flex">
+        <div style="width: 50%">
+          <h5 class="text-center">{{ .AppName }}</h5>
+          <h5 class="text-center">{{ .ItemName }}</h5>
+        </div>
+        <div style="width: 50%">
+          <h4 class="text-center">Total: {{ .Currency }} {{ .Price}}</h4>
+        </div>
+      </div>
+
+      <form action="/api/payment" method="POST" id="paymentForm">
+        <div class="form-group">
+          <label for="userMdn">Masukan Nomor HP:</label>
+          <br />
+          <input
+            type="text"
+            class="form-control"
+            id="userMdn"
+            style="
+              width: 96%;
+              margin-top: 12px;
+              height: 24px;
+              padding-left: 10px;
+            "
+            name="user_mdn"
+            placeholder="081234567899"
+            required
+          />
+        </div>
+        <div style="width: 100%; display: flex; margin-top: 12px">
+          <button
+            type="button"
+            class="btn btn-secondary btn-custom btn-back"
+            onclick="window.history.back();"
+          >
+            Kembali
+          </button>
+          <button type="submit" class="btn btn-primary btn-custom btn-next">
+            Lanjut
+          </button>
+        </div>
+        <input type="hidden" name="price" value="{{ .Price }}" />
+        <input type="hidden" name="amount" value="{{ .Amount }}" />
+        <input type="hidden" name="client_appkey" value="{{ .ClientAppKey }}" />
+        <input
+          type="hidden"
+          name="payment_method"
+          value="{{ .PaymentMethod }}"
+        />
+
+        <input type="hidden" name="app_name" value="{{ .AppName }}" />
+        <input
+          type="hidden"
+          name="merchant_transaction_id"
+          value="{{ .MtID }}"
+        />
+        <input type="hidden" name="user_id" value="{{ .UserId }}" />
+        <input
+          type="hidden"
+          name="merchant_transaction_id"
+          value="{{ .MtID }}"
+        />
+        <input type="hidden" name="item_name" value="{{ .ItemName }}" />
+        <input type="hidden" name="app_id" value="{{ .AppID }}" />
+        <input type="hidden" name="token" value="{{ .Token }}" />
+      </form>
+      <p class="text-center" style="font-size: 14px">
+        Harga termasuk pajak dan biaya layanan.
+      </p>
+    </div>
+    <script>
+      document
+        .getElementById("paymentForm")
+        .addEventListener("submit", function (event) {
+          event.preventDefault();
+
+          const formData = new FormData(this);
+
+          const data = Object.fromEntries(formData.entries());
+
+          const dataFormated = {
+            amount: parseFloat(data.amount),
+            price: parseFloat(data.price),
+            user_mdn: data.user_mdn,
+            client_appkey: data.client_appkey,
+            payment_method: data.payment_method,
+            app_name: data.app_name,
+            merchant_transaction_id: data.merchant_transaction_id,
+            user_id: data.user_id,
+            item_name: data.item_name,
+            app_id: data.app_id,
+            redirect_url: data.redirect_url,
+          };
+
+          fetch("/api/payment", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              appid: data.app_id,
+              appkey: data.client_appkey,
+              token: data.token,
+            },
+            body: JSON.stringify(dataFormated),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              if (data.success) {
+                window.location.href = `/api/success-payment/${dataFormated.user_mdn}/${data.token}`;
+              } else {
+                alert(data.message || "Transaksi gagal");
+              }
+            })
+            .catch((error) => {
+              console.error("Error:", error);
+            });
+        });
+    </script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  </body>
+</html>

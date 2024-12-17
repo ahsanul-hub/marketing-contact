@@ -9,89 +9,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
 
-func SendPaymentSmartfren(data model.InputPaymentRequest, appKey string, bodySign string) (error, map[string]interface{}) {
-	// configGateway, err := config
-	config, _ := config.GetGatewayConfig("smartfren")
-	amount := data.Amount
-
-	// if !ok {
-	// 	return fmt.Errorf("keyword for amount %d not found in config", amount), nil
-
-	// }
-
-	serviceNode := config.Options["serviceNode"].(string)
-	// msisdn := data.UserMDNP
-	msgCoding := config.Options["msgCoding"]
-	sender := config.Options["sender"]
-	smscId := config.Options["smscId"]
-	bearerId := config.Options["bearerId"]
-
-	smsCode := generateSMSCode()
-	amountStr := strconv.FormatFloat(float64(amount), 'f', 0, 32)
-	keyword := config.Denom[amountStr]
-	hexMsg := keyword["keyword"] + " " + smsCode // Assuming 'value' is the key for the string in the map
-
-	query := url.Values{}
-	query.Add("serviceNode", serviceNode)
-	// query.Add("msisdn", msisdn)
-	query.Add("keyword", keyword["keyword"]) // Assuming 'keyword' is the key for the string in the map
-	query.Add("msgCoding", msgCoding.(string))
-	query.Add("sender", sender.(string))
-	query.Add("hexMsg", hexMsg)
-	query.Add("smscId", smscId.(string))
-	query.Add("bearerId", bearerId.(string))
-
-	gateway := config.Options["ip"].(string) + ":" + config.Options["port"].(string) + "/moReq"
-
-	requestURL := gateway + "?" + query.Encode()
-
-	// Encode request data to JSON
-	jsonData, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("error marshalling data: %v", err), nil
-	}
-
-	// Create a new HTTP request
-	req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return fmt.Errorf("error creating request: %v", err), nil
-	}
-
-	// Set headers
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("appkey", appKey)
-	req.Header.Set("bodysign", bodySign)
-
-	// Send the request
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return fmt.Errorf("error sending request: %v", err), nil
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received non-200 response status: %s", resp.Status), nil
-	}
-
-	responseData := map[string]interface{}{
-		"requestURL": requestURL,
-		"sms_code":   smsCode,
-		"keyword":    keyword,
-	}
-
-	return nil, responseData
-
-}
-
-func SmartfrenTriyakomFlexible(data model.InputPaymentRequest) (error, map[string]interface{}) {
-	config, _ := config.GetGatewayConfig("smartfren_triyakom_flex2")
+func IndosatTriyakom(data model.InputPaymentRequest) (error, map[string]interface{}) {
+	config, _ := config.GetGatewayConfig("indosat_triyakom")
 	arrayOptions := config.Options["production"].(map[string]interface{})
 	currentTime := time.Now()
 	// arrayDenoms := config.Denom
@@ -100,7 +23,7 @@ func SmartfrenTriyakomFlexible(data model.InputPaymentRequest) (error, map[strin
 	// itemID := arrayDenoms[strconv.FormatFloat(data.Amount, 'f', 0, 64)]
 	cbParam := "6749a928109k5273128b7576" //data.TransactionID
 	date := currentTime.Format("1/2/2006")
-	secretKey := "DE9D7033E2584FCBBC479FFD654sF44C7" //arrayOptions["seckey"].(string)
+	secretKey := "DE9D7033E2584FCBBC479FFD654F44C7" //arrayOptions["seckey"].(string)
 	amount := data.Amount
 
 	// Generate token sesuai dengan spesifikasi
@@ -122,7 +45,7 @@ func SmartfrenTriyakomFlexible(data model.InputPaymentRequest) (error, map[strin
 		"item_desc":  "item test desc",
 		"cbparam":    cbParam,
 		"token":      token,
-		"op":         "SF",
+		"op":         "ISAT",
 		"msisdn":     data.UserMDN,
 	}
 

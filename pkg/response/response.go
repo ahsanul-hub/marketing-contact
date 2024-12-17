@@ -9,8 +9,15 @@ func Response(c *fiber.Ctx, status int, message string) error {
 }
 
 func ResponseSuccess(c *fiber.Ctx, status int, data interface{}) error {
+
+	if data != nil {
+		return c.Status(status).JSON(fiber.Map{
+			"success": true,
+			"data":    data,
+		})
+	}
+
 	return c.Status(status).JSON(fiber.Map{
 		"success": true,
-		"data":    data,
 	})
 }

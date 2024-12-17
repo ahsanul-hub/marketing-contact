@@ -1,12 +1,20 @@
 package handler
 
 import (
+	"app/config"
 	"app/dto/http"
 	"app/dto/model"
+	"app/helper"
+	"app/lib"
+	"app/pkg/response"
 	"app/repository"
+	"context"
+	"log"
 	"math"
 
 	"fmt"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func contains(denom []float64, amount float64) bool {
@@ -18,11 +26,17 @@ func contains(denom []float64, amount float64) bool {
 	return false
 }
 
+type CallbackMerchantJob struct {
+	CallbackUrl   string
+	TransactionID string
+	StatusCode    int
+	Message       string
+}
+
 func CheckedTransaction(paymentRequest *http.CreatePaymentRequest, client *model.Client) map[string]interface{} {
 	var chargingPrice float64
 
-	fmt.Printf("Processing payment: %+v\n", paymentRequest)
-	fmt.Printf("Client details: %+v\n", client)
+	// fmt.Printf("Client details: %+v\n", client)
 
 	if len(paymentRequest.UserID) > 50 || len(paymentRequest.MerchantTransactionID) > 36 || len(paymentRequest.ItemName) > 25 {
 		fmt.Printf("Too long parameters: %+v\n", paymentRequest)
@@ -45,10 +59,13 @@ func CheckedTransaction(paymentRequest *http.CreatePaymentRequest, client *model
 	case "indosat_huawei", "indosat_mimopay", "indosat_simplepayment":
 		paymentMethod = "indosat_airtime"
 	}
+	// log.Println("test log")
 
 	arrPaymentMethod, err := repository.FindPaymentMethodBySlug(paymentMethod, "")
 	if err != nil {
+		log.Println(err.Error())
 		return map[string]interface{}{
+			"message": err.Error(),
 			"success": false,
 			"retcode": "E0005",
 		}
@@ -57,39 +74,84 @@ func CheckedTransaction(paymentRequest *http.CreatePaymentRequest, client *model
 	var route string
 
 	// Loop through client's payment methods
+
+	// route di paymentmethod client bisa status int atau  array denom -aldi
+
+	// log.Printf("payment: %+v\n", arrPaymentMethod)
+
+	// Checking the payment method on the client is matched with the payment_method from the request. If it is not flexible, take a route in the payment method that contains the amount. If it is flexible, take a route that has a value of 1.
 	for _, arrayPayments := range client.PaymentMethods {
+
 		if arrayPayments.Name == paymentMethod {
+
 			arrRoutes := arrayPayments.Route
-			if !arrPaymentMethod.Value.Flexible {
-				// Non-flexible payment method
+			if !arrPaymentMethod.Flexible {
+
+				// for routename, arrayDenom := range arrRoutes {
+				// 	denom := arrayDenom
+				// 	// Check if the amount is in the denominated range
+				// 	log.Printf("routeName: %v    ", denom)
+
+				// 	if strSlice, ok := denom.([]string); ok && containsString(strSlice, fmt.Sprintf("%.0f", paymentRequest.Amount)) {
+
+				// 		route = routename
+				// 		break
+				// 	} else {
+				// 		fmt.Printf("Invalid type for arrayDenom: %T\n", arrayDenom)
+				// 	}
+				// }
+				// Metode pembayaran non-fleksibel
 				for routename, arrayDenom := range arrRoutes {
-					// Type assertion to []int
-					// if denom, ok := arrayDenom.([]string); ok {
-					// 	// Check if the amount is in the denominated range
-					// 	if contains(denom, paymentRequest.Amount) {
+
+					log.Println("routename and arrDenom: ", routename, arrayDenom)
+					// Cek apakah arrayDenom adalah slice interface{}
+
+					// if denomSlice, ok := arrayDenom.(primitive.A); ok {
+					// 	// Konversi ke slice string
+					// 	stringSlice := make([]string, len(denomSlice))
+					// 	for i, v := range denomSlice {
+					// 		stringSlice[i] = fmt.Sprintf("%v", v) // Mengkonversi setiap elemen ke string
+					// 	}
+
+					// 	// Cek apakah amount ada dalam denominasi
+					// 	if containsString(stringSlice, fmt.Sprintf("%.0f", paymentRequest.Amount)) {
 					// 		route = routename
 					// 		break
 					// 	}
 					// } else {
 					// 	fmt.Printf("Invalid type for arrayDenom: %T\n", arrayDenom)
 					// }
-					denom := arrayDenom
-					// Check if the amount is in the denominated range
-					if containsString(denom, fmt.Sprintf("%.0f", paymentRequest.Amount)) {
-						route = routename
-						break
-					} else {
-						fmt.Printf("Invalid type for arrayDenom: %T\n", arrayDenom)
-					}
 				}
+
+				// for routename, arrayDenom := range arrRoutes {
+
+				// 	if denom, exists := arrRoutes["xl_twt"]; exists {
+				// 		if denomSlice, ok := arrayDenom.(primitive.A); ok {
+				// 			// Konversi ke slice string
+				// 			stringSlice := make([]string, len(denomSlice))
+				// 			for i, v := range denomSlice {
+				// 				stringSlice[i] = fmt.Sprintf("%v", v) // Mengkonversi setiap elemen ke string
+				// 			}
+
+				// 			// Cek apakah amount ada dalam denominasi
+				// 			if contains(stringSlice, fmt.Sprintf("%.0f", paymentRequest.Amount)) {
+				// 				route = routename
+				// 				// log.Println(route)
+				// 				// log.Println("Using non-flexible route.")
+				// 			}
+				// 		} else {
+				// 			log.Printf("Invalid type for xl_twt: %T\n", denom)
+				// 		}
+				// 	}
+
+				// }
 			} else {
-				// Flexible payment method
-				for routename, value := range arrRoutes {
-					if containsString(value, "1") {
-						route = routename
-						break
-					}
-				}
+				// for routename, value := range arrRoutes {
+				// 	if valueStr, ok := value.(string); ok && valueStr == "1" {
+				// 		route = routename
+				// 		break
+				// 	}
+				// }
 			}
 		}
 	}
@@ -101,13 +163,15 @@ func CheckedTransaction(paymentRequest *http.CreatePaymentRequest, client *model
 		}
 	}
 
-	// TODO
-	// perlu checksupported di repository, check code legacy
-	// check func search_sub_array di code legacy
+	// 	// TODO
+	// 	// perlu checksupported di repository, check code legacy
+	// 	// check func search_sub_array di code legacy
 
+	// 	// TODO
+	// 	// The logic for define the charging price is not yet complete
 	arrPaymentMethodRoute, err := repository.FindPaymentMethodBySlug(route, "")
 
-	if arrPaymentMethodRoute.Value.Flexible {
+	if arrPaymentMethodRoute.Flexible {
 		if paymentRequest.Amount < arrPaymentMethodRoute.MinimumDenom {
 			if client.Testing == 0 {
 				return map[string]interface{}{
@@ -119,56 +183,56 @@ func CheckedTransaction(paymentRequest *http.CreatePaymentRequest, client *model
 		} else {
 			switch {
 			case paymentMethod == "indosat_airtime2" && route == "indosat_triyakom4":
-				chargingPrice = paymentRequest.Amount + math.Round(0.11*paymentRequest.Amount)
+				chargingPrice = chargingPrice + math.Round(0.11*chargingPrice)
 			case paymentMethod == "gopay" && route == "gopay_midtrans":
 				clientName := client.ClientName
 				if clientName == "Topfun 2 New Qiuqiu" || clientName == "Topfun" || clientName == "SPOLIVE" || clientName == "Tricklet (Hong Kong) Limited" {
-					chargingPrice = paymentRequest.Amount
+					chargingPrice = chargingPrice
 				} else {
-					chargingPrice = paymentRequest.Amount + math.Round(0.11*paymentRequest.Amount)
+					chargingPrice = chargingPrice + math.Round(0.11*chargingPrice)
 				}
 			case paymentMethod == "shopeepay" && route == "shopeepay_midtrans":
 				clientName := client.ClientName
 				if clientName == "Tricklet (Hong Kong) Limited" {
-					chargingPrice = paymentRequest.Amount
+					chargingPrice = chargingPrice
 				} else {
-					chargingPrice = paymentRequest.Amount + math.Round(0.11*paymentRequest.Amount)
+					chargingPrice = chargingPrice + math.Round(0.11*chargingPrice)
 				}
 			case paymentMethod == "alfamart_otc" && route == "alfamart_faspay":
 				clientName := client.ClientName
 				if clientName == "Tricklet (Hong Kong) Limited" {
-					chargingPrice = paymentRequest.Amount
+					chargingPrice = chargingPrice
 				} else if clientName == "Redigame" {
-					chargingPrice = paymentRequest.Amount + 6000
+					chargingPrice = chargingPrice + 6000
 				} else {
-					chargingPrice = paymentRequest.Amount + 6500
+					chargingPrice = chargingPrice + 6500
 				}
 			case paymentMethod == "indomaret_otc" && route == "indomaret_otc_mst":
 				clientName := client.ClientName
-				subtotal := paymentRequest.Amount
+				subtotal := chargingPrice
 				var adminFee, totalAmount float64
 				switch clientName {
 				case "Tricklet (Hong Kong) Limited":
 					adminFee = 0
 				case "Redigame":
-					adminFee = ((0.06 * paymentRequest.Amount) + 1000) / (1 - 0.06)
+					adminFee = ((0.06 * chargingPrice) + 1000) / (1 - 0.06)
 				case "Higo Game PTE LTD":
-					adminFee = ((0.07 * paymentRequest.Amount) + 1000) / (1 - 0.07)
+					adminFee = ((0.07 * chargingPrice) + 1000) / (1 - 0.07)
 				default:
-					adminFee = ((0.075 * paymentRequest.Amount) + 1000) / (1 - 0.075)
+					adminFee = ((0.075 * chargingPrice) + 1000) / (1 - 0.075)
 				}
 				totalAmount = subtotal + adminFee
 				chargingPrice = math.Round(totalAmount/100) * 100
 			case paymentMethod == "smartfren_airtime2" && (route == "smartfren_triyakom_flex" || route == "smartfren_triyakom_flex2"):
-				chargingPrice = paymentRequest.Amount + math.Round(0.11*paymentRequest.Amount)
+				chargingPrice = chargingPrice + math.Round(0.11*chargingPrice)
 			case paymentMethod == "three_airtime2" && route == "three_triyakom_flex2":
-				chargingPrice = paymentRequest.Amount + math.Round(0.11*paymentRequest.Amount)
+				chargingPrice = chargingPrice + math.Round(0.11*chargingPrice)
 			default:
-				chargingPrice = paymentRequest.Amount
+				chargingPrice = chargingPrice
 			}
 
 			if client.ClientName == "Zingplay International PTE,. LTD" && paymentMethod == "ovo_wallet" && route == "ovo" {
-				chargingPrice = paymentRequest.Amount + math.Round(0.11*paymentRequest.Amount)
+				chargingPrice = chargingPrice + math.Round(0.11*chargingPrice)
 			}
 		}
 
@@ -177,30 +241,35 @@ func CheckedTransaction(paymentRequest *http.CreatePaymentRequest, client *model
 		// TODO
 		// recheck jika perlu pengecekan denom saat request charging, bisa check code legacy
 
-		// statusDenoms := arrPaymentMethodRoute.Value.Status.(map[float64]string)
-		// status := false
+		if arrPaymentMethodRoute.IsAirtime == "1" {
+			// Check length of MDN
+			if len(helper.BeautifyIDNumber(paymentRequest.UserMDN, false)) > 14 {
+				return map[string]interface{}{
+					"success": false,
+					"retcode": "E0016",
+				}
+			}
 
-		// if denom == paymentRequest.Amount && val == "1" {
-		// 	status = true
-		// 	break
-		// }
+			_, err := helper.ByPrefixNumber(route, helper.BeautifyIDNumber(paymentRequest.UserMDN, false))
+			if err != nil {
+				return map[string]interface{}{
+					"success": false,
+					"retcode": "E0016",
+				}
+			}
+		}
 
-		// if !status {
-		// 	return map[string]interface{}{
-		// 		"success": false,
-		// 		"retcode": "E0014",
-		// 	}
-		// }
-
-		chargingPrice, err = repository.GetPrice(route, paymentRequest.Amount)
+		price, _ := repository.GetPrice(route, paymentRequest.Amount)
+		chargingPrice = float64(price)
 	}
+	chargingPrice = float64(paymentRequest.Amount) + math.Round(0.11*float64(paymentRequest.Amount))
 
 	return map[string]interface{}{
 		"success":        true,
 		"retcode":        "E0020",
 		"mobile":         client.Mobile,
 		"testing":        client.Testing,
-		"charging_price": chargingPrice,
+		"charging_price": float32(chargingPrice),
 		"route":          route,
 		"payment_method": paymentMethod,
 	}
@@ -213,4 +282,151 @@ func containsString(slice []string, str string) bool {
 		}
 	}
 	return false
+}
+
+func CreateTransaction(c *fiber.Ctx) error {
+	var transaction model.InputPaymentRequest
+	if err := c.BodyParser(&transaction); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	if transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amounr must not be empty",
+		})
+	}
+	arrClient, err := repository.FindClient(c.Get("appkey"), c.Get("appid"))
+
+	if err != nil {
+		return response.Response(c, fiber.StatusBadRequest, "E0001")
+	}
+
+	createdTransId, err := repository.CreateTransaction(context.Background(), &transaction, arrClient)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	switch transaction.PaymentMethod {
+	case "xl_airtime":
+		chargingResponse, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
+		if err != nil {
+
+			log.Println("Charging request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"message": "Charging successful",
+			"data":    chargingResponse,
+		})
+	case "smartfren":
+
+	}
+
+	return response.ResponseSuccess(c, fiber.StatusOK, "Transaction created successfully")
+}
+
+func CreateTransactionV1(c *fiber.Ctx) error {
+	token := c.Get("token")
+
+	var transaction model.InputPaymentRequest
+	if err := c.BodyParser(&transaction); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	if transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amounr must not be empty",
+		})
+	}
+	arrClient, err := repository.FindClient(c.Get("appkey"), c.Get("appid"))
+
+	if err != nil {
+		return response.Response(c, fiber.StatusBadRequest, "E0001")
+	}
+
+	createdTransId, err := repository.CreateTransaction(context.Background(), &transaction, arrClient)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	switch transaction.PaymentMethod {
+	case "xl_airtime":
+		chargingResponse, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
+		if err != nil {
+
+			log.Println("Charging request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"message": "Charging successful",
+			"token":   token,
+			"data":    chargingResponse,
+		})
+	case "smartfren":
+
+	}
+
+	return response.ResponseSuccess(c, fiber.StatusOK, "Transaction created successfully")
+}
+
+func GetTransactions(c *fiber.Ctx) error {
+
+	transactions, err := repository.GetAllTransactions(context.Background())
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    transactions,
+	})
+}
+
+func GetTransactionByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	transaction, err := repository.GetTransactionByID(context.Background(), id)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    transaction,
+	})
+}
+
+func CheckTrans(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	config, _ := config.GetGatewayConfig("xl_twt")
+	arrayOptions := config.Options["development"].(map[string]interface{})
+
+	token, _ := lib.GetAccessTokenXl(arrayOptions["clientid"].(string), arrayOptions["clientsecret"].(string))
+
+	status, err := lib.CheckTransactions(id, "RDSN", token)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    status,
+	})
 }

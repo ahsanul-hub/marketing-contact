@@ -9,7 +9,7 @@ import (
 
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
-	"gorm.io/driver/mysql"
+	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
@@ -17,17 +17,28 @@ var MongoClient *mongo.Client
 
 func ConnectDB() {
 	var err error
-	dsn := fmt.Sprintf("root:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", config.Config("DB_PASSWORD", ""), config.Config("DB_HOST", "localhost"), config.Config("DB_PORT", ""), config.Config("DB_NAME", ""))
-	fmt.Println(dsn)
 
-	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	// Construct the Data Source Name (DSN) for PostgreSQL
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		config.Config("DB_HOST", "localhost"),
+		config.Config("DB_USER", ""),
+		config.Config("DB_PASSWORD", ""),
+		config.Config("DB_NAME", ""),
+		config.Config("DB_PORT", "5432"))
+
+	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	if err != nil {
-		panic("failed to connect database")
+		panic("failed to connect to database")
 	}
 
 	fmt.Println("Connection Opened to Database")
-	DB.AutoMigrate(&model.Product{}, &model.User{})
+
+	// Migrasi model yang diinginkan
+	err = DB.AutoMigrate(&model.User{}, &model.Client{}, &model.Transactions{}, &model.PaymentMethodClient{}, &model.PaymentMethod{}, &model.SettlementClient{})
+	if err != nil {
+		log.Fatalf("Failed to migrate database: %v", err)
+	}
 	fmt.Println("Database Migrated")
 }
 

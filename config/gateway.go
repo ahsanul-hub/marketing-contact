@@ -96,6 +96,72 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 			},
 			Lang: "id",
 		},
+		"smartfren_triyakom_flex2": {
+			DirView: "smartfren_triyakom_flex2",
+			Driver:  "Triyakom_SmartfrenFlexible2",
+			Options: map[string]interface{}{
+				"development": map[string]interface{}{
+					"partnerid":   "REDIS",
+					"partnername": "Redision",
+					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"requestUrl":  "https://secure.ximpay.com/api/dev10SDPflex/Gopayment.aspx",
+					"confirmUrl":  "https://secure.ximpay.com/api/dev10SDPflex/Gopin.aspx",
+					"dir":         "smartfren_triyakom_flex2",
+				},
+				"production": map[string]interface{}{
+					"partnerid":   "REDIS",
+					"partnername": "Redision",
+					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"requestUrl":  "https://secure.ximpay.com/api/10SDPflex/Gopayment.aspx",
+					"confirmUrl":  "https://secure.ximpay.com/api/10SDPflex/Gopin.aspx",
+					"dir":         "smartfren_triyakom_flex2",
+				},
+			},
+			Lang: "id",
+		},
+		"indosat_triyakom": {
+			DirView: "indosat_triyakom",
+			Driver:  "Triyakom_Indosat",
+			Options: map[string]interface{}{
+				"development": map[string]interface{}{
+					"partnerid":   "REDIS",
+					"partnername": "Redision",
+					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"requestUrl":  "https://secure.ximpay.com/api/dev07/Gopayment.aspx",
+					"dir":         "indosat_triyakom",
+				},
+				"production": map[string]interface{}{
+					"partnerid":   "REDIS",
+					"partnername": "Redision",
+					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"requestUrl":  "https://secure.ximpay.com/api/07/Gopayment.aspx",
+					"dir":         "indosat_triyakom",
+				},
+			},
+			Lang: "id",
+		},
+		// [
+		// 	'dir_view'=>'indosat_triyakom',
+		// 	'driver'=>'Triyakom_Indosat',
+		// 	'options'=>[
+		// 		'development'=>[
+		// 			'partnerid'=>'REDIS',
+		// 			'partnername'=>'Redision',
+		// 			// 'seckey'=>'B42D3BC1D3AF4CE694209CC1FA69C7C6',
+		// 			'seckey'=>'DE9D7033E2584FCBBC479FFD654F44C7',
+		// 			'requestUrl'=>'https://secure.ximpay.com/api/dev07/Gopayment.aspx',
+		// 			'dir' => 'indosat_triyakom',
+
+		// 		],
+		// 		'production'=>[
+		// 			'partnerid'=>'REDIS',
+		// 			'partnername'=>'Redision',
+		// 			// 'seckey'=>'B42D3BC1D3AF4CE694209CC1FA69C7C6',
+		// 			'seckey'=>'DE9D7033E2584FCBBC479FFD654F44C7',
+		// 			'requestUrl'=>'https://secure.ximpay.com/api/07/Gopayment.aspx',
+		// 			'dir' => 'indosat_triyakom',
+
+		// 		],
 		// Tambahkan gateway lainnya di sini...
 	}
 

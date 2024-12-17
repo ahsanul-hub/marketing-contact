@@ -6,13 +6,21 @@ import (
 	"app/helper"
 	"app/lib"
 	"app/pkg/response"
-	. "app/repository"
+	"app/repository"
 	"context"
+	"encoding/json"
+	"log"
+	"math"
 	"strings"
+	"time"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
+	"github.com/patrickmn/go-cache"
 )
+
+var TransactionCache = cache.New(4*time.Minute, 5*time.Minute)
 
 func CreatePayment(c *fiber.Ctx) error {
 	headers := map[string]string{
@@ -24,11 +32,13 @@ func CreatePayment(c *fiber.Ctx) error {
 		"bodysign":  c.Get("bodysign"),
 	}
 
-	arrClient, err := FindClient(c.Get("appkey"), c.Get("appid"))
+	arrClient, err := repository.FindClient(c.Get("appkey"), c.Get("appid"))
 
 	if err != nil {
-		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
+
+	// log.Println(arrClient)
 
 	var req http.CreatePaymentRequest
 
@@ -50,21 +60,23 @@ func CreatePayment(c *fiber.Ctx) error {
 		})
 	}
 
+	// checksecret() cek code legacy
+
 	arrayTransactionCheck := CheckedTransaction(&req, arrClient)
 	if !arrayTransactionCheck["success"].(bool) {
 		return response.Response(c, fiber.StatusBadRequest, arrayTransactionCheck["retcode"].(string))
 	}
 
 	inputReq := model.InputPaymentRequest{
-		ClientAppKey:  headers["appkey"],
-		StatusCode:    "1001",
-		Status:        helper.GetStatusMessage("1001"), // Fungsi untuk mendapatkan deskripsi status
-		Mobile:        arrayTransactionCheck["mobile"].(string),
-		Testing:       arrayTransactionCheck["testing"].(bool),
+		ClientAppKey: headers["appkey"],
+		Status:       helper.GetStatusMessage("1001"),
+		Mobile:       arrayTransactionCheck["mobile"].(string),
+		// Testing:       arrayTransactionCheck["testing"].(bool),
 		Route:         arrayTransactionCheck["route"].(string),
 		PaymentMethod: arrayTransactionCheck["payment_method"].(string),
+		ItemName:      req.ItemName,
 		Currency:      "IDR",
-		Price:         arrayTransactionCheck["charging_price"].(float64),
+		Price:         arrayTransactionCheck["charging_price"].(uint),
 	}
 
 	// Beautify UserMDN
@@ -73,18 +85,21 @@ func CreatePayment(c *fiber.Ctx) error {
 	}
 
 	// Create the transaction order
-	transactionToken, err := CreateOrder(context.Background(), &inputReq, arrClient)
+	transactionToken, err := repository.CreateOrder(context.Background(), &inputReq, arrClient)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, "E4001: Database Error")
 	}
 
 	// Save timestamps for transaction
+
+	// Need check timestamp, check code legacy
 	// err = SaveTransactionTimestamp(transactionToken)
 	// if err != nil {
 	// 	return response.Response(c, fiber.StatusInternalServerError, "E4001: Failed to update transaction timestamps")
 	// }
 
 	// Return successful response
+	log.Println("inputReq: ", inputReq)
 
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
 		"token": transactionToken,
@@ -101,22 +116,10 @@ func TestPayment(c *fiber.Ctx) error {
 		})
 	}
 
-	// URL endpoint untuk pembayaran
-	url := "http://3.1.41.116/api/v1/create"
+	err, _ := lib.SmartfrenTriyakomFlexible(requestData)
 
-	// AppKey dan BodySign (contoh)
-	secretKey := "72Zwth2Dd75yuYzRhgKhGcsdf"
-	appKey := "7d51a9a750575a294df94a78bde79628"
-	bodySign, err := helper.CreateBodySign(requestData, secretKey) // Anda harus membuat ini berdasarkan data yang diinginkan
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"message": "Failed to create body sign: " + err.Error(),
-		})
-	}
+	// err, res := lib.SendData(requestData)
 
-	// Kirim permintaan pembayaran
-	err = lib.SendPaymentRequest(url, requestData, appKey, bodySign)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
@@ -127,5 +130,141 @@ func TestPayment(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Payment successful",
+		// "data:":   res,
 	})
+}
+
+func CreateOrder(c *fiber.Ctx) error {
+	var input model.InputPaymentRequest
+
+	// receivedBodysign := c.Get("bodysign")
+
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	if input.UserId == "" || input.MtTid == "" || input.PaymentMethod == "" || input.Amount == 0 || input.ItemName == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "Missing required fields in request body",
+		})
+	}
+
+	arrClient, err := repository.FindClient(c.Get("appkey"), c.Get("appid"))
+
+	if err != nil {
+		return response.Response(c, fiber.StatusBadRequest, "E0001")
+	}
+
+	bodyJSON, _ := json.Marshal(input)
+
+	appSecret := arrClient.ClientSecret
+	expectedBodysign, _ := helper.GenerateBodySign(bodyJSON, appSecret)
+	log.Println("expectedBodysign", expectedBodysign)
+
+	// if receivedBodysign != expectedBodysign {
+	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+	// 		"success": false,
+	// 		"message": "Invalid bodysign",
+	// 	})
+	// }
+
+	transactionID := uuid.New().String()
+
+	amountFloat := float64(input.Amount)
+
+	input.Price = uint(amountFloat + math.Round(0.11*amountFloat))
+	input.AppID = c.Get("appid")
+	input.AppName = arrClient.ClientName
+
+	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
+
+	data := map[string]interface{}{
+		"token": transactionID,
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"retcode": "0000",
+		"message": "Successful",
+		"data":    data,
+	})
+}
+
+func PaymentPage(c *fiber.Ctx) error {
+
+	token := c.Params("token")
+
+	if cachedData, found := TransactionCache.Get(token); found {
+		inputReq := cachedData.(model.InputPaymentRequest)
+		var StrPaymentMethod string
+
+		currency := inputReq.Currency
+		if currency == "" {
+			currency = "IDR"
+		}
+
+		switch inputReq.PaymentMethod {
+		case "xl_airtime":
+			StrPaymentMethod = "XL"
+		case "telkomsel_airtime":
+			StrPaymentMethod = "Telkomsel"
+		}
+
+		// log.Println("inputreq:", inputReq)
+		return c.Render("payment", fiber.Map{
+			"AppName":          inputReq.AppName,
+			"PaymentMethod":    inputReq.PaymentMethod,
+			"PaymentMethodStr": StrPaymentMethod,
+			"ItemName":         inputReq.ItemName,
+			"Price":            inputReq.Price,
+			"Amount":           inputReq.Amount,
+			"Currency":         currency,
+			"ClientAppKey":     inputReq.ClientAppKey,
+			"AppID":            inputReq.AppID,
+			"MtID":             inputReq.MtTid,
+			"UserId":           inputReq.UserId,
+			"RedirectURL":      inputReq.RedirectURL,
+			"Token":            token,
+		})
+
+	}
+
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "Transaction not found"})
+}
+
+func SuccessPage(c *fiber.Ctx) error {
+	token := c.Params("token")
+	msisdn := c.Params("msisdn")
+
+	if cachedData, found := TransactionCache.Get(token); found {
+		inputReq := cachedData.(model.InputPaymentRequest)
+		var StrPaymentMethod string
+
+		currency := inputReq.Currency
+		if currency == "" {
+			currency = "IDR"
+		}
+
+		switch inputReq.PaymentMethod {
+		case "xl_airtime":
+			StrPaymentMethod = "XL"
+		case "telkomsel_airtime":
+			StrPaymentMethod = "Telkomsel"
+		}
+
+		log.Println("inputReq :", inputReq.UserMDN)
+		log.Println("inputReq :", inputReq.RedirectURL)
+
+		return c.Render("success_payment", fiber.Map{
+			"PaymentMethodStr": StrPaymentMethod,
+			"Msisdn":           msisdn,
+			"RedirectURL":      inputReq.RedirectURL,
+		})
+	}
+
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "Error"})
 }

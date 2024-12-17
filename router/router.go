@@ -13,24 +13,34 @@ func SetupRoutes(app *fiber.App) {
 	// Middleware
 	api := app.Group("/api", logger.New())
 	api.Get("/", handler.Hello)
-	api.Post("/create", handler.CreatePayment)
+	api.Post("/create", handler.CreateOrder)
+	api.Post("/payment", handler.CreateTransactionV1)
+	api.Post("/transaction", handler.CreateTransaction)
+	api.Get("/transactions", handler.GetTransactions)
+	api.Get("/transaction/:id", handler.GetTransactionByID)
+	api.Get("/check/:id", handler.CheckTrans)
 	api.Post("/test-payment", handler.TestPayment)
+	api.Get("/order/:appid/:token", handler.PaymentPage)
+	api.Get("/success-payment/:msisdn/:token", handler.SuccessPage)
 
 	// Auth
-	auth := api.Group("/auth")
-	auth.Post("/login", handler.Login)
+	// auth := api.Group("/auth")
 
 	// User
+
 	user := api.Group("/user")
-	user.Get("/:id", handler.GetUser)
+	user.Post("/login", handler.Login)
 	user.Post("/register", handler.CreateUser)
 	user.Patch("/:id", middleware.Protected(), handler.UpdateUser)
 	user.Delete("/:id", middleware.Protected(), handler.DeleteUser)
 
-	// Product
-	product := api.Group("/product")
-	product.Get("/", handler.GetAllProducts)
-	product.Get("/:id", handler.GetProduct)
-	product.Post("/", middleware.Protected(), handler.CreateProduct)
-	product.Delete("/:id", middleware.Protected(), handler.DeleteProduct)
+	admin := api.Group("/admin", middleware.Protected())
+	admin.Get("/users", handler.GetUser)
+	admin.Delete("/user/:id", handler.DeleteUser)
+	admin.Post("/merchant", middleware.AdminOnly(false), handler.AddMerchant)
+	admin.Put("/merchant/:clientID", handler.UpdateMerchant)
+	admin.Get("/merchants", handler.GetAllMerchants)
+	admin.Get("/merchant/:clientID", handler.GetMerchantByAppID)
+	admin.Delete("/merchant/:clientID", handler.DeleteMerchant)
+
 }

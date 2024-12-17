@@ -1,46 +1,27 @@
 package model
 
-// type Value struct {
-// 	Status     int                `json:"status"`
-// 	Denom      map[string]float64 `json:"denom"`
-// 	DailyLimit int                `json:"daily_limit"`
-// }
-
-// type PaymentMethod struct {
-// 	ID           string  `json:"_id"`
-// 	Slug         string  `json:"slug"`
-// 	Description  string  `json:"description"`
-// 	Flexible     bool    `json:"flexible"`
-// 	IsAirtime    bool    `json:"is_airtime"`
-// 	MinimumDenom float64 `json:"minimum_denom"`
-// 	Route        string  `json:"route"`
-
-// 	Value Value `json:"value"`
-// }
+import "time"
 
 type PaymentMethod struct {
-	ID           string   `json:"_id"`
-	Slug         string   `json:"slug"`
-	Description  string   `json:"description"`
-	Value        Value    `json:"value"`
-	Route        []string `json:"route"`
-	Type         string   `json:"type"`
-	Expired      string   `json:"expired"`
-	Report       string   `json:"report"`
-	JSONReturn   string   `json:"json_return"`
-	Parent       string   `json:"parent"`
-	IsAirtime    string   `json:"is_airtime"`
-	MinimumDenom float64  `json:"minimum_denom"`
-	Disabled     string   `json:"disabled"`
-	UpdatedAt    string   `json:"updated_at"`
-}
-
-type Value struct {
-	Flexible    bool              `json:"flexible"`
-	Status      string            `json:"status"`
-	Msisdn      string            `json:"msisdn"`
-	StatusDenom map[string]string `json:"status_denom"`
-	Denom       []float64         `json:"denom"`
-	Prefix      []string          `json:"prefix"`
-	DailyLimit  string            `json:"daily_limit"`
+	ID           uint              `gorm:"primaryKey;autoIncrement" json:"id"`
+	Slug         string            `gorm:"type:VARCHAR(255);not null" json:"slug"`
+	Description  string            `gorm:"type:TEXT;not null" json:"description"`
+	Route        []string          `gorm:"type:TEXT" json:"route"`
+	Type         string            `gorm:"type:VARCHAR(50);not null" json:"type"`
+	Expired      string            `gorm:"type:TIMESTAMPTZ" json:"expired"`
+	Report       string            `gorm:"type:TEXT;not null" json:"report"`
+	JSONReturn   string            `gorm:"type:TEXT;not null" json:"json_return"`
+	Parent       string            `gorm:"type:VARCHAR(50)" json:"parent"`
+	IsAirtime    string            `gorm:"type:VARCHAR(10);not null" json:"is_airtime"`
+	MinimumDenom float32           `gorm:"type:FLOAT;not null" json:"minimum_denom"`
+	Disabled     string            `gorm:"type:VARCHAR(10);not null" json:"disabled"`
+	Flexible     bool              `gorm:"not null" json:"flexible"`
+	Status       string            `gorm:"type:VARCHAR(10);not null" json:"status"`
+	Msisdn       string            `gorm:"type:VARCHAR(15)" json:"msisdn"`
+	StatusDenom  map[string]string `gorm:"type:JSONB" json:"status_denom"`
+	Prefix       []string          `gorm:"type:TEXT" json:"prefix"`
+	Denom        []string          `gorm:"type:TEXT" json:"denom"`
+	DailyLimit   int               `gorm:"not null" json:"daily_limit"`
+	UpdatedAt    time.Time         `gorm:"not null" json:"updated_at"`
+	CreatedAt    time.Time         `gorm:"not null" json:"created_at"`
 }

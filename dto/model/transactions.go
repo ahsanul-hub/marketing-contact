@@ -5,51 +5,59 @@ import (
 )
 
 type Transactions struct {
-	ID                       uint `gorm:"primaryKey" json:"id"`
-	Mt1Id                    string
-	BersamaBookingId         string `json:"bersama_booking_id"`
-	SmsCode                  string
-	MerchantName             string `json:"merchant_name"`
-	Keyword                  string
-	Otp                      int       `json:"otp"`
-	TcashId                  string    `json:"tcach_id"`
-	VaBcadynamicFaspayBillno int       ` json:"va_bca"`
-	MtTid                    int       `json:"mt_tid"`
-	DisbursementId           string    `json:"disbursement_id"`
-	PaymentMethod            string    `json:"payment_method"`
-	StatusCode               int       `json:"status_code"`
-	ItemName                 string    `json:"item_name"`
-	Route                    string    `json:"route"`
-	MdmTrxID                 string    `json:"mdm_trx_id"`
-	Timestamp                time.Time `json:"timestamp"`
-	Stan                     string    `json:"json"`
-	Amount                   float64   `json:"amount" gorm:"amount"`
-	ClientAppKey             string    `json:"client_appkey" gorm:"client_appkey"`
-	AppID                    string    `json:"appid"`
-	AppKey                   string    `json:"appkey"`
-	Testing                  bool      `json:"testing"`
-	Token                    string    `json:"token"`
-	Currency                 string    `json:"currency"`
-	Price                    float64   `json:"price"`
-	BodySign                 string    `json:"bodysign"`
-	UserMDN                  string    `json:"user_mdn"`
-	RedirectURL              string    `json:"redirect_url"`
-	RedirectTarget           string    `json:"redirect_target"`
-	CreatedAt                time.Time `json:"created_at"`
-	UpdatedAt                time.Time `json:"updated_at"`
+	ID                       string     `gorm:"size:50;primaryKey" json:"u_id"`
+	BersamaBookingId         string     `gorm:"type:VARCHAR(255);not null" json:"bersama_booking_id"`
+	SmsCode                  string     `gorm:"type:VARCHAR(255)"`
+	MerchantName             string     `gorm:"type:VARCHAR(255);not null" json:"merchant_name"`
+	Keyword                  string     `gorm:"type:VARCHAR(255)"`
+	Otp                      int        `json:"otp"`
+	TcashId                  string     `gorm:"type:VARCHAR(255)" json:"tcach_id"`
+	VaBcadynamicFaspayBillno int        `gorm:"type:INTEGER" json:"va_bca"`
+	MtTid                    string     `gorm:"type:VARCHAR(255)" json:"merchant_transaction_id"`
+	DisbursementId           string     `gorm:"type:VARCHAR(255)" json:"disbursement_id"`
+	PaymentMethod            string     `gorm:"type:VARCHAR(255)" json:"payment_method"`
+	StatusCode               int        `gorm:"type:INTEGER" json:"status_code"`
+	ItemName                 string     `gorm:"type:VARCHAR(255);not null" json:"item_name"`
+	Route                    string     `gorm:"type:TEXT" json:"route"`
+	MdmTrxID                 string     `gorm:"type:VARCHAR(255)" json:"mdm_trx_id"`
+	UserId                   string     `gorm:"type:VARCHAR(255)" json:"user_id"`
+	TimestampRequestDate     *time.Time `json:"timestamp_request_date"`
+	TimestampSubmitDate      *time.Time `json:"timestamp_submit_date"`
+	TimestampCallbackDate    *time.Time `json:"timestamp_callback_date"`
+	TimestampCallbackResult  string     `gorm:"type:VARCHAR(255)" json:"timestamp_callback_result"`
+	Stan                     string     `gorm:"type:VARCHAR(255)" json:"json"`
+	Amount                   uint       `gorm:"type:INTEGER" json:"amount"`
+	ClientAppKey             string     `gorm:"type:VARCHAR(255)" json:"client_appkey"`
+	AppID                    string     `gorm:"type:VARCHAR(255)" json:"appid"`
+	AppKey                   string     `gorm:"type:VARCHAR(255)" json:"appkey"`
+	Testing                  bool       `gorm:"type:BOOLEAN" json:"testing"`
+	Token                    string     `gorm:"type:VARCHAR(255)" json:"token"`
+	Currency                 string     `gorm:"type:VARCHAR(10)" json:"currency"`
+	NetSettlement            float32    `gorm:"type:INTEGER" json:"net_settlement"`
+	Price                    uint       `gorm:"type:INTEGER" json:"price"`
+	BodySign                 string     `gorm:"type:TEXT" json:"bodysign"`
+	UserMDN                  string     `gorm:"type:VARCHAR(15)" json:"user_mdn"`
+	RedirectURL              string     `gorm:"type:TEXT" json:"redirect_url"`
+	RedirectTarget           string     `gorm:"type:TEXT" json:"redirect_target"`
+	CreatedAt                time.Time  `gorm:"not null" json:"created_at"`
+	UpdatedAt                time.Time  `gorm:"not null" json:"updated_at"`
 }
 
 type InputPaymentRequest struct {
-	ClientAppKey  string  `json:"client_appkey"`  // App Key dari klien
-	StatusCode    string  `json:"status_code"`    // Status code dari transaksi
-	Status        string  `json:"status"`         // Deskripsi status
-	Mobile        string  `json:"mobile"`         // Nomor telepon pengguna
-	Testing       bool    `json:"testing"`        // Indikator apakah dalam mode testing
-	Route         string  `json:"route"`          // Rute transaksi
-	PaymentMethod string  `json:"payment_method"` // Metode pembayaran yang digunakan
-	Currency      string  `json:"currency"`       // Mata uang transaksi
-	Price         float64 `json:"price"`          // Harga atau jumlah transaksi
-	Amount        float64 `json:"amount"`         // Harga atau jumlah transaksi
-	ItemName      float64 `json:"item_name"`      // Harga atau jumlah transaksi
-	UserMDN       string  `json:"user_mdn"`       // Nomor telepon pengguna (format sudah dirapikan)
+	ClientAppKey  string `json:"client_appkey"`
+	AppName       string `json:"app_name"`
+	AppID         string `json:"app_id"`
+	Status        string `json:"status"`
+	MtTid         string `json:"merchant_transaction_id"`
+	Mobile        string `json:"mobile"`
+	Testing       bool   `json:"testing"`
+	Route         string `json:"route"`
+	PaymentMethod string `json:"payment_method"`
+	UserId        string `json:"user_id"`
+	Currency      string `json:"currency"`
+	Price         uint   `json:"price"`
+	Amount        uint   `json:"amount"`
+	ItemName      string `json:"item_name"`
+	UserMDN       string `json:"user_mdn"`
+	RedirectURL   string `json:"redirect_url"`
 }
