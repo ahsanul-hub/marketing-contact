@@ -37,7 +37,6 @@ func main() {
 	})
 
 	database.ConnectDB()
-	database.SetupMongoDB()
 	go lib.ProcessPendingTransactions()
 	go repository.ProcessCallbackQueue()
 	go repository.ProcessTransactions()
