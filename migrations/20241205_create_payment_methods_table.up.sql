@@ -1,0 +1,23 @@
+CREATE TABLE payment_methods (
+    id SERIAL PRIMARY KEY,
+    slug VARCHAR(255) NOT NULL,
+    description TEXT NOT NULL,
+    route TEXT,
+    type VARCHAR(50) NOT NULL,
+    expired TIMESTAMPTZ,
+    report TEXT NOT NULL,
+    json_return TEXT NOT NULL,
+    parent VARCHAR(50),
+    is_airtime VARCHAR(10) NOT NULL,
+    minimum_denom FLOAT NOT NULL,
+    disabled VARCHAR(10) NOT NULL,
+    flexible BOOLEAN NOT NULL,
+    status VARCHAR(10) NOT NULL,
+    msisdn VARCHAR(15),
+    status_denom JSONB,
+    prefix TEXT,
+    denom TEXT,
+    daily_limit INT NOT NULL,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);

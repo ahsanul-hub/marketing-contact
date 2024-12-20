@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"go.elastic.co/apm"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -58,7 +59,7 @@ func CreateOrder(ctx context.Context, input *model.InputPaymentRequest, client *
 		ClientAppKey:  input.ClientAppKey,
 		StatusCode:    1,
 		ItemName:      input.ItemName,
-		UserMDN:       input.Mobile,
+		UserMDN:       input.UserMDN,
 		Testing:       input.Testing,
 		Route:         input.Route,
 		PaymentMethod: input.PaymentMethod,
@@ -90,6 +91,8 @@ func stringToInt(value string) int {
 }
 
 func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, client *model.Client) (string, error) {
+	span, _ := apm.StartSpan(ctx, "CreateTransaction", "repository")
+	defer span.End()
 	uniqueID, err := uuid.NewV7()
 	if err != nil {
 		log.Fatal(err)
@@ -122,7 +125,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		MtTid:         input.MtTid,
 		StatusCode:    1,
 		ItemName:      input.ItemName,
-		UserMDN:       input.Mobile,
+		UserMDN:       input.UserMDN,
 		Testing:       input.Testing,
 		Route:         input.Route,
 		UserId:        input.UserId,
@@ -143,11 +146,63 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	return transaction.ID, nil
 }
 
-func GetAllTransactions(ctx context.Context) ([]model.Transactions, error) {
+func GetAllTransactions(ctx context.Context, limit, offset int, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.Transactions, error) {
+	span, _ := apm.StartSpan(ctx, "GetAllTransactions", "repository")
+	defer span.End()
 	var transactions []model.Transactions
-	if err := database.DB.Find(&transactions).Error; err != nil {
+	query := database.DB
+
+	if appID != "" {
+		query = query.Where("app_id = ?", appID)
+	}
+	if userMDN != "" {
+		query = query.Where("user_mdn = ?", userMDN)
+	}
+	if paymentMethod != "" {
+		query = query.Where("payment_method = ?", paymentMethod)
+	}
+	if startDate != nil && endDate != nil {
+		query = query.Where("created_at BETWEEN ? AND ?", *startDate, *endDate)
+	}
+
+	if err := query.Debug().Limit(limit).Offset(offset).Find(&transactions).Error; err != nil {
 		return nil, fmt.Errorf("unable to fetch transactions: %w", err)
 	}
+
+	log.Println("Query executed successfully, number of transactions found:", len(transactions))
+	return transactions, nil
+}
+
+func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, error) {
+	var transactions []model.TransactionMerchantResponse
+	query := database.DB
+
+	// Membangun query dengan kondisi
+
+	if appKey != "" {
+		query = query.Where("appkey = ?", appKey)
+	}
+	if appID != "" {
+		query = query.Where("app_id = ?", appID)
+	}
+	if userMDN != "" {
+		query = query.Where("user_mdn = ?", userMDN)
+	}
+	if paymentMethod != "" {
+		query = query.Where("payment_method = ?", paymentMethod)
+	}
+	if startDate != nil && endDate != nil {
+		query = query.Where("created_at BETWEEN ? AND ?", *startDate, *endDate)
+	}
+
+	if err := query.Select("user_mdn, user_id, payment_method, mt_tid AS merchant_transaction_id, status_code, amount, price, created_at, updated_at").
+		Limit(limit).
+		Offset(offset).
+		Find(&transactions).Error; err != nil {
+		return nil, fmt.Errorf("unable to fetch transactions: %w", err)
+	}
+
+	log.Println("Query executed successfully, number of transactions found:", len(transactions))
 	return transactions, nil
 }
 
@@ -162,21 +217,28 @@ func GetTransactionByID(ctx context.Context, id string) (*model.Transactions, er
 	return &transaction, nil
 }
 
+func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (*model.TransactionMerchantResponse, error) {
+	var transaction model.TransactionMerchantResponse
+	if err := database.DB.Where("id = ? AND appkey = ? AND appid = ?", id, appKey, appId).First(&transaction).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("transaction not found: %w", err)
+		}
+		return nil, fmt.Errorf("error fetching transaction: %w", err)
+	}
+	return &transaction, nil
+}
+
 func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
-	// Dapatkan koneksi ke database
 	db := database.DB
 
-	// Buat struktur untuk menyimpan perubahan status
 	transactionUpdate := model.Transactions{
 		StatusCode: newStatusCode,
 	}
 
-	// Lakukan pembaruan ke database
 	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ?", transactionID).Updates(transactionUpdate).Error; err != nil {
 		return fmt.Errorf("failed to update transaction status: %w", err)
 	}
 
-	// Cek apakah ada rekaman yang diperbarui
 	if db.RowsAffected == 0 {
 		return fmt.Errorf("no transaction found with ID: %s", transactionID)
 	}
@@ -187,7 +249,7 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 func GetPendingTransactions(ctx context.Context) ([]model.Transactions, error) {
 	var transactions []model.Transactions
 
-	if err := database.DB.Where("status_code = ?", 1001).Find(&transactions).Error; err != nil {
+	if err := database.DB.Select("id, merchant_name").Where("status_code = ?", 1001).Find(&transactions).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return transactions, nil
 		}
@@ -258,7 +320,7 @@ func ProcessTransactions() {
 	}
 
 	for _, transaction := range transactions {
-		arrClient, err := FindClient(transaction.AppKey, transaction.AppID)
+		arrClient, err := FindClient(context.Background(), transaction.AppKey, transaction.AppID)
 		if err != nil {
 			fmt.Println("Error fetching client:", err)
 		}

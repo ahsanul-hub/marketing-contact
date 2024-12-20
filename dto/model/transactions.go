@@ -43,6 +43,23 @@ type Transactions struct {
 	UpdatedAt                time.Time  `gorm:"not null" json:"updated_at"`
 }
 
+type TransactionMerchantResponse struct {
+	UserMDN                 string     `json:"user_mdn"`
+	UserID                  string     `json:"user_id"`
+	PaymentMethod           string     `json:"payment_method"`
+	MerchantTransactionID   string     `json:"merchant_transaction_id"`
+	StatusCode              int        `json:"status_code"`
+	TimestampRequestDate    *time.Time `json:"timestamp_request_date"`
+	TimestampSubmitDate     *time.Time `json:"timestamp_submit_date"`
+	TimestampCallbackDate   *time.Time `json:"timestamp_callback_date"`
+	TimestampCallbackResult string     `json:"timestamp_callback_result"`
+	Route                   string     `json:"route"`
+	Amount                  uint       `json:"amount"`
+	Price                   uint       `json:"price"`
+	CreatedAt               time.Time  `json:"created_at"`
+	UpdatedAt               time.Time  `json:"updated_at"`
+}
+
 type InputPaymentRequest struct {
 	ClientAppKey  string `json:"client_appkey"`
 	AppName       string `json:"app_name"`

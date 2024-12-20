@@ -6,6 +6,7 @@ import (
 	"app/lib"
 	"app/repository"
 	"app/router"
+	"io"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -22,6 +23,7 @@ import (
 
 func main() {
 	config.SetupEnvFile()
+	SetupLogfile()
 
 	app := fiber.New(fiber.Config{
 		Prefork:       true,
@@ -63,4 +65,13 @@ func main() {
 	time.Sleep(2 * time.Second) // Atau gunakan mekanisme lain untuk menunggu
 
 	log.Println("Server stopped gracefully.")
+}
+
+func SetupLogfile() {
+	logFile, err := os.OpenFile("../logs/dcb-new.log", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		log.Fatal(err)
+	}
+	mw := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(mw)
 }

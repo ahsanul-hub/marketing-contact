@@ -18,6 +18,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/patrickmn/go-cache"
+	"go.elastic.co/apm"
 )
 
 var TransactionCache = cache.New(4*time.Minute, 5*time.Minute)
@@ -32,7 +33,7 @@ func CreatePayment(c *fiber.Ctx) error {
 		"bodysign":  c.Get("bodysign"),
 	}
 
-	arrClient, err := repository.FindClient(c.Get("appkey"), c.Get("appid"))
+	arrClient, err := repository.FindClient(context.Background(), c.Get("appkey"), c.Get("appid"))
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
@@ -137,6 +138,9 @@ func TestPayment(c *fiber.Ctx) error {
 func CreateOrder(c *fiber.Ctx) error {
 	var input model.InputPaymentRequest
 
+	span, spanCtx := apm.StartSpan(c.Context(), "CreateOrderV1", "handler")
+	defer span.End()
+
 	// receivedBodysign := c.Get("bodysign")
 
 	if err := c.BodyParser(&input); err != nil {
@@ -153,7 +157,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	arrClient, err := repository.FindClient(c.Get("appkey"), c.Get("appid"))
+	arrClient, err := repository.FindClient(spanCtx, c.Get("appkey"), c.Get("appid"))
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
@@ -195,7 +199,8 @@ func CreateOrder(c *fiber.Ctx) error {
 }
 
 func PaymentPage(c *fiber.Ctx) error {
-
+	span, _ := apm.StartSpan(c.Context(), "PaymentPage", "handler")
+	defer span.End()
 	token := c.Params("token")
 
 	if cachedData, found := TransactionCache.Get(token); found {
@@ -237,6 +242,8 @@ func PaymentPage(c *fiber.Ctx) error {
 }
 
 func SuccessPage(c *fiber.Ctx) error {
+	span, _ := apm.StartSpan(c.Context(), "SuccessPage", "handler")
+	defer span.End()
 	token := c.Params("token")
 	msisdn := c.Params("msisdn")
 
@@ -255,9 +262,6 @@ func SuccessPage(c *fiber.Ctx) error {
 		case "telkomsel_airtime":
 			StrPaymentMethod = "Telkomsel"
 		}
-
-		log.Println("inputReq :", inputReq.UserMDN)
-		log.Println("inputReq :", inputReq.RedirectURL)
 
 		return c.Render("success_payment", fiber.Map{
 			"PaymentMethodStr": StrPaymentMethod,

@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/patrickmn/go-cache"
+	"go.elastic.co/apm"
 	"gorm.io/gorm"
 )
 
@@ -44,7 +45,9 @@ func init() {
 	merchantCache = cache.New(23*time.Hour, 24*time.Hour)
 }
 
-func FindClient(clientAppKey, clientAppID string) (*model.Client, error) {
+func FindClient(ctx context.Context, clientAppKey, clientAppID string) (*model.Client, error) {
+	span, _ := apm.StartSpan(ctx, "FindClient", "repository")
+	defer span.End()
 	db := database.DB
 
 	cacheKey := fmt.Sprintf("client:%s:%s", clientAppKey, clientAppID)
@@ -353,8 +356,6 @@ func DeleteMerchant(clientAppID string) error {
 
 	cacheKey := fmt.Sprintf("client:%s:%s", existingClient.ClientAppkey, existingClient.ClientAppID)
 	merchantCache.Delete(cacheKey)
-
-	
 
 	if err := db.Where("client_id = ?", existingClient.UID).Delete(&model.PaymentMethodClient{}).Error; err != nil {
 		log.Printf("Failed to delete payment methods for client %s: %s", existingClient.UID, err)

@@ -11,10 +11,13 @@ import (
 	"context"
 	"log"
 	"math"
+	"strconv"
+	"time"
 
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"go.elastic.co/apm"
 )
 
 func contains(denom []float64, amount float64) bool {
@@ -285,6 +288,9 @@ func containsString(slice []string, str string) bool {
 }
 
 func CreateTransaction(c *fiber.Ctx) error {
+	span, spanCtx := apm.StartSpan(c.Context(), "CreateTransactionV2", "handler")
+	defer span.End()
+
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -298,12 +304,12 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amounr must not be empty",
 		})
 	}
-	arrClient, err := repository.FindClient(c.Get("appkey"), c.Get("appid"))
+	arrClient, err := repository.FindClient(spanCtx, c.Get("appkey"), c.Get("appid"))
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
-
+	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	createdTransId, err := repository.CreateTransaction(context.Background(), &transaction, arrClient)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
@@ -334,6 +340,9 @@ func CreateTransaction(c *fiber.Ctx) error {
 }
 
 func CreateTransactionV1(c *fiber.Ctx) error {
+	span, spanCtx := apm.StartSpan(c.Context(), "CreateTransactionV1", "handler")
+	defer span.End()
+
 	token := c.Get("token")
 
 	var transaction model.InputPaymentRequest
@@ -349,13 +358,15 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amounr must not be empty",
 		})
 	}
-	arrClient, err := repository.FindClient(c.Get("appkey"), c.Get("appid"))
+	arrClient, err := repository.FindClient(spanCtx, c.Get("appkey"), c.Get("appid"))
+
+	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	createdTransId, err := repository.CreateTransaction(context.Background(), &transaction, arrClient)
+	createdTransId, err := repository.CreateTransaction(spanCtx, &transaction, arrClient)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -386,8 +397,46 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 }
 
 func GetTransactions(c *fiber.Ctx) error {
+	span, spanCtx := apm.StartSpan(c.Context(), "GetTransactions", "handler")
+	defer span.End()
 
-	transactions, err := repository.GetAllTransactions(context.Background())
+	pageStr := c.Query("page", "1")
+	limitStr := c.Query("limit", "10")
+
+	appID := c.Query("app_id")
+	userMDN := helper.BeautifyIDNumber(c.Query("user_mdn"), true)
+	log.Println(userMDN)
+	paymentMethod := c.Query("payment_method")
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	offset := (page - 1) * limit
+
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		parsedStartDate, err := time.Parse("2006-01-02", startDateStr)
+		if err == nil {
+			startDate = &parsedStartDate
+		}
+	}
+	if endDateStr != "" {
+		parsedEndDate, err := time.Parse("2006-01-02", endDateStr)
+		if err == nil {
+			endDate = &parsedEndDate
+		}
+	}
+
+	transactions, err := repository.GetAllTransactions(spanCtx, limit, offset, appID, userMDN, paymentMethod, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -410,6 +459,72 @@ func GetTransactionByID(c *fiber.Ctx) error {
 		"success": true,
 		"data":    transaction,
 	})
+}
+
+func GetTransactionMerchantByID(c *fiber.Ctx) error {
+	id := c.Params("id")
+	appKey := c.Get("appkey")
+	appID := c.Get("appid")
+
+	transaction, err := repository.GetTransactionMerchantByID(context.Background(), appKey, appID, id)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    transaction,
+	})
+}
+
+func GetTransactionsMerchant(c *fiber.Ctx) error {
+	appKey := c.Get("appkey")
+	appID := c.Get("appid")
+
+	pageStr := c.Query("page", "1")
+	limitStr := c.Query("limit", "10")
+
+	// Ambil parameter query untuk filter
+	userMDN := c.Query("user_mdn")
+	paymentMethod := c.Query("payment_method")
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+
+	// Konversi ke integer
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 10
+	}
+
+	// Hitung offset
+	offset := (page - 1) * limit
+
+	// Konversi tanggal
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		parsedStartDate, err := time.Parse("2006-01-02", startDateStr)
+		if err == nil {
+			startDate = &parsedStartDate
+		}
+	}
+	if endDateStr != "" {
+		parsedEndDate, err := time.Parse("2006-01-02", endDateStr)
+		if err == nil {
+			endDate = &parsedEndDate
+		}
+	}
+
+	transactions, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, appKey, appID, userMDN, paymentMethod, startDate, endDate)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"success": true, "data": transactions})
 }
 
 func CheckTrans(c *fiber.Ctx) error {

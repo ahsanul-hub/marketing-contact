@@ -1,0 +1,20 @@
+CREATE TABLE settlement_clients (
+    id SERIAL PRIMARY KEY,
+    client_id VARCHAR(50) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    is_bhpuso VARCHAR,
+    servicecharge VARCHAR,
+    tax23 VARCHAR,
+    ppn FLOAT,
+    mdr VARCHAR,
+    mdr_type VARCHAR,
+    additionalfee INT,
+    additional_percent FLOAT,
+    additionalfee_type INT,
+    payment_type VARCHAR,
+    share_redision INT,
+    share_partner INT,
+    is_divide_1poin1 VARCHAR,
+    created_at TIMESTAMP NOT NULL,
+    updated_at TIMESTAMP NOT NULL
+);

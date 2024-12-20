@@ -3,6 +3,7 @@ package handler
 import (
 	"app/database"
 	"app/dto/model"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -148,6 +149,7 @@ func UpdateUser(c *fiber.Ctx) error {
 		Username string `json:"username"`
 		Email    string `json:"email"`
 		Role     string `json:"role" validate:"oneof=admin superadmin merchant"`
+		Names    string `json:"names"`
 	}
 	var uui UpdateUserInput
 	if err := c.BodyParser(&uui); err != nil {
@@ -169,36 +171,36 @@ func UpdateUser(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"status": "error", "message": "User not found", "data": nil})
 	}
 
-	// Update user fields
-	user.Username = uui.Username
-	user.Email = uui.Email
-	user.Role = uui.Role
+	if uui.Username != "" {
+		user.Username = uui.Username
+	}
+	if uui.Email != "" {
+		user.Email = uui.Email
+	}
+	if uui.Role != "" {
+		user.Role = uui.Role
+	}
+	if uui.Names != "" {
+		user.Names = uui.Names
+	}
 
-	db.Save(&user)
+	if err := db.Save(&user).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Failed to update user", "data": nil})
+	}
 
 	return c.JSON(fiber.Map{"status": "success", "message": "User successfully updated", "data": user})
 }
 
 // DeleteUser delete user
 func DeleteUser(c *fiber.Ctx) error {
-	type PasswordInput struct {
-		Password string `json:"password"`
-	}
-	var pi PasswordInput
-	if err := c.BodyParser(&pi); err != nil {
-		return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Review your input", "errors": err.Error()})
-	}
 	id := c.Params("id")
+
 	token := c.Locals("user").(*jwt.Token)
+	claims := token.Claims.(jwt.MapClaims)
+	userRole := claims["role"].(string)
 
-	if !validToken(token, id) {
-		return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Invalid token id", "data": nil})
-
-	}
-
-	if !validUser(id, pi.Password) {
-		return c.Status(500).JSON(fiber.Map{"status": "error", "message": "Not valid user", "data": nil})
-
+	if userRole != "superadmin" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"status": "error", "message": "Only superadmin can update role", "data": nil})
 	}
 
 	db := database.DB
@@ -206,6 +208,9 @@ func DeleteUser(c *fiber.Ctx) error {
 
 	db.First(&user, id)
 
-	db.Delete(&user)
+	if err := db.Delete(&user).Error; err != nil {
+		return fmt.Errorf("unable to delete client: %w", err)
+	}
+
 	return c.JSON(fiber.Map{"status": "success", "message": "User successfully deleted", "data": nil})
 }

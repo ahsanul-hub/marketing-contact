@@ -8,6 +8,10 @@ import (
 func BeautifyIDNumber(mdn string, zero bool) string {
 	check := true
 
+	if mdn == "" {
+		return ""
+	}
+
 	for check {
 		check = false
 
