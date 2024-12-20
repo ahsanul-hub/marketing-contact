@@ -484,13 +484,11 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 	pageStr := c.Query("page", "1")
 	limitStr := c.Query("limit", "10")
 
-	// Ambil parameter query untuk filter
 	userMDN := c.Query("user_mdn")
 	paymentMethod := c.Query("payment_method")
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
 
-	// Konversi ke integer
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
 		page = 1
@@ -501,10 +499,8 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		limit = 10
 	}
 
-	// Hitung offset
 	offset := (page - 1) * limit
 
-	// Konversi tanggal
 	var startDate, endDate *time.Time
 	if startDateStr != "" {
 		parsedStartDate, err := time.Parse("2006-01-02", startDateStr)

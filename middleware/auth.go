@@ -8,16 +8,12 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Protected protect routes
 func Protected() fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Ambil token dari header Authorization
 		token := c.Get("Authorization")
 		if token == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"message": "Missing or malformed JWT"})
 		}
-
-		// Memisahkan "Bearer " dari token
 		if strings.HasPrefix(token, "Bearer ") {
 			token = strings.TrimPrefix(token, "Bearer ")
 		} else {
@@ -34,7 +30,6 @@ func Protected() fiber.Handler {
 			return []byte("dcbsecret"), nil // Ganti dengan secret key Anda
 		})
 
-		log.Println("Received token:", token)
 		log.Println("Error parsing token:", err)
 
 		if err != nil {
@@ -74,22 +69,18 @@ var rolesPermissions = map[string][]string{
 	"merchant":   {"read"},
 }
 
-// RBACMiddleware untuk memeriksa permissions berdasarkan role
 func RBACMiddleware(neededPermissions []string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Ambil role pengguna dari context
 		role, ok := c.Locals("role").(string)
 		if !ok {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden"})
 		}
 
-		// Ambil permissions yang terkait dengan role
 		permissions, exists := rolesPermissions[role]
 		if !exists {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden"})
 		}
 
-		// Periksa apakah role mempunyai permission yang diperlukan
 		for _, neededPerm := range neededPermissions {
 			hasPermission := false
 			for _, perm := range permissions {
@@ -109,20 +100,15 @@ func RBACMiddleware(neededPermissions []string) fiber.Handler {
 
 func AdminOnly(allowAdmin bool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		// Ambil role pengguna dari context
 		role, ok := c.Locals("role").(string)
-		log.Println("role", role)
 		if !ok {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden: You do not have access to this resource."})
 		}
-
-		// Cek role
 		if role == "superadmin" {
-			return c.Next() // Superadmin selalu diizinkan
+			return c.Next()
 		}
-
 		if allowAdmin && role == "admin" {
-			return c.Next() // Jika admin diizinkan
+			return c.Next()
 		}
 
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden: You do not have access to this resource."})

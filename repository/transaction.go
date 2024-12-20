@@ -174,13 +174,11 @@ func GetAllTransactions(ctx context.Context, limit, offset int, appID, userMDN, 
 }
 
 func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, error) {
-	var transactions []model.TransactionMerchantResponse
+	var transactions []model.Transactions
 	query := database.DB
 
-	// Membangun query dengan kondisi
-
 	if appKey != "" {
-		query = query.Where("appkey = ?", appKey)
+		query = query.Where("app_key = ?", appKey)
 	}
 	if appID != "" {
 		query = query.Where("app_id = ?", appID)
@@ -202,8 +200,28 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, app
 		return nil, fmt.Errorf("unable to fetch transactions: %w", err)
 	}
 
-	log.Println("Query executed successfully, number of transactions found:", len(transactions))
-	return transactions, nil
+	var response []model.TransactionMerchantResponse
+	for _, transaction := range transactions {
+		response = append(response, model.TransactionMerchantResponse{
+			UserMDN:                 transaction.UserMDN,
+			UserID:                  transaction.UserId,
+			PaymentMethod:           transaction.PaymentMethod,
+			MerchantTransactionID:   transaction.MtTid,
+			StatusCode:              transaction.StatusCode,
+			TimestampRequestDate:    transaction.TimestampRequestDate,
+			TimestampSubmitDate:     transaction.TimestampSubmitDate,
+			TimestampCallbackDate:   transaction.TimestampCallbackDate,
+			TimestampCallbackResult: transaction.TimestampCallbackResult,
+			Route:                   transaction.Route,
+			Amount:                  transaction.Amount,
+			Price:                   transaction.Price,
+			CreatedAt:               transaction.CreatedAt,
+			UpdatedAt:               transaction.UpdatedAt,
+		})
+	}
+
+	log.Println("Query executed successfully, number of transactions found:", len(response))
+	return response, nil
 }
 
 func GetTransactionByID(ctx context.Context, id string) (*model.Transactions, error) {
@@ -218,14 +236,32 @@ func GetTransactionByID(ctx context.Context, id string) (*model.Transactions, er
 }
 
 func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (*model.TransactionMerchantResponse, error) {
-	var transaction model.TransactionMerchantResponse
-	if err := database.DB.Where("id = ? AND appkey = ? AND appid = ?", id, appKey, appId).First(&transaction).Error; err != nil {
+	var transaction model.Transactions
+	if err := database.DB.Where("id = ? AND app_key = ? AND app_id = ?", id, appKey, appId).First(&transaction).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("transaction not found: %w", err)
 		}
 		return nil, fmt.Errorf("error fetching transaction: %w", err)
 	}
-	return &transaction, nil
+
+	response := model.TransactionMerchantResponse{
+		UserMDN:                 transaction.UserMDN,
+		UserID:                  transaction.UserId,
+		PaymentMethod:           transaction.PaymentMethod,
+		MerchantTransactionID:   transaction.MtTid,
+		StatusCode:              transaction.StatusCode,
+		TimestampRequestDate:    transaction.TimestampRequestDate,
+		TimestampSubmitDate:     transaction.TimestampSubmitDate,
+		TimestampCallbackDate:   transaction.TimestampCallbackDate,
+		TimestampCallbackResult: transaction.TimestampCallbackResult,
+		Route:                   transaction.Route,
+		Amount:                  transaction.Amount,
+		Price:                   transaction.Price,
+		CreatedAt:               transaction.CreatedAt,
+		UpdatedAt:               transaction.UpdatedAt,
+	}
+
+	return &response, nil
 }
 
 func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {

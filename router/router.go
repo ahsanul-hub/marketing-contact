@@ -27,7 +27,7 @@ func SetupRoutes(app *fiber.App) {
 
 	merchant := api.Group("/merchant")
 	merchant.Get("/transactions", handler.GetTransactionsMerchant)
-	merchant.Get("/transaction/:id", middleware.AdminOnly(true), handler.GetTransactionMerchantByID)
+	merchant.Get("/transaction/:id", handler.GetTransactionMerchantByID)
 
 	user := api.Group("/user")
 	user.Post("/login", handler.Login)
