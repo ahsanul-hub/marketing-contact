@@ -39,8 +39,8 @@ type Transactions struct {
 	UserMDN                  string     `gorm:"type:VARCHAR(15)" json:"user_mdn"`
 	RedirectURL              string     `gorm:"type:TEXT" json:"redirect_url"`
 	RedirectTarget           string     `gorm:"type:TEXT" json:"redirect_target"`
-	CreatedAt                time.Time  `gorm:"not null" json:"created_at"`
-	UpdatedAt                time.Time  `gorm:"not null" json:"updated_at"`
+	CreatedAt                time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt                time.Time  `gorm:"autoCreateTime" json:"updated_at"`
 }
 
 type TransactionMerchantResponse struct {

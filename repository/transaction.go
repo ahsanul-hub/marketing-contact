@@ -270,8 +270,9 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 	transactionUpdate := model.Transactions{
 		StatusCode: newStatusCode,
 	}
+	timeLimit := time.Now().Add(-9 * time.Minute)
 
-	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ?", transactionID).Updates(transactionUpdate).Error; err != nil {
+	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? AND created_at <= ?", transactionID, timeLimit).Updates(transactionUpdate).Error; err != nil {
 		return fmt.Errorf("failed to update transaction status: %w", err)
 	}
 
@@ -280,14 +281,15 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 
 func GetPendingTransactions(ctx context.Context) ([]model.Transactions, error) {
 	var transactions []model.Transactions
-	timeLimit := time.Now().Add(-8 * time.Minute)
+	// timeLimit := time.Now().Add(-8 * time.Minute)
 
-	if err := database.DB.Select("id, merchant_name", "status_code").Where("status_code = ? AND created_at <= ?", 1001, timeLimit).Find(&transactions).Error; err != nil {
+	if err := database.DB.Select("id, merchant_name", "status_code").Where("status_code = ?", 1001).Find(&transactions).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return transactions, nil
 		}
 		return nil, fmt.Errorf("error fetching transactions: %w", err)
 	}
+	// log.Println("transactions: ", transactions)
 	return transactions, nil
 }
 
@@ -395,7 +397,7 @@ func SendCallback(merchantURL string, transactionID string, mtTid string, status
 
 	resp, err := http.Post(merchantURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("failed to send callback: %v", err)
+		fmt.Errorf("failed to send callback: %v", err)
 	}
 	defer resp.Body.Close()
 
