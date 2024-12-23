@@ -523,6 +523,38 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"success": true, "data": transactions})
 }
 
+func ManualCallback(c *fiber.Ctx) error {
+	transactionID := c.Params("id")
+
+	transaction, err := repository.GetTransactionByID(c.Context(), transactionID)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, "Transaction not found")
+	}
+
+	if transaction.StatusCode != 1000 || transaction.StatusCode == 1003 {
+		return response.Response(c, fiber.StatusInternalServerError, "Transaction not success")
+
+	}
+	arrClient, err := repository.FindClient(context.Background(), transaction.AppKey, transaction.AppID)
+	if err != nil {
+		fmt.Println("Error fetching client:", err)
+	}
+
+	if arrClient.CallbackURL == "" {
+		return response.Response(c, fiber.StatusInternalServerError, "Merchant URL is not available")
+	}
+
+	statusCode := 1000
+	message := "Manual callback triggered"
+
+	err = repository.SendCallback(arrClient.CallbackURL, transaction.ID, transaction.MtTid, statusCode, message)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{"success": true, "message": "Callback sent successfully"})
+}
+
 func CheckTrans(c *fiber.Ctx) error {
 	id := c.Params("id")
 

@@ -85,7 +85,7 @@ type TransactionInquiryResponse struct {
 }
 
 type TransactionInquiryStatusResponse struct {
-	CustomerInfo      []CustomerInfoStatus     `json:"transactionInquiryCustomerInfoTO"`
+	CustomerInfo      interface{}              `json:"transactionInquiryCustomerInfoTO"`
 	TransactionInfo   TransactionInfoStatus    `json:"transactionInquiryInfoTO"`
 	TransactionStatus TransactionInquiryStatus `json:"transactionInquiryStatusTO"`
 }
@@ -358,16 +358,16 @@ func CheckTransactionStatus(transaction model.Transactions) {
 
 	// Memperbarui status berdasarkan response
 	if response.TransactionStatus.ResponseCode == "00" { // Sukses
-		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1000, "ok"); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, "ok"); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 		}
 	} else {
-		createdAt := transaction.CreatedAt // Asumsi CreatedAt bertipe time.Time pada model.Transactions
-		if time.Since(createdAt) > 10*time.Minute {
-			if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1005, ""); err != nil { // Misal status 3 adalah expired
-				log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
-			}
+		// createdAt := transaction.CreatedAt
+		// if time.Since(createdAt) > 10*time.Minute {
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1005, ""); err != nil { // Misal status 3 adalah expired
+			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
 		}
+		// }
 		// log.Println("response", response)
 	}
 }

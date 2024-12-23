@@ -57,7 +57,7 @@ func CreateOrder(ctx context.Context, input *model.InputPaymentRequest, client *
 	transaction := model.Transactions{
 		ID:            uniqueID.String(),
 		ClientAppKey:  input.ClientAppKey,
-		StatusCode:    1,
+		StatusCode:    1001,
 		ItemName:      input.ItemName,
 		UserMDN:       input.UserMDN,
 		Testing:       input.Testing,
@@ -123,7 +123,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		ID:            uniqueID.String(),
 		ClientAppKey:  input.ClientAppKey,
 		MtTid:         input.MtTid,
-		StatusCode:    1,
+		StatusCode:    1001,
 		ItemName:      input.ItemName,
 		UserMDN:       input.UserMDN,
 		Testing:       input.Testing,
@@ -275,17 +275,14 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 		return fmt.Errorf("failed to update transaction status: %w", err)
 	}
 
-	if db.RowsAffected == 0 {
-		return fmt.Errorf("no transaction found with ID: %s", transactionID)
-	}
-
 	return nil
 }
 
 func GetPendingTransactions(ctx context.Context) ([]model.Transactions, error) {
 	var transactions []model.Transactions
+	timeLimit := time.Now().Add(-8 * time.Minute)
 
-	if err := database.DB.Select("id, merchant_name").Where("status_code = ?", 1001).Find(&transactions).Error; err != nil {
+	if err := database.DB.Select("id, merchant_name", "status_code").Where("status_code = ? AND created_at <= ?", 1001, timeLimit).Find(&transactions).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return transactions, nil
 		}
@@ -306,14 +303,13 @@ func UpdateTransactionCallbackTimestamps(ctx context.Context, transactionID stri
 		updates["timestamp_callback_result"] = callbackResult
 	}
 
+	updates["status_code"] = 1000
+
 	if len(updates) > 0 {
 		if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ?", transactionID).Updates(updates).Error; err != nil {
 			return fmt.Errorf("failed to update transaction callback timestamps: %w", err)
 		}
 
-		if db.RowsAffected == 0 {
-			return fmt.Errorf("no transaction found with ID: %s", transactionID)
-		}
 	}
 
 	return nil
@@ -350,7 +346,7 @@ func UpdateTransactionTimestamps(ctx context.Context, transactionID string, requ
 func ProcessTransactions() {
 	var transactions []model.Transactions
 
-	if err := database.DB.Where("status_code = ?", 1000).Find(&transactions).Error; err != nil {
+	if err := database.DB.Where("status_code = ?", 1003).Find(&transactions).Error; err != nil {
 		fmt.Println("Error fetching transactions:", err)
 		return
 	}
@@ -367,6 +363,7 @@ func ProcessTransactions() {
 		CallbackQueue <- CallbackJob{
 			MerchantURL:   arrClient.CallbackURL,
 			TransactionID: transaction.ID,
+			MtTid:         transaction.MtTid,
 			StatusCode:    statusCode,
 			Message:       message,
 		}
@@ -374,18 +371,20 @@ func ProcessTransactions() {
 }
 
 type CallbackJob struct {
-	MerchantURL   string
-	TransactionID string
-	StatusCode    int
-	Message       string
+	MerchantURL   string `json:"merchant_url"`
+	TransactionID string `json:"transaction_id"`
+	MtTid         string `json:"merchant_transaction_id"`
+	StatusCode    int    `json:"status_code"`
+	Message       string `json:"message"`
 }
 
-var CallbackQueue = make(chan CallbackJob, 100) // Antrean dengan kapasitas 100
+var CallbackQueue = make(chan CallbackJob, 100)
 
-func sendCallback(merchantURL string, transactionID string, statusCode int, message string) error {
+func SendCallback(merchantURL string, transactionID string, mtTid string, statusCode int, message string) error {
 	callbackData := CallbackJob{
 		TransactionID: transactionID,
 		StatusCode:    statusCode,
+		MtTid:         mtTid,
 		Message:       message,
 	}
 
@@ -405,8 +404,12 @@ func sendCallback(merchantURL string, transactionID string, statusCode int, mess
 		return fmt.Errorf("failed to decode response body: %v", err)
 	}
 
-	// Ambil hasil dari response
-	callbackResult := fmt.Sprintf("%v", responseBody["result"]) // Sesuaikan dengan struktur response yang diharapkan
+	var callbackResult string
+	if result, ok := responseBody["result"]; ok && result != nil {
+		callbackResult = fmt.Sprintf("%v", result)
+	} else {
+		callbackResult = "ok" // Nilai default jika result nil
+	}
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("callback failed with status: %s", resp.Status)
@@ -423,9 +426,9 @@ func sendCallback(merchantURL string, transactionID string, statusCode int, mess
 	return nil
 }
 
-func sendCallbackWithRetry(merchantURL string, transactionID string, statusCode int, message string, retries int) {
+func sendCallbackWithRetry(merchantURL string, transactionID string, mtTid string, statusCode int, message string, retries int) {
 	for i := 0; i < retries; i++ {
-		err := sendCallback(merchantURL, transactionID, statusCode, message)
+		err := SendCallback(merchantURL, transactionID, mtTid, statusCode, message)
 		if err == nil {
 			fmt.Println("Callback sent successfully")
 			return
@@ -440,6 +443,6 @@ func sendCallbackWithRetry(merchantURL string, transactionID string, statusCode 
 
 func ProcessCallbackQueue() {
 	for job := range CallbackQueue {
-		sendCallbackWithRetry(job.MerchantURL, job.TransactionID, job.StatusCode, job.Message, 5)
+		sendCallbackWithRetry(job.MerchantURL, job.TransactionID, job.MtTid, job.StatusCode, job.Message, 5)
 	}
 }

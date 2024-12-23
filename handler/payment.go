@@ -100,7 +100,6 @@ func CreatePayment(c *fiber.Ctx) error {
 	// }
 
 	// Return successful response
-	log.Println("inputReq: ", inputReq)
 
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
 		"token": transactionToken,
@@ -163,10 +162,24 @@ func CreateOrder(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	bodyJSON, _ := json.Marshal(input)
+	// bodyJSON, _ := json.Marshal(input)
+
+	bodyJSON, err := json.Marshal(input)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Error generating JSON",
+		})
+	}
+
+	// Ubah bodyJSON menjadi string untuk dicetak
+	bodyJSONString := string(bodyJSON)
+	log.Println("bodyJSON:", bodyJSONString)
 
 	appSecret := arrClient.ClientSecret
-	expectedBodysign, _ := helper.GenerateBodySign(bodyJSON, appSecret)
+	log.Println("secret:", appSecret)
+
+	expectedBodysign, _ := helper.GenerateBodySign(bodyJSONString, appSecret)
 	log.Println("expectedBodysign", expectedBodysign)
 
 	// if receivedBodysign != expectedBodysign {
