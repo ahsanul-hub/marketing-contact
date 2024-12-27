@@ -264,7 +264,7 @@ func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (
 	return &response, nil
 }
 
-func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
+func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
 	db := database.DB
 
 	transactionUpdate := model.Transactions{
@@ -273,6 +273,20 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 	timeLimit := time.Now().Add(-9 * time.Minute)
 
 	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? AND created_at <= ?", transactionID, timeLimit).Updates(transactionUpdate).Error; err != nil {
+		return fmt.Errorf("failed to update transaction status: %w", err)
+	}
+
+	return nil
+}
+
+func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
+	db := database.DB
+
+	transactionUpdate := model.Transactions{
+		StatusCode: newStatusCode,
+	}
+
+	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
 		return fmt.Errorf("failed to update transaction status: %w", err)
 	}
 
@@ -392,12 +406,12 @@ func SendCallback(merchantURL string, transactionID string, mtTid string, status
 
 	jsonData, err := json.Marshal(callbackData)
 	if err != nil {
-		return fmt.Errorf("failed to marshal callback data: %v", err)
+		log.Printf("failed to marshal callback data: %v", err)
 	}
 
 	resp, err := http.Post(merchantURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
-		fmt.Errorf("failed to send callback: %v", err)
+		log.Printf("failed to send callback: %v", err)
 	}
 	defer resp.Body.Close()
 

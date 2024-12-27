@@ -52,7 +52,7 @@ func main() {
 
 	// Jalankan server dalam goroutine
 	go func() {
-		if err := app.Listen(":4000"); err != nil {
+		if err := app.Listen(":80"); err != nil {
 			log.Fatalf("Error starting server: %v", err)
 		}
 	}()

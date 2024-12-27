@@ -361,18 +361,18 @@ func CheckTransactionStatus(transaction model.Transactions) {
 		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, "ok"); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 		}
+
 	} else {
 		createdAt := transaction.CreatedAt
 		timeLimit := time.Now().Add(-9 * time.Minute)
 
 		expired := createdAt.Before(timeLimit)
 		if expired {
-			if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1005, ""); err != nil {
+			if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, ""); err != nil {
 				log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
 			}
 		}
 
-		// log.Println("response", response)
 	}
 }
 
