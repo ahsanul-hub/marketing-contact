@@ -13,12 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	// "app/webhook"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/template/html/v2"
-	// "github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
@@ -43,26 +41,23 @@ func main() {
 	go repository.ProcessCallbackQueue()
 	go repository.ProcessTransactions()
 
-	// Mengatur rute sebelum memulai server
 	router.SetupRoutes(app)
 
-	// Menangani shutdown graceful
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	// Jalankan server dalam goroutine
+	// Menggunakan HTTPS
 	go func() {
-		if err := app.Listen(":80"); err != nil {
-			log.Fatalf("Error starting server: %v", err)
+		err := app.ListenTLS(":443", "/home/aldi/mydomain.crt", "/home/aldi/mydomain.key") // Ganti dengan path sertifikat yang benar
+		if err != nil {
+			log.Fatalf("Error starting HTTPS server: %v", err)
 		}
 	}()
 
-	// Tunggu sinyal untuk shutdown
 	<-sigs
 	log.Println("Shutting down server...")
 
-	// Memberikan waktu untuk menyelesaikan permintaan yang sedang berjalan
-	time.Sleep(2 * time.Second) // Atau gunakan mekanisme lain untuk menunggu
+	time.Sleep(2 * time.Second)
 
 	log.Println("Server stopped gracefully.")
 }
