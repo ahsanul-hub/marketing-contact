@@ -362,7 +362,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			})
 		}
 
-		chargingResponse, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
+		_, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -373,8 +373,8 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success": true,
-			"message": "Charging successful",
-			"data":    chargingResponse,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
 		})
 	case "smartfren":
 		// Implementasi untuk smartfren
@@ -387,7 +387,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	span, spanCtx := apm.StartSpan(c.Context(), "CreateTransactionV1", "handler")
 	defer span.End()
 
-	token := c.Get("token")
+	// token := c.Get("token")
 
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
@@ -459,7 +459,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			})
 		}
 
-		chargingResponse, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
+		_, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
 		if err != nil {
 
 			log.Println("Charging request failed:", err)
@@ -471,9 +471,8 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success": true,
-			"message": "Charging successful",
-			"token":   token,
-			"data":    chargingResponse,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
 		})
 	case "smartfren":
 
