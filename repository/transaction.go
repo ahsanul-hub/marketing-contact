@@ -69,7 +69,7 @@ func CreateOrder(ctx context.Context, input *model.InputPaymentRequest, client *
 
 	transaction.AppID = client.ClientAppID
 	transaction.MerchantName = client.ClientName
-	transaction.AppKey = client.ClientAppkey
+	transaction.ClientAppKey = client.ClientAppkey
 
 	collection := database.GetCollection("dcb", "transactions")
 	result, err := collection.InsertOne(ctx, transaction)
@@ -137,7 +137,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 
 	transaction.AppID = client.ClientAppID
 	transaction.MerchantName = client.ClientName
-	transaction.AppKey = client.ClientAppkey
+	transaction.ClientAppKey = client.ClientAppkey
 
 	if err := database.DB.Create(&transaction).Error; err != nil {
 		return "", fmt.Errorf("failed to create transaction: %w", err)
@@ -178,7 +178,7 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, app
 	query := database.DB
 
 	if appKey != "" {
-		query = query.Where("app_key = ?", appKey)
+		query = query.Where("client_app_key = ?", appKey)
 	}
 	if appID != "" {
 		query = query.Where("app_id = ?", appID)
@@ -237,7 +237,7 @@ func GetTransactionByID(ctx context.Context, id string) (*model.Transactions, er
 
 func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (*model.TransactionMerchantResponse, error) {
 	var transaction model.Transactions
-	if err := database.DB.Where("id = ? AND app_key = ? AND app_id = ?", id, appKey, appId).First(&transaction).Error; err != nil {
+	if err := database.DB.Where("mt_tid = ? AND client_app_key = ? AND app_id = ?", id, appKey, appId).First(&transaction).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("transaction not found: %w", err)
 		}
@@ -368,7 +368,7 @@ func ProcessTransactions() {
 	}
 
 	for _, transaction := range transactions {
-		arrClient, err := FindClient(context.Background(), transaction.AppKey, transaction.AppID)
+		arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
 		if err != nil {
 			fmt.Println("Error fetching client:", err)
 		}
@@ -417,7 +417,7 @@ func SendCallback(merchantURL string, transactionID string, mtTid string, status
 
 	var responseBody map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
-		return fmt.Errorf("failed to decode response body: %v", err)
+		log.Printf("failed to decode response body: %v", err)
 	}
 
 	var callbackResult string

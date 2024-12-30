@@ -29,7 +29,6 @@ type Transactions struct {
 	Amount                   uint       `gorm:"type:INTEGER" json:"amount"`
 	ClientAppKey             string     `gorm:"type:VARCHAR(255)" json:"client_appkey"`
 	AppID                    string     `gorm:"type:VARCHAR(255)" json:"appid"`
-	AppKey                   string     `gorm:"type:VARCHAR(255)" json:"appkey"`
 	Testing                  bool       `gorm:"type:BOOLEAN" json:"testing"`
 	Token                    string     `gorm:"type:VARCHAR(255)" json:"token"`
 	Currency                 string     `gorm:"type:VARCHAR(10)" json:"currency"`

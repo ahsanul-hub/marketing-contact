@@ -46,9 +46,8 @@ func main() {
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	// Menggunakan HTTPS
 	go func() {
-		err := app.ListenTLS(":443", "/home/aldi/mydomain.crt", "/home/aldi/mydomain.key") // Ganti dengan path sertifikat yang benar
+		err := app.ListenTLS(":443", "/home/aldi/mydomain.csr", "/home/aldi/mydomain.key") // Ganti dengan path sertifikat yang benar
 		if err != nil {
 			log.Fatalf("Error starting HTTPS server: %v", err)
 		}

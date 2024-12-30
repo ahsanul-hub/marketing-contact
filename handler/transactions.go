@@ -9,6 +9,7 @@ import (
 	"app/pkg/response"
 	"app/repository"
 	"context"
+	"encoding/json"
 	"log"
 	"math"
 	"strconv"
@@ -301,14 +302,36 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	if transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amounr must not be empty",
+			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN, item_name or amount must not be empty",
 		})
 	}
-	arrClient, err := repository.FindClient(spanCtx, c.Get("appkey"), c.Get("appid"))
 
+	arrClient, err := repository.FindClient(spanCtx, c.Get("appkey"), c.Get("appid"))
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
+
+	paymentMethodMap := make(map[string]model.PaymentMethodClient)
+	for _, pm := range arrClient.PaymentMethods {
+		paymentMethodMap[pm.Name] = pm
+	}
+
+	paymentMethodClient, exists := paymentMethodMap[transaction.PaymentMethod]
+	if !exists {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid payment method",
+		})
+	}
+
+	var routes map[string][]string
+	if err := json.Unmarshal(paymentMethodClient.Route, &routes); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err,
+		})
+	}
+
+	transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
+
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	createdTransId, err := repository.CreateTransaction(context.Background(), &transaction, arrClient)
 	if err != nil {
@@ -317,9 +340,30 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	switch transaction.PaymentMethod {
 	case "xl_airtime":
+
+		validAmounts, exists := routes["xl_twt"]
+		if !exists {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No valid amounts found for the specified payment method",
+			})
+		}
+
+		validAmount := false
+		for _, route := range validAmounts {
+			if transactionAmountStr == route {
+				validAmount = true
+				break
+			}
+		}
+
+		if !validAmount {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "This denom is not supported for this payment method",
+			})
+		}
+
 		chargingResponse, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
 		if err != nil {
-
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
@@ -333,7 +377,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"data":    chargingResponse,
 		})
 	case "smartfren":
-
+		// Implementasi untuk smartfren
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, "Transaction created successfully")
@@ -371,8 +415,50 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
+	paymentMethodMap := make(map[string]model.PaymentMethodClient)
+	for _, pm := range arrClient.PaymentMethods {
+		paymentMethodMap[pm.Name] = pm
+	}
+
+	paymentMethodClient, exists := paymentMethodMap[transaction.PaymentMethod]
+	if !exists {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Invalid payment method",
+		})
+	}
+
+	var routes map[string][]string
+	if err := json.Unmarshal(paymentMethodClient.Route, &routes); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": err,
+		})
+	}
+
+	transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
+
 	switch transaction.PaymentMethod {
 	case "xl_airtime":
+		validAmounts, exists := routes["xl_twt"]
+		if !exists {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No valid amounts found for the specified payment method",
+			})
+		}
+
+		validAmount := false
+		for _, route := range validAmounts {
+			if transactionAmountStr == route {
+				validAmount = true
+				break
+			}
+		}
+
+		if !validAmount {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "This denom is not supported for this payment method",
+			})
+		}
+
 		chargingResponse, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
 		if err != nil {
 
@@ -405,7 +491,6 @@ func GetTransactions(c *fiber.Ctx) error {
 
 	appID := c.Query("app_id")
 	userMDN := helper.BeautifyIDNumber(c.Query("user_mdn"), true)
-	log.Println(userMDN)
 	paymentMethod := c.Query("payment_method")
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
@@ -535,7 +620,7 @@ func ManualCallback(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, "Transaction not success")
 
 	}
-	arrClient, err := repository.FindClient(context.Background(), transaction.AppKey, transaction.AppID)
+	arrClient, err := repository.FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
 	if err != nil {
 		fmt.Println("Error fetching client:", err)
 	}
