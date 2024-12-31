@@ -137,6 +137,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 
 	transaction.AppID = client.ClientAppID
 	transaction.MerchantName = client.ClientName
+	transaction.AppName = client.AppName
 	transaction.ClientAppKey = client.ClientAppkey
 
 	if err := database.DB.Create(&transaction).Error; err != nil {

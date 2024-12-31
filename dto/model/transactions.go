@@ -9,6 +9,7 @@ type Transactions struct {
 	BersamaBookingId         string     `gorm:"type:VARCHAR(255);not null" json:"bersama_booking_id"`
 	SmsCode                  string     `gorm:"type:VARCHAR(255)"`
 	MerchantName             string     `gorm:"type:VARCHAR(255);not null" json:"merchant_name"`
+	AppName                  string     `gorm:"type:VARCHAR(255)" json:"app_name"`
 	Keyword                  string     `gorm:"type:VARCHAR(255)"`
 	Otp                      int        `json:"otp"`
 	TcashId                  string     `gorm:"type:VARCHAR(255)" json:"tcach_id"`
