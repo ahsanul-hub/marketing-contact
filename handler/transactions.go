@@ -520,14 +520,22 @@ func GetTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, err := repository.GetAllTransactions(spanCtx, limit, offset, appID, userMDN, paymentMethod, startDate, endDate)
+	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, appID, userMDN, paymentMethod, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
+	totalPages := int64(math.Ceil(float64(totalItems) / float64(limit)))
+
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    transactions,
+		"pagination": fiber.Map{
+			"current_page":   page,
+			"total_pages":    totalPages,
+			"total_items":    totalItems,
+			"items_per_page": limit,
+		},
 	})
 }
 
@@ -599,12 +607,24 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, appKey, appID, userMDN, paymentMethod, startDate, endDate)
+	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, appKey, appID, userMDN, paymentMethod, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	return c.JSON(fiber.Map{"success": true, "data": transactions})
+	totalPages := int64(math.Ceil(float64(totalItems) / float64(limit)))
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    transactions,
+		"pagination": fiber.Map{
+			"current_page":   page,
+			"total_pages":    totalPages,
+			"total_items":    totalItems,
+			"items_per_page": limit,
+		},
+	})
+
 }
 
 func ManualCallback(c *fiber.Ctx) error {

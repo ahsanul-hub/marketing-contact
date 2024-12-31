@@ -146,10 +146,12 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	return transaction.ID, nil
 }
 
-func GetAllTransactions(ctx context.Context, limit, offset int, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.Transactions, error) {
+func GetAllTransactions(ctx context.Context, limit, offset int, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.Transactions, int64, error) {
 	span, _ := apm.StartSpan(ctx, "GetAllTransactions", "repository")
 	defer span.End()
 	var transactions []model.Transactions
+	var totalItems int64
+
 	query := database.DB
 
 	if appID != "" {
@@ -164,18 +166,21 @@ func GetAllTransactions(ctx context.Context, limit, offset int, appID, userMDN, 
 	if startDate != nil && endDate != nil {
 		query = query.Where("created_at BETWEEN ? AND ?", *startDate, *endDate)
 	}
-
-	if err := query.Debug().Limit(limit).Offset(offset).Find(&transactions).Error; err != nil {
-		return nil, fmt.Errorf("unable to fetch transactions: %w", err)
+	if err := query.Model(&model.Transactions{}).Where(query).Count(&totalItems).Error; err != nil {
+		return nil, 0, fmt.Errorf("unable to count transactions: %w", err)
 	}
 
-	log.Println("Query executed successfully, number of transactions found:", len(transactions))
-	return transactions, nil
+	if err := query.Debug().Limit(limit).Offset(offset).Find(&transactions).Error; err != nil {
+		return nil, 0, fmt.Errorf("unable to fetch transactions: %w", err)
+	}
+
+	return transactions, totalItems, nil
 }
 
-func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, error) {
+func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
 	var transactions []model.Transactions
 	query := database.DB
+	var totalItems int64
 
 	if appKey != "" {
 		query = query.Where("client_app_key = ?", appKey)
@@ -193,11 +198,15 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, app
 		query = query.Where("created_at BETWEEN ? AND ?", *startDate, *endDate)
 	}
 
+	if err := query.Model(&model.Transactions{}).Where(query).Count(&totalItems).Error; err != nil {
+		return nil, 0, fmt.Errorf("unable to count transactions: %w", err)
+	}
+
 	if err := query.Select("user_mdn, user_id, payment_method, mt_tid AS merchant_transaction_id, status_code, amount, price, created_at, updated_at").
 		Limit(limit).
 		Offset(offset).
 		Find(&transactions).Error; err != nil {
-		return nil, fmt.Errorf("unable to fetch transactions: %w", err)
+		return nil, 0, fmt.Errorf("unable to fetch transactions: %w", err)
 	}
 
 	var response []model.TransactionMerchantResponse
@@ -220,8 +229,7 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, app
 		})
 	}
 
-	log.Println("Query executed successfully, number of transactions found:", len(response))
-	return response, nil
+	return response, totalItems, nil
 }
 
 func GetTransactionByID(ctx context.Context, id string) (*model.Transactions, error) {
