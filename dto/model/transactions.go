@@ -35,6 +35,7 @@ type Transactions struct {
 	Currency                 string     `gorm:"type:VARCHAR(10)" json:"currency"`
 	NetSettlement            float32    `gorm:"type:INTEGER" json:"net_settlement"`
 	Price                    uint       `gorm:"type:INTEGER" json:"price"`
+	Denom                    uint       `gorm:"type:INTEGER" json:"denom"`
 	BodySign                 string     `gorm:"type:TEXT" json:"bodysign"`
 	UserMDN                  string     `gorm:"type:VARCHAR(15)" json:"user_mdn"`
 	RedirectURL              string     `gorm:"type:TEXT" json:"redirect_url"`

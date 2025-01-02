@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"log"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -30,7 +29,7 @@ func Protected() fiber.Handler {
 			return []byte("dcbsecret"), nil // Ganti dengan secret key Anda
 		})
 
-		log.Println("Error parsing token:", err)
+		// log.Println("Error parsing token:", err)
 
 		if err != nil {
 			return jwtError(c, err) // Panggil fungsi error handling

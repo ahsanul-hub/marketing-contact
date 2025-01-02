@@ -10,12 +10,11 @@ import (
 	"app/repository"
 	"context"
 	"encoding/json"
+	"fmt"
 	"log"
 	"math"
 	"strconv"
 	"time"
-
-	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 	"go.elastic.co/apm"

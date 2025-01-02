@@ -133,6 +133,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		Currency:      input.Currency,
 		Price:         uint(chargingPrice),
 		NetSettlement: float32(nettSettlement),
+		Denom:         input.Amount,
 	}
 
 	transaction.AppID = client.ClientAppID
@@ -171,7 +172,7 @@ func GetAllTransactions(ctx context.Context, limit, offset int, appID, userMDN, 
 		return nil, 0, fmt.Errorf("unable to count transactions: %w", err)
 	}
 
-	if err := query.Debug().Limit(limit).Offset(offset).Find(&transactions).Error; err != nil {
+	if err := query.Debug().Order("created_at DESC").Limit(limit).Offset(offset).Find(&transactions).Error; err != nil {
 		return nil, 0, fmt.Errorf("unable to fetch transactions: %w", err)
 	}
 
@@ -203,7 +204,7 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, app
 		return nil, 0, fmt.Errorf("unable to count transactions: %w", err)
 	}
 
-	if err := query.Select("user_mdn, user_id, payment_method, mt_tid AS merchant_transaction_id, status_code, amount, price, created_at, updated_at").
+	if err := query.Select("user_mdn, user_id, payment_method, mt_tid AS merchant_transaction_id, status_code, amount, price, created_at, updated_at").Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&transactions).Error; err != nil {
