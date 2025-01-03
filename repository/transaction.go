@@ -133,7 +133,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		Currency:      input.Currency,
 		Price:         uint(chargingPrice),
 		NetSettlement: float32(nettSettlement),
-		Denom:         input.Amount,
+		Amount:        input.Amount,
 	}
 
 	transaction.AppID = client.ClientAppID
