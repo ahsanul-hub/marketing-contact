@@ -96,6 +96,8 @@ func Login(c *fiber.Ctx) error {
 	claims["username"] = userModel.Username
 	claims["user_id"] = userModel.ID
 	claims["role"] = updatedUser.Role
+	claims["appid"] = updatedUser.AppID
+	claims["appkey"] = updatedUser.AppKey
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
 	t, err := token.SignedString([]byte(config.Config("SECRET", "")))

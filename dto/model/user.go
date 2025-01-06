@@ -10,4 +10,6 @@ type User struct {
 	Password string `gorm:"not null;" validate:"required,min=6,max=50" json:"password"`
 	Names    string `json:"names"`
 	Role     string `json:"role"`
+	AppID    string `gorm:"size:50;" json:"appid"`
+	AppKey   string `gorm:"size:50;" json:"appkey"`
 }
