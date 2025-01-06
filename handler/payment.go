@@ -195,6 +195,7 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	input.Price = uint(amountFloat + math.Round(0.11*amountFloat))
 	input.AppID = c.Get("appid")
+	input.ClientAppKey = c.Get("appkey")
 	input.AppName = arrClient.ClientName
 
 	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
