@@ -178,9 +178,8 @@ func CheckNumberXl(msisdn string, token string) (bool, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&checkNumberResponse); err != nil {
 		return false, fmt.Errorf("failed to decode response: %w", err)
 	}
-
 	// Check response code and return the appropriate boolean
-	if checkNumberResponse.InquiryStatus.ResponseCode == "00" {
+	if checkNumberResponse.InquiryStatus.ResponseCode == "00" || checkNumberResponse.InquiryStatus.ResponseCode == "21" {
 		return true, nil
 	} else if checkNumberResponse.InquiryStatus.ResponseCode == "20" {
 		return false, nil

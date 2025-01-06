@@ -176,6 +176,7 @@
             item_name: data.item_name,
             app_id: data.app_id,
             redirect_url: data.redirect_url,
+            token: data.token,
           };
 
           fetch("/api/payment", {
@@ -191,7 +192,7 @@
             .then((response) => response.json())
             .then((data) => {
               if (data.success) {
-                window.location.href = `/api/success-payment/${dataFormated.user_mdn}/${data.token}`;
+                window.location.href = `/api/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`;
               } else {
                 alert(data.message || "Transaksi gagal");
               }
