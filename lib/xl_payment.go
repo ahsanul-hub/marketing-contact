@@ -218,8 +218,9 @@ func RequestCharging(msisdn, itemID, itemDesc, transactionId string, chargingPri
 	}
 	beautifyMsisdn := helper.BeautifyIDNumber(msisdn, false)
 
-	isNumberActive, _ := CheckNumberXl(beautifyMsisdn, token)
+	isNumberActive, err := CheckNumberXl(beautifyMsisdn, token)
 	if !isNumberActive {
+		log.Println("err:", err)
 		return ChargingResponse{}, fmt.Errorf("E0016")
 	}
 	chargingRequest := ChargingRequest{
