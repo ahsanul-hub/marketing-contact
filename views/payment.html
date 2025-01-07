@@ -159,6 +159,8 @@
         .getElementById("paymentForm")
         .addEventListener("submit", function (event) {
           event.preventDefault();
+          const submitButton = document.querySelector(".btn-next");
+          submitButton.disabled = true;
 
           const formData = new FormData(this);
 
@@ -191,6 +193,7 @@
           })
             .then((response) => response.json())
             .then((data) => {
+              submitButton.disabled = false;
               if (data.success) {
                 window.location.href = `/api/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`;
               } else {
@@ -198,6 +201,7 @@
               }
             })
             .catch((error) => {
+              submitButton.disabled = false;
               console.error("Error:", error);
             });
         });
