@@ -634,10 +634,10 @@ func ManualCallback(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, "Transaction not found")
 	}
 
-	if transaction.StatusCode != 1000 || transaction.StatusCode == 1003 {
-		return response.Response(c, fiber.StatusInternalServerError, "Transaction not success")
+	// if transaction.StatusCode != 1000 || transaction.StatusCode == 1003 {
+	// 	return response.Response(c, fiber.StatusInternalServerError, "Transaction not success")
 
-	}
+	// }
 	arrClient, err := repository.FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
 	if err != nil {
 		fmt.Println("Error fetching client:", err)

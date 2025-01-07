@@ -19,6 +19,7 @@ type Transactions struct {
 	PaymentMethod            string     `gorm:"type:VARCHAR(255)" json:"payment_method"`
 	StatusCode               int        `gorm:"type:INTEGER" json:"status_code"`
 	ItemName                 string     `gorm:"type:VARCHAR(255);not null" json:"item_name"`
+	ItemId                   string     `gorm:"type:VARCHAR(255)" json:"item_id"`
 	Route                    string     `gorm:"type:TEXT" json:"route"`
 	MdmTrxID                 string     `gorm:"type:VARCHAR(255)" json:"mdm_trx_id"`
 	UserId                   string     `gorm:"type:VARCHAR(255)" json:"user_id"`
@@ -53,6 +54,8 @@ type TransactionMerchantResponse struct {
 	TimestampSubmitDate     *time.Time `json:"timestamp_submit_date"`
 	TimestampCallbackDate   *time.Time `json:"timestamp_callback_date"`
 	TimestampCallbackResult string     `json:"timestamp_callback_result"`
+	ItemId                  string     `json:"item_id"`
+	ItemName                string     `json:"item_name"`
 	Route                   string     `json:"route"`
 	Amount                  uint       `json:"amount"`
 	Price                   uint       `json:"price"`
@@ -66,6 +69,7 @@ type InputPaymentRequest struct {
 	AppID         string `json:"app_id"`
 	Status        string `json:"status"`
 	MtTid         string `json:"merchant_transaction_id"`
+	ItemId        string `json:"item_id"`
 	Mobile        string `json:"mobile"`
 	Testing       bool   `json:"testing"`
 	Route         string `json:"route"`

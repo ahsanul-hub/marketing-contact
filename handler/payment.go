@@ -177,7 +177,6 @@ func CreateOrder(c *fiber.Ctx) error {
 	log.Println("bodyJSON:", bodyJSONString)
 
 	appSecret := arrClient.ClientSecret
-	log.Println("secret:", appSecret)
 
 	expectedBodysign, _ := helper.GenerateBodySign(bodyJSONString, appSecret)
 	log.Println("expectedBodysign", expectedBodysign)

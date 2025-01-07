@@ -134,6 +134,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		Price:         uint(chargingPrice),
 		NetSettlement: float32(nettSettlement),
 		Amount:        input.Amount,
+		ItemId:        input.ItemId,
 	}
 
 	transaction.AppID = client.ClientAppID
@@ -204,7 +205,7 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, app
 		return nil, 0, fmt.Errorf("unable to count transactions: %w", err)
 	}
 
-	if err := query.Select("user_mdn, user_id, payment_method, mt_tid AS merchant_transaction_id, status_code, amount, price, created_at, updated_at").Order("created_at DESC").
+	if err := query.Select("user_mdn, user_id, payment_method, mt_tid , status_code, amount, price, created_at, updated_at").Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&transactions).Error; err != nil {
@@ -223,6 +224,8 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, app
 			TimestampSubmitDate:     transaction.TimestampSubmitDate,
 			TimestampCallbackDate:   transaction.TimestampCallbackDate,
 			TimestampCallbackResult: transaction.TimestampCallbackResult,
+			ItemName:                transaction.ItemName,
+			ItemId:                  transaction.ItemId,
 			Route:                   transaction.Route,
 			Amount:                  transaction.Amount,
 			Price:                   transaction.Price,
@@ -264,6 +267,8 @@ func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (
 		TimestampSubmitDate:     transaction.TimestampSubmitDate,
 		TimestampCallbackDate:   transaction.TimestampCallbackDate,
 		TimestampCallbackResult: transaction.TimestampCallbackResult,
+		ItemName:                transaction.ItemName,
+		ItemId:                  transaction.ItemId,
 		Route:                   transaction.Route,
 		Amount:                  transaction.Amount,
 		Price:                   transaction.Price,
@@ -423,6 +428,7 @@ func SendCallback(merchantURL string, transactionID string, mtTid string, status
 	if err != nil {
 		log.Printf("failed to send callback: %v", err)
 	}
+
 	defer resp.Body.Close()
 
 	var responseBody map[string]interface{}

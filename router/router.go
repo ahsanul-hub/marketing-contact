@@ -20,7 +20,7 @@ func SetupRoutes(app *fiber.App) {
 	api.Post("/transaction", handler.CreateTransaction)
 	api.Get("/transactions", middleware.Protected(), middleware.AdminOnly(true), handler.GetTransactions)
 	api.Get("/transaction/:id", middleware.Protected(), middleware.AdminOnly(true), handler.GetTransactionByID)
-	api.Post("/manual-callback/:id", middleware.Protected(), middleware.AdminOnly(true), handler.GetTransactionByID)
+	api.Post("/manual-callback/:id", middleware.Protected(), middleware.AdminOnly(true), handler.ManualCallback)
 	api.Get("/check/:id", handler.CheckTrans)
 	api.Post("/test-payment", handler.TestPayment)
 	api.Get("/order/:appid/:token", handler.PaymentPage)
