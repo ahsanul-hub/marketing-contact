@@ -508,7 +508,7 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("callback failed with status: %s", resp.Status)
+		return fmt.Errorf("callback failed with status: %s , bodySign: %s", resp.Status, bodySign)
 	}
 
 	// Update timestamp callback date dan result
