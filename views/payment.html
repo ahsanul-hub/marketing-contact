@@ -147,8 +147,11 @@
           value="{{ .MtID }}"
         />
         <input type="hidden" name="item_name" value="{{ .ItemName }}" />
+        <input type="hidden" name="curency" value="{{ .Currency }}" />
         <input type="hidden" name="app_id" value="{{ .AppID }}" />
         <input type="hidden" name="token" value="{{ .Token }}" />
+        <input type="hidden" name="bodysign" value="{{ .BodySign }}" />
+        <input type="hidden" name="item_id" value="{{ .ItemId }}" />
       </form>
       <p class="text-center" style="font-size: 14px">
         Harga termasuk pajak dan biaya layanan.
@@ -176,6 +179,8 @@
             merchant_transaction_id: data.merchant_transaction_id,
             user_id: data.user_id,
             item_name: data.item_name,
+            item_id: data.item_id,
+            currency: data.currency,
             app_id: data.app_id,
             redirect_url: data.redirect_url,
             token: data.token,
@@ -188,6 +193,7 @@
               appid: data.app_id,
               appkey: data.client_appkey,
               token: data.token,
+              bodysign: data.bodysign,
             },
             body: JSON.stringify(dataFormated),
           })

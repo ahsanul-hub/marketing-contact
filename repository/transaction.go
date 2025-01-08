@@ -3,16 +3,19 @@ package repository
 import (
 	"app/database"
 	"app/dto/model"
+	"crypto/hmac"
+	"crypto/sha256"
+	"strings"
 
 	// "app/webhook"
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -85,10 +88,10 @@ func CreateOrder(ctx context.Context, input *model.InputPaymentRequest, client *
 	return uint(id.Timestamp().Unix()), nil
 }
 
-func stringToInt(value string) int {
-	intVal, _ := strconv.Atoi(value)
-	return intVal
-}
+// func stringToInt(value string) int {
+// 	intVal, _ := strconv.Atoi(value)
+// 	return intVal
+// }
 
 func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, client *model.Client) (string, error) {
 	span, _ := apm.StartSpan(ctx, "CreateTransaction", "repository")
@@ -119,6 +122,11 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	chargingPrice := float64(input.Amount)*additionalPercent + float64(input.Amount)
 	nettSettlement := float64(input.Amount) * (float64(*selectedSettlement.SharePartner) / 100)
 
+	currency := input.Currency
+	if currency == "" {
+		currency = "IDR"
+	}
+
 	transaction := model.Transactions{
 		ID:            uniqueID.String(),
 		ClientAppKey:  input.ClientAppKey,
@@ -130,11 +138,12 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		Route:         input.Route,
 		UserId:        input.UserId,
 		PaymentMethod: input.PaymentMethod,
-		Currency:      input.Currency,
+		Currency:      currency,
 		Price:         uint(chargingPrice),
 		NetSettlement: float32(nettSettlement),
 		Amount:        input.Amount,
 		ItemId:        input.ItemId,
+		BodySign:      input.BodySign,
 	}
 
 	transaction.AppID = client.ClientAppID
@@ -149,7 +158,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	return transaction.ID, nil
 }
 
-func GetAllTransactions(ctx context.Context, limit, offset int, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.Transactions, int64, error) {
+func GetAllTransactions(ctx context.Context, limit, offset, status int, transactionId, merchantTransactionId, appID, userMDN, userId, paymentMethod string, startDate, endDate *time.Time) ([]model.Transactions, int64, error) {
 	span, _ := apm.StartSpan(ctx, "GetAllTransactions", "repository")
 	defer span.End()
 	var transactions []model.Transactions
@@ -157,6 +166,18 @@ func GetAllTransactions(ctx context.Context, limit, offset int, appID, userMDN, 
 
 	query := database.DB
 
+	if transactionId != "" {
+		query = query.Where("id = ?", transactionId)
+	}
+	if merchantTransactionId != "" {
+		query = query.Where("mt_tid = ?", merchantTransactionId)
+	}
+	if status != 0 {
+		query = query.Where("status_code = ?", status)
+	}
+	if userId != "" {
+		query = query.Where("user_id = ?", userId)
+	}
 	if appID != "" {
 		query = query.Where("app_id = ?", appID)
 	}
@@ -180,11 +201,14 @@ func GetAllTransactions(ctx context.Context, limit, offset int, appID, userMDN, 
 	return transactions, totalItems, nil
 }
 
-func GetTransactionsMerchant(ctx context.Context, limit, offset int, appKey, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
+func GetTransactionsMerchant(ctx context.Context, limit, offset int, merchantTransactionId, appKey, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
 	var transactions []model.Transactions
 	query := database.DB
 	var totalItems int64
 
+	if merchantTransactionId != "" {
+		query = query.Where("mt_tid = ?", merchantTransactionId)
+	}
 	if appKey != "" {
 		query = query.Where("client_app_key = ?", appKey)
 	}
@@ -258,6 +282,7 @@ func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (
 	}
 
 	response := model.TransactionMerchantResponse{
+		ID:                      transaction.ID,
 		UserMDN:                 transaction.UserMDN,
 		UserID:                  transaction.UserId,
 		PaymentMethod:           transaction.PaymentMethod,
@@ -389,14 +414,25 @@ func ProcessTransactions() {
 		}
 
 		statusCode := 1000
-		message := "Transaction updated"
 
-		CallbackQueue <- CallbackJob{
+		callbackData := CallbackData{
+			UserID:                transaction.UserId,
+			MerchantTransactionID: transaction.MtTid,
+			StatusCode:            statusCode,
+			PaymentMethod:         transaction.PaymentMethod,
+			Amount:                fmt.Sprintf("%d", transaction.Amount),
+			Status:                "success",
+			Currency:              transaction.Currency,
+			ItemName:              transaction.ItemName,
+			ItemID:                transaction.ItemId,
+			ReferenceID:           transaction.ReferenceID,
+		}
+
+		CallbackQueue <- CallbackQueueStruct{
+			Data:          callbackData,
+			TransactionId: transaction.ID,
+			Secret:        arrClient.ClientSecret,
 			MerchantURL:   arrClient.CallbackURL,
-			TransactionID: transaction.ID,
-			MtTid:         transaction.MtTid,
-			StatusCode:    statusCode,
-			Message:       message,
 		}
 	}
 }
@@ -409,26 +445,54 @@ type CallbackJob struct {
 	Message       string `json:"message"`
 }
 
-var CallbackQueue = make(chan CallbackJob, 100)
+type CallbackData struct {
+	UserID                string `json:"user_id"`
+	MerchantTransactionID string `json:"merchant_transaction_id"`
+	StatusCode            int    `json:"status_code"`
+	PaymentMethod         string `json:"payment_method"`
+	Amount                string `json:"amount"`
+	Status                string `json:"status"`
+	Currency              string `json:"currency"`
+	ItemName              string `json:"item_name"`
+	ItemID                string `json:"item_id"`
+	ReferenceID           string `json:"reference_id"`
+}
+type CallbackQueueStruct struct {
+	Data          CallbackData
+	TransactionId string
+	Secret        string
+	MerchantURL   string
+}
 
-func SendCallback(merchantURL string, transactionID string, mtTid string, statusCode int, message string) error {
-	callbackData := CallbackJob{
-		TransactionID: transactionID,
-		StatusCode:    statusCode,
-		MtTid:         mtTid,
-		Message:       message,
-	}
+var CallbackQueue = make(chan CallbackQueueStruct, 100)
 
-	jsonData, err := json.Marshal(callbackData)
+func SendCallback(merchantURL, secret string, transactionID string, data CallbackData) error {
+	jsonData, err := json.Marshal(data)
 	if err != nil {
 		log.Printf("failed to marshal callback data: %v", err)
 	}
 
-	resp, err := http.Post(merchantURL, "application/json", bytes.NewBuffer(jsonData))
+	bodyJSONString := string(jsonData)
+	// log.Println("jsonData", bodyJSONString)
+
+	bodySign, _ := GenerateBodySign(bodyJSONString, secret)
+	// log.Println("bodySign", bodySign)
+
+	req, err := http.NewRequest(http.MethodPost, merchantURL, bytes.NewBuffer(jsonData))
 	if err != nil {
-		log.Printf("failed to send callback: %v", err)
+		log.Printf("failed to create request: %v", err)
+		return err
 	}
 
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("bodysign", bodySign)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("failed to send callback: %v", err)
+		return err
+	}
 	defer resp.Body.Close()
 
 	var responseBody map[string]interface{}
@@ -440,7 +504,7 @@ func SendCallback(merchantURL string, transactionID string, mtTid string, status
 	if result, ok := responseBody["result"]; ok && result != nil {
 		callbackResult = fmt.Sprintf("%v", result)
 	} else {
-		callbackResult = "ok" // Nilai default jika result nil
+		callbackResult = "ok"
 	}
 
 	if resp.StatusCode != http.StatusOK {
@@ -458,15 +522,16 @@ func SendCallback(merchantURL string, transactionID string, mtTid string, status
 	return nil
 }
 
-func sendCallbackWithRetry(merchantURL string, transactionID string, mtTid string, statusCode int, message string, retries int) {
+func sendCallbackWithRetry(merchantURL string, transactionID string, secret string, retries int, data CallbackData) {
 	for i := 0; i < retries; i++ {
-		err := SendCallback(merchantURL, transactionID, mtTid, statusCode, message)
+
+		err := SendCallback(merchantURL, secret, transactionID, data)
 		if err == nil {
 			fmt.Println("Callback sent successfully")
 			return
 		}
 
-		fmt.Printf("Failed to send callback, attempt %d: %v\n", i+1, err)
+		log.Printf("Failed to send callback, with transactionId: %s , merchant_trx_id : %s attempt %d: %v\n", transactionID, data.MerchantTransactionID, i+1, err)
 		time.Sleep(5 * time.Minute)
 	}
 
@@ -475,6 +540,24 @@ func sendCallbackWithRetry(merchantURL string, transactionID string, mtTid strin
 
 func ProcessCallbackQueue() {
 	for job := range CallbackQueue {
-		sendCallbackWithRetry(job.MerchantURL, job.TransactionID, job.MtTid, job.StatusCode, job.Message, 5)
+		sendCallbackWithRetry(job.MerchantURL, job.TransactionId, job.Secret, 5, job.Data)
 	}
+}
+
+func GenerateBodySign(bodyJson string, appSecret string) (string, error) {
+
+	h := hmac.New(sha256.New, []byte(appSecret))
+
+	// Write the data (bodyJson) to the HMAC
+	h.Write([]byte(bodyJson))
+
+	// Get the HMAC result
+	signature := h.Sum(nil)
+
+	// Encode the HMAC result to Base64
+	base64Encoded := base64.StdEncoding.EncodeToString(signature)
+
+	bodysign := strings.NewReplacer("+", "-", "/", "_").Replace(base64Encoded)
+
+	return bodysign, nil
 }

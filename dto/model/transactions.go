@@ -40,15 +40,18 @@ type Transactions struct {
 	UserMDN                  string     `gorm:"type:VARCHAR(15)" json:"user_mdn"`
 	RedirectURL              string     `gorm:"type:TEXT" json:"redirect_url"`
 	RedirectTarget           string     `gorm:"type:TEXT" json:"redirect_target"`
+	ReferenceID              string     `gorm:"type:VARCHAR(255)" json:"reference_id"`
 	CreatedAt                time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt                time.Time  `gorm:"autoCreateTime" json:"updated_at"`
 }
 
 type TransactionMerchantResponse struct {
+	ID                      string     `json:"u_id"`
 	UserMDN                 string     `json:"user_mdn"`
 	UserID                  string     `json:"user_id"`
 	PaymentMethod           string     `json:"payment_method"`
 	MerchantTransactionID   string     `json:"merchant_transaction_id"`
+	AppName                 string     `json:"app_name"`
 	StatusCode              int        `json:"status_code"`
 	TimestampRequestDate    *time.Time `json:"timestamp_request_date"`
 	TimestampSubmitDate     *time.Time `json:"timestamp_submit_date"`
@@ -57,6 +60,7 @@ type TransactionMerchantResponse struct {
 	ItemId                  string     `json:"item_id"`
 	ItemName                string     `json:"item_name"`
 	Route                   string     `json:"route"`
+	Currency                string     `json:"currency"`
 	Amount                  uint       `json:"amount"`
 	Price                   uint       `json:"price"`
 	CreatedAt               time.Time  `json:"created_at"`
@@ -69,6 +73,7 @@ type InputPaymentRequest struct {
 	AppID         string `json:"app_id"`
 	Status        string `json:"status"`
 	MtTid         string `json:"merchant_transaction_id"`
+	BodySign      string `json:"bodysign"`
 	ItemId        string `json:"item_id"`
 	Mobile        string `json:"mobile"`
 	Testing       bool   `json:"testing"`

@@ -386,7 +386,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	span, spanCtx := apm.StartSpan(c.Context(), "CreateTransactionV1", "handler")
 	defer span.End()
 
-	// token := c.Get("token")
+	bodysign := c.Get("bodysign")
 
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
@@ -404,6 +404,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	arrClient, err := repository.FindClient(spanCtx, c.Get("appkey"), c.Get("appid"))
 
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
+	transaction.BodySign = bodysign
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
@@ -492,6 +493,14 @@ func GetTransactions(c *fiber.Ctx) error {
 	paymentMethod := c.Query("payment_method")
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
+	userId := c.Query("user_id")
+	transactionId := c.Query("trx_id")
+	merchantTransactionId := c.Query("merchant_trx_id")
+	statusStr := c.Query("status")
+	status, err := strconv.Atoi(statusStr)
+	if err != nil {
+		fmt.Println("error convert status")
+	}
 
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
@@ -507,19 +516,19 @@ func GetTransactions(c *fiber.Ctx) error {
 
 	var startDate, endDate *time.Time
 	if startDateStr != "" {
-		parsedStartDate, err := time.Parse("2006-01-02", startDateStr)
+		parsedStartDate, err := time.Parse(time.RFC1123, startDateStr)
 		if err == nil {
 			startDate = &parsedStartDate
 		}
 	}
 	if endDateStr != "" {
-		parsedEndDate, err := time.Parse("2006-01-02", endDateStr)
+		parsedEndDate, err := time.Parse(time.RFC1123, endDateStr)
 		if err == nil {
 			endDate = &parsedEndDate
 		}
 	}
 
-	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, appID, userMDN, paymentMethod, startDate, endDate)
+	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, transactionId, merchantTransactionId, appID, userMDN, userId, paymentMethod, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -577,6 +586,7 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 
 	userMDN := c.Query("user_mdn")
 	paymentMethod := c.Query("payment_method")
+	merchantTransactionId := c.Query("merchant_transaction_id")
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
 
@@ -606,7 +616,7 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, appKey, appID, userMDN, paymentMethod, startDate, endDate)
+	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, merchantTransactionId, appKey, appID, userMDN, paymentMethod, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -648,9 +658,21 @@ func ManualCallback(c *fiber.Ctx) error {
 	}
 
 	statusCode := 1000
-	message := "Manual callback triggered"
 
-	err = repository.SendCallback(arrClient.CallbackURL, transaction.ID, transaction.MtTid, statusCode, message)
+	callbackData := repository.CallbackData{
+		UserID:                transaction.UserId,
+		MerchantTransactionID: transaction.MtTid,
+		StatusCode:            statusCode,
+		PaymentMethod:         transaction.PaymentMethod,
+		Amount:                fmt.Sprintf("%d", transaction.Amount),
+		Status:                "success",
+		Currency:              transaction.Currency,
+		ItemName:              transaction.ItemName,
+		ItemID:                transaction.ItemId,
+		ReferenceID:           transaction.ReferenceID,
+	}
+
+	err = repository.SendCallback(arrClient.CallbackURL, arrClient.ClientSecret, transaction.ID, callbackData)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

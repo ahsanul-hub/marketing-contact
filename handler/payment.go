@@ -140,7 +140,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	span, spanCtx := apm.StartSpan(c.Context(), "CreateOrderV1", "handler")
 	defer span.End()
 
-	// receivedBodysign := c.Get("bodysign")
+	receivedBodysign := c.Get("bodysign")
 
 	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -162,8 +162,6 @@ func CreateOrder(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	// bodyJSON, _ := json.Marshal(input)
-
 	bodyJSON, err := json.Marshal(input)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -174,7 +172,7 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	// Ubah bodyJSON menjadi string untuk dicetak
 	bodyJSONString := string(bodyJSON)
-	log.Println("bodyJSON:", bodyJSONString)
+	// log.Println("bodyJSON:", bodyJSONString)
 
 	appSecret := arrClient.ClientSecret
 
@@ -196,6 +194,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	input.AppID = c.Get("appid")
 	input.ClientAppKey = c.Get("appkey")
 	input.AppName = arrClient.ClientName
+	input.BodySign = receivedBodysign
 
 	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
 
@@ -238,6 +237,7 @@ func PaymentPage(c *fiber.Ctx) error {
 			"PaymentMethod":    inputReq.PaymentMethod,
 			"PaymentMethodStr": StrPaymentMethod,
 			"ItemName":         inputReq.ItemName,
+			"ItemId":           inputReq.ItemId,
 			"Price":            inputReq.Price,
 			"Amount":           inputReq.Amount,
 			"Currency":         currency,
@@ -247,6 +247,7 @@ func PaymentPage(c *fiber.Ctx) error {
 			"UserId":           inputReq.UserId,
 			"RedirectURL":      inputReq.RedirectURL,
 			"Token":            token,
+			"BodySign":         inputReq.BodySign,
 		})
 
 	}
