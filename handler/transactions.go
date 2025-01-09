@@ -496,7 +496,15 @@ func GetTransactions(c *fiber.Ctx) error {
 	userId := c.Query("user_id")
 	transactionId := c.Query("trx_id")
 	merchantTransactionId := c.Query("merchant_trx_id")
+	appName := c.Query("app_name")
+	merchantName := c.Query("merchant_name")
+	denomStr := c.Query("denom")
+	denom, err := strconv.Atoi(denomStr)
+	if err != nil {
+		fmt.Println("error convert status")
+	}
 	statusStr := c.Query("status")
+
 	status, err := strconv.Atoi(statusStr)
 	if err != nil {
 		fmt.Println("error convert status")
@@ -528,7 +536,7 @@ func GetTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, transactionId, merchantTransactionId, appID, userMDN, userId, paymentMethod, startDate, endDate)
+	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, appID, userMDN, userId, paymentMethod, merchantName, appName, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

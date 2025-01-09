@@ -158,7 +158,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	return transaction.ID, nil
 }
 
-func GetAllTransactions(ctx context.Context, limit, offset, status int, transactionId, merchantTransactionId, appID, userMDN, userId, paymentMethod string, startDate, endDate *time.Time) ([]model.Transactions, int64, error) {
+func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, transactionId, merchantTransactionId, appID, userMDN, userId, paymentMethod, merchantName, appName string, startDate, endDate *time.Time) ([]model.Transactions, int64, error) {
 	span, _ := apm.StartSpan(ctx, "GetAllTransactions", "repository")
 	defer span.End()
 	var transactions []model.Transactions
@@ -175,11 +175,20 @@ func GetAllTransactions(ctx context.Context, limit, offset, status int, transact
 	if status != 0 {
 		query = query.Where("status_code = ?", status)
 	}
+	if denom != 0 {
+		query = query.Where("amount = ?", denom)
+	}
 	if userId != "" {
 		query = query.Where("user_id = ?", userId)
 	}
 	if appID != "" {
 		query = query.Where("app_id = ?", appID)
+	}
+	if appName != "" {
+		query = query.Where("app_name = ?", appName)
+	}
+	if merchantName != "" {
+		query = query.Where("merchant_name = ?", merchantName)
 	}
 	if userMDN != "" {
 		query = query.Where("user_mdn = ?", userMDN)
@@ -250,6 +259,8 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset int, merchantTra
 			TimestampCallbackResult: transaction.TimestampCallbackResult,
 			ItemName:                transaction.ItemName,
 			ItemId:                  transaction.ItemId,
+			Currency:                transaction.Currency,
+			AppName:                 transaction.AppName,
 			Route:                   transaction.Route,
 			Amount:                  transaction.Amount,
 			Price:                   transaction.Price,
@@ -294,6 +305,8 @@ func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (
 		TimestampCallbackResult: transaction.TimestampCallbackResult,
 		ItemName:                transaction.ItemName,
 		ItemId:                  transaction.ItemId,
+		Currency:                transaction.Currency,
+		AppName:                 transaction.AppName,
 		Route:                   transaction.Route,
 		Amount:                  transaction.Amount,
 		Price:                   transaction.Price,
@@ -318,6 +331,20 @@ func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, n
 
 	return nil
 }
+
+// func UpdateTransactionStatusFailCallback(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
+// 	db := database.DB
+
+// 	transactionUpdate := model.Transactions{
+// 		StatusCode: newStatusCode,
+// 	}
+
+// 	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
+// 		return fmt.Errorf("failed to update transaction status: %w", err)
+// 	}
+
+// 	return nil
+// }
 
 func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
 	db := database.DB
@@ -347,7 +374,7 @@ func GetPendingTransactions(ctx context.Context) ([]model.Transactions, error) {
 	return transactions, nil
 }
 
-func UpdateTransactionCallbackTimestamps(ctx context.Context, transactionID string, callbackDate *time.Time, callbackResult string) error {
+func UpdateTransactionCallbackTimestamps(ctx context.Context, transactionID string, statusCode int, callbackDate *time.Time, callbackResult string) error {
 	db := database.DB
 
 	updates := make(map[string]interface{})
@@ -359,7 +386,7 @@ func UpdateTransactionCallbackTimestamps(ctx context.Context, transactionID stri
 		updates["timestamp_callback_result"] = callbackResult
 	}
 
-	updates["status_code"] = 1000
+	updates["status_code"] = statusCode
 
 	if len(updates) > 0 {
 		if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ?", transactionID).Updates(updates).Error; err != nil {
@@ -390,50 +417,100 @@ func UpdateTransactionTimestamps(ctx context.Context, transactionID string, requ
 		if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ?", transactionID).Updates(updates).Error; err != nil {
 			return fmt.Errorf("failed to update transaction timestamps: %w", err)
 		}
-
-		if db.RowsAffected == 0 {
-			return fmt.Errorf("no transaction found with ID: %s", transactionID)
-		}
 	}
 
 	return nil
 }
 
+// func ProcessTransactions() {
+// 	var transactions []model.Transactions
+
+// 	if err := database.DB.Where("status_code = ?", 1003).Find(&transactions).Error; err != nil {
+// 		fmt.Println("Error fetching transactions:", err)
+// 		return
+// 	}
+
+// 	for _, transaction := range transactions {
+
+// 		arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
+// 		if err != nil {
+// 			fmt.Println("Error fetching client:", err)
+// 		}
+
+// 		statusCode := 1000
+
+// 		callbackData := CallbackData{
+// 			UserID:                transaction.UserId,
+// 			MerchantTransactionID: transaction.MtTid,
+// 			StatusCode:            statusCode,
+// 			PaymentMethod:         transaction.PaymentMethod,
+// 			Amount:                fmt.Sprintf("%d", transaction.Amount),
+// 			Status:                "success",
+// 			Currency:              transaction.Currency,
+// 			ItemName:              transaction.ItemName,
+// 			ItemID:                transaction.ItemId,
+// 			ReferenceID:           transaction.ReferenceID,
+// 		}
+
+// 		CallbackQueue <- CallbackQueueStruct{
+// 			Data:          callbackData,
+// 			TransactionId: transaction.ID,
+// 			Secret:        arrClient.ClientSecret,
+// 			MerchantURL:   arrClient.CallbackURL,
+// 		}
+// 		time.Sleep(10 * time.Second)
+
+// 	}
+// 	log.Println("transactions length:", len(transactions))
+// }
+
 func ProcessTransactions() {
-	var transactions []model.Transactions
+	for {
 
-	if err := database.DB.Where("status_code = ?", 1003).Find(&transactions).Error; err != nil {
-		fmt.Println("Error fetching transactions:", err)
-		return
-	}
-
-	for _, transaction := range transactions {
-		arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
-		if err != nil {
-			fmt.Println("Error fetching client:", err)
+		// Ambil transaksi yang statusnya 1003
+		var transactions []model.Transactions
+		if err := database.DB.Where("status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Find(&transactions).Error; err != nil {
+			fmt.Println("Error fetching transactions:", err)
+			return
 		}
 
-		statusCode := 1000
+		// log.Printf("Found %d transactions with status 1003", len(transactions))
 
-		callbackData := CallbackData{
-			UserID:                transaction.UserId,
-			MerchantTransactionID: transaction.MtTid,
-			StatusCode:            statusCode,
-			PaymentMethod:         transaction.PaymentMethod,
-			Amount:                fmt.Sprintf("%d", transaction.Amount),
-			Status:                "success",
-			Currency:              transaction.Currency,
-			ItemName:              transaction.ItemName,
-			ItemID:                transaction.ItemId,
-			ReferenceID:           transaction.ReferenceID,
+		for _, transaction := range transactions {
+			// Proses transaksi dalam goroutine
+			go func(transaction model.Transactions) {
+
+				arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
+				if err != nil {
+					log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
+					return
+				}
+
+				// Siapkan data callback
+				callbackData := CallbackData{
+					UserID:                transaction.UserId,
+					MerchantTransactionID: transaction.MtTid,
+					StatusCode:            1000, // Misalnya, status sukses
+					PaymentMethod:         transaction.PaymentMethod,
+					Amount:                fmt.Sprintf("%d", transaction.Amount),
+					Status:                "success",
+					Currency:              transaction.Currency,
+					ItemName:              transaction.ItemName,
+					ItemID:                transaction.ItemId,
+					ReferenceID:           transaction.ReferenceID,
+				}
+
+				// Kirim ke CallbackQueue
+				CallbackQueue <- CallbackQueueStruct{
+					Data:          callbackData,
+					TransactionId: transaction.ID,
+					Secret:        arrClient.ClientSecret,
+					MerchantURL:   arrClient.CallbackURL,
+				}
+			}(transaction)
 		}
 
-		CallbackQueue <- CallbackQueueStruct{
-			Data:          callbackData,
-			TransactionId: transaction.ID,
-			Secret:        arrClient.ClientSecret,
-			MerchantURL:   arrClient.CallbackURL,
-		}
+		time.Sleep(5 * time.Second)
 	}
 }
 
@@ -515,32 +592,49 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 	ctx := context.Background() // Buat context untuk digunakan dalam pembaruan
 	callbackDate := time.Now()  // Ambil waktu sekarang sebagai callback date
 
-	if err := UpdateTransactionCallbackTimestamps(ctx, transactionID, &callbackDate, callbackResult); err != nil {
+	if err := UpdateTransactionCallbackTimestamps(ctx, transactionID, 1000, &callbackDate, callbackResult); err != nil {
 		return fmt.Errorf("failed to update transaction callback timestamps: %v", err)
 	}
 
 	return nil
 }
 
-func sendCallbackWithRetry(merchantURL string, transactionID string, secret string, retries int, data CallbackData) {
+func sendCallbackWithRetry(merchantURL string, transactionID string, secret string, retries int, data CallbackData) error {
 	for i := 0; i < retries; i++ {
 
 		err := SendCallback(merchantURL, secret, transactionID, data)
 		if err == nil {
 			fmt.Println("Callback sent successfully")
-			return
+			return nil
 		}
 
-		log.Printf("Failed to send callback, with transactionId: %s , merchant_trx_id : %s attempt %d: %v\n", transactionID, data.MerchantTransactionID, i+1, err)
 		time.Sleep(5 * time.Minute)
 	}
 
-	fmt.Println("All retry attempts failed")
+	if err := UpdateTransactionCallbackTimestamps(context.Background(), transactionID, 1003, nil, "failed"); err != nil {
+		return fmt.Errorf("failed to update transaction callback timestamps: %v", err)
+	}
+
+	return fmt.Errorf("all retry attempts failed for transactionId: %s", transactionID) // Kembalikan error jika semua percobaan gagal
 }
+
+// func ProcessCallbackQueue() {
+// 	for job := range CallbackQueue {
+// 		log.Printf("Processing callback for transactionId: %s", job.TransactionId)
+// 		sendCallbackWithRetry(job.MerchantURL, job.TransactionId, job.Secret, 5, job.Data)
+// 	}
+// }
 
 func ProcessCallbackQueue() {
 	for job := range CallbackQueue {
-		sendCallbackWithRetry(job.MerchantURL, job.TransactionId, job.Secret, 5, job.Data)
+		// Jalankan pengiriman callback dalam goroutine
+		go func(job CallbackQueueStruct) {
+			// log.Printf("Processing callback for transactionId: %s", job.TransactionId)
+			err := sendCallbackWithRetry(job.MerchantURL, job.TransactionId, job.Secret, 5, job.Data)
+			if err != nil {
+				fmt.Printf("Failed to send callback for transactionId: %s: %v", job.TransactionId, err)
+			}
+		}(job) // Pass job as an argument to the goroutine
 	}
 }
 
