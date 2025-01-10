@@ -494,8 +494,8 @@ func GetTransactions(c *fiber.Ctx) error {
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
 	userId := c.Query("user_id")
-	transactionId := c.Query("trx_id")
-	merchantTransactionId := c.Query("merchant_trx_id")
+	transactionId := c.Query("transaction_id")
+	merchantTransactionId := c.Query("merchant_transaction_id")
 	appName := c.Query("app_name")
 	merchantName := c.Query("merchant_name")
 	denomStr := c.Query("denom")
@@ -595,6 +595,19 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 	userMDN := c.Query("user_mdn")
 	paymentMethod := c.Query("payment_method")
 	merchantTransactionId := c.Query("merchant_transaction_id")
+	appName := c.Query("app_name")
+	denomStr := c.Query("denom")
+	denom, err := strconv.Atoi(denomStr)
+	if err != nil {
+		fmt.Println("error convert status")
+	}
+	statusStr := c.Query("status")
+
+	status, err := strconv.Atoi(statusStr)
+	if err != nil {
+		fmt.Println("error convert status")
+	}
+
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
 
@@ -624,7 +637,7 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, merchantTransactionId, appKey, appID, userMDN, paymentMethod, startDate, endDate)
+	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, status, denom, merchantTransactionId, appKey, appID, userMDN, paymentMethod, appName, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

@@ -6,6 +6,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"strings"
+	"sync"
 
 	// "app/webhook"
 	"bytes"
@@ -25,6 +26,8 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
+
+var processedTransactions sync.Map
 
 func CheckTransaction(transactionID, appKey, appID string) (*model.Transactions, error) {
 	ctx := context.Background()
@@ -210,7 +213,7 @@ func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, t
 	return transactions, totalItems, nil
 }
 
-func GetTransactionsMerchant(ctx context.Context, limit, offset int, merchantTransactionId, appKey, appID, userMDN, paymentMethod string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
+func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom int, merchantTransactionId, appKey, appID, userMDN, paymentMethod, appName string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
 	var transactions []model.Transactions
 	query := database.DB
 	var totalItems int64
@@ -220,6 +223,15 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset int, merchantTra
 	}
 	if appKey != "" {
 		query = query.Where("client_app_key = ?", appKey)
+	}
+	if status != 0 {
+		query = query.Where("status_code = ?", status)
+	}
+	if denom != 0 {
+		query = query.Where("amount = ?", denom)
+	}
+	if appName != "" {
+		query = query.Where("app_name = ?", appName)
 	}
 	if appID != "" {
 		query = query.Where("app_id = ?", appID)
@@ -466,7 +478,6 @@ func UpdateTransactionTimestamps(ctx context.Context, transactionID string, requ
 
 func ProcessTransactions() {
 	for {
-
 		// Ambil transaksi yang statusnya 1003
 		var transactions []model.Transactions
 		if err := database.DB.Where("status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Find(&transactions).Error; err != nil {
@@ -474,12 +485,15 @@ func ProcessTransactions() {
 			return
 		}
 
-		// log.Printf("Found %d transactions with status 1003", len(transactions))
-
 		for _, transaction := range transactions {
+			// Cek apakah transaksi sudah diproses
+			if _, loaded := processedTransactions.LoadOrStore(transaction.ID, true); loaded {
+				// Jika sudah diproses, lewati transaksi ini
+				continue
+			}
+
 			// Proses transaksi dalam goroutine
 			go func(transaction model.Transactions) {
-
 				arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
 				if err != nil {
 					log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
@@ -574,7 +588,7 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 
 	var responseBody map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
-		log.Printf("failed to decode response body: %v", err)
+		// log.Printf("failed to decode response body: %v", err)
 	}
 
 	var callbackResult string
@@ -634,7 +648,7 @@ func ProcessCallbackQueue() {
 			if err != nil {
 				fmt.Printf("Failed to send callback for transactionId: %s: %v", job.TransactionId, err)
 			}
-		}(job) // Pass job as an argument to the goroutine
+		}(job)
 	}
 }
 
