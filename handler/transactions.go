@@ -14,6 +14,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -490,14 +491,26 @@ func GetTransactions(c *fiber.Ctx) error {
 
 	appID := c.Query("app_id")
 	userMDN := helper.BeautifyIDNumber(c.Query("user_mdn"), true)
-	paymentMethod := c.Query("payment_method")
+	paymentMethodStr := c.Query("payment_method")
+	var paymentMethods []string
+	if paymentMethodStr != "" {
+		paymentMethods = strings.Split(paymentMethodStr, ",")
+	} else {
+		paymentMethods = []string{}
+	}
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
 	userId := c.Query("user_id")
 	transactionId := c.Query("transaction_id")
 	merchantTransactionId := c.Query("merchant_transaction_id")
 	appName := c.Query("app_name")
-	merchantName := c.Query("merchant_name")
+	merchantNameStr := c.Query("merchant_name")
+	var merchants []string
+	if merchantNameStr != "" {
+		merchants = strings.Split(merchantNameStr, ",")
+	} else {
+		merchants = []string{}
+	}
 	denomStr := c.Query("denom")
 	denom, err := strconv.Atoi(denomStr)
 	if err != nil {
@@ -536,7 +549,7 @@ func GetTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, appID, userMDN, userId, paymentMethod, merchantName, appName, startDate, endDate)
+	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, appID, userMDN, userId, appName, merchants, paymentMethods, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

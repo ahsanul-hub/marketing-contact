@@ -161,7 +161,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	return transaction.ID, nil
 }
 
-func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, transactionId, merchantTransactionId, appID, userMDN, userId, paymentMethod, merchantName, appName string, startDate, endDate *time.Time) ([]model.Transactions, int64, error) {
+func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, transactionId, merchantTransactionId, appID, userMDN, userId, appName string, merchants, paymentMethods []string, startDate, endDate *time.Time) ([]model.Transactions, int64, error) {
 	span, _ := apm.StartSpan(ctx, "GetAllTransactions", "repository")
 	defer span.End()
 	var transactions []model.Transactions
@@ -190,14 +190,14 @@ func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, t
 	if appName != "" {
 		query = query.Where("app_name = ?", appName)
 	}
-	if merchantName != "" {
-		query = query.Where("merchant_name = ?", merchantName)
+	if len(merchants) > 0 {
+		query = query.Where("merchant_name IN ?", merchants)
 	}
 	if userMDN != "" {
 		query = query.Where("user_mdn = ?", userMDN)
 	}
-	if paymentMethod != "" {
-		query = query.Where("payment_method = ?", paymentMethod)
+	if len(paymentMethods) > 0 {
+		query = query.Where("payment_method IN ?", paymentMethods)
 	}
 	if startDate != nil && endDate != nil {
 		query = query.Where("created_at BETWEEN ? AND ?", *startDate, *endDate)
