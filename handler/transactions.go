@@ -606,7 +606,13 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 	limitStr := c.Query("limit", "10")
 
 	userMDN := c.Query("user_mdn")
-	paymentMethod := c.Query("payment_method")
+	paymentMethodStr := c.Query("payment_method")
+	var paymentMethods []string
+	if paymentMethodStr != "" {
+		paymentMethods = strings.Split(paymentMethodStr, ",")
+	} else {
+		paymentMethods = []string{}
+	}
 	merchantTransactionId := c.Query("merchant_transaction_id")
 	appName := c.Query("app_name")
 	denomStr := c.Query("denom")
@@ -650,7 +656,7 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, status, denom, merchantTransactionId, appKey, appID, userMDN, paymentMethod, appName, startDate, endDate)
+	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, status, denom, merchantTransactionId, appKey, appID, userMDN, appName, paymentMethods, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
