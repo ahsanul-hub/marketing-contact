@@ -1,24 +1,53 @@
-version: '3.8'
-services:
-  web:
-    build: .
-    env_file:
-      - .env
-    ports:
-      - 3000:3000
-    volumes:
-      - .:/usr/src/some-api
-    command: air cmd/main.go -b 0.0.0.0
-  db:
-    image: postgres:alpine
-    environment:
-      - POSTGRES_USER=${DB_USER}
-      - POSTGRES_PASSWORD=${DB_PASSWORD}
-      - POSTGRES_DB=${DB_NAME}
-    ports:
-      - ${DB_PORT}:${DB_PORT}
-    volumes:
-      - postgres-db:/var/lib/postgresql/data
+# version: '3.8'
+# services:
+#   web:
+#     build: .
+#     env_file:
+#       - .env
+#     ports:
+#       - 3000:3000
+#     volumes:
+#       - .:/usr/src/some-api
+#     command: air cmd/main.go -b 0.0.0.0
+#   db:
+#     image: postgres:alpine
+#     environment:
+#       - POSTGRES_USER=${DB_USER}
+#       - POSTGRES_PASSWORD=${DB_PASSWORD}
+#       - POSTGRES_DB=${DB_NAME}
+#     ports:
+#       - ${DB_PORT}:${DB_PORT}
+#     volumes:
+#       - postgres-db:/var/lib/postgresql/data
 
-volumes:
-  postgres-db:
+# volumes:
+#   postgres-db:
+
+version: "3.8"
+
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+
+networks:
+  monitoring:
+    driver: bridge

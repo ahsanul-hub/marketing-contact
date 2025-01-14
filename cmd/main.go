@@ -4,6 +4,7 @@ import (
 	"app/config"
 	"app/database"
 	"app/lib"
+	"app/middleware"
 	"app/repository"
 	"app/router"
 	"io"
@@ -13,10 +14,14 @@ import (
 	"syscall"
 	"time"
 
+	// "app/webhook"
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/adaptor"
+	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/template/html/v2"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
@@ -36,11 +41,22 @@ func main() {
 		Views: engine,
 	})
 
+	app.Use(middleware.TrackMetrics())
+
+	app.Use(cors.New(cors.Config{
+		AllowOrigins: "*", // Ganti dengan domain yang diizinkan jika perlu
+		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization, appid, appkey",
+	}))
+
+	middleware.PrometheusInit()
+
 	database.ConnectDB()
 	go lib.ProcessPendingTransactions()
 	go repository.ProcessCallbackQueue()
 	go repository.ProcessTransactions()
 
+	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
 	router.SetupRoutes(app)
 
 	sigs := make(chan os.Signal, 1)
