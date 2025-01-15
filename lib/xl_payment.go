@@ -221,6 +221,10 @@ func RequestCharging(msisdn, itemID, itemDesc, transactionId string, chargingPri
 	isNumberActive, err := CheckNumberXl(beautifyMsisdn, token)
 	if !isNumberActive {
 		log.Println("err:", err)
+		err := repository.UpdateTransactionFailReason(context.Background(), transactionId, "Msisdn not active")
+		if err != nil {
+			log.Println("err: ", err)
+		}
 		return ChargingResponse{}, fmt.Errorf("E0016")
 	}
 	chargingRequest := ChargingRequest{
@@ -379,6 +383,7 @@ func CheckTransactionStatus(transaction model.Transactions) {
 func ProcessPendingTransactions() {
 	for {
 		// Ambil transaksi yang statusnya pending
+		go repository.ProcessTransactions()
 		transactions, err := repository.GetPendingTransactions(context.Background())
 		if err != nil {
 			log.Printf("Error retrieving pending transactions: %s", err)

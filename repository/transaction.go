@@ -344,6 +344,20 @@ func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, n
 	return nil
 }
 
+func UpdateTransactionFailReason(ctx context.Context, transactionID string, FailReason string) error {
+	db := database.DB
+
+	transactionUpdate := model.Transactions{
+		FailReason: FailReason,
+	}
+
+	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
+		return fmt.Errorf("failed to update fail reason: %w", err)
+	}
+
+	return nil
+}
+
 // func UpdateTransactionStatusFailCallback(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
 // 	db := database.DB
 
@@ -376,13 +390,18 @@ func GetPendingTransactions(ctx context.Context) ([]model.Transactions, error) {
 	var transactions []model.Transactions
 	// timeLimit := time.Now().Add(-8 * time.Minute)
 
-	if err := database.DB.Select("id, merchant_name", "status_code").Where("status_code = ?", 1001).Find(&transactions).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return transactions, nil
-		}
-		return nil, fmt.Errorf("error fetching transactions: %w", err)
+	// if err := database.DB.Select("id, merchant_name", "status_code").Where("status_code = ?", 1001).Find(&transactions).Error; err != nil {
+	// 	if errors.Is(err, gorm.ErrRecordNotFound) {
+	// 		return transactions, nil
+	// 	}
+	// 	return nil, fmt.Errorf("error fetching transactions: %w", err)
+	// }
+
+	err := database.DB.Raw("SELECT id, merchant_name, status_code FROM transactions WHERE status_code = ?", 1001).Scan(&transactions).Error
+	if err != nil {
+		log.Fatalf("Error fetching transactions: %v", err)
 	}
-	// log.Println("transactions: ", transactions)
+
 	return transactions, nil
 }
 
@@ -477,54 +496,53 @@ func UpdateTransactionTimestamps(ctx context.Context, transactionID string, requ
 // }
 
 func ProcessTransactions() {
-	for {
-		// Ambil transaksi yang statusnya 1003
-		var transactions []model.Transactions
-		if err := database.DB.Where("status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Find(&transactions).Error; err != nil {
-			fmt.Println("Error fetching transactions:", err)
-			return
-		}
 
-		for _, transaction := range transactions {
-			// Cek apakah transaksi sudah diproses
-			if _, loaded := processedTransactions.LoadOrStore(transaction.ID, true); loaded {
-				// Jika sudah diproses, lewati transaksi ini
-				continue
+	var transactions []model.Transactions
+	// if err := database.DB.Where("status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Find(&transactions).Error; err != nil {
+	// 	fmt.Println("Error fetching transactions:", err)
+	// 	return
+	// }
+	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency,item_name, item_id, reference_id, status_code FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
+	if err != nil {
+		fmt.Println("Error fetching transactions:", err)
+		return
+	}
+
+	for _, transaction := range transactions {
+		// Cek apakah transaksi sudah diproses
+		if _, loaded := processedTransactions.LoadOrStore(transaction.ID, true); loaded {
+			// Jika sudah diproses, lewati transaksi ini
+			continue
+		}
+		// Proses transaksi dalam goroutine
+		go func(transaction model.Transactions) {
+			arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
+			if err != nil {
+				log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
+				return
+			}
+			// Siapkan data callback
+			callbackData := CallbackData{
+				UserID:                transaction.UserId,
+				MerchantTransactionID: transaction.MtTid,
+				StatusCode:            1000, // Misalnya, status sukses
+				PaymentMethod:         transaction.PaymentMethod,
+				Amount:                fmt.Sprintf("%d", transaction.Amount),
+				Status:                "success",
+				Currency:              transaction.Currency,
+				ItemName:              transaction.ItemName,
+				ItemID:                transaction.ItemId,
+				ReferenceID:           transaction.ReferenceID,
 			}
 
-			// Proses transaksi dalam goroutine
-			go func(transaction model.Transactions) {
-				arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
-				if err != nil {
-					log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
-					return
-				}
-
-				// Siapkan data callback
-				callbackData := CallbackData{
-					UserID:                transaction.UserId,
-					MerchantTransactionID: transaction.MtTid,
-					StatusCode:            1000, // Misalnya, status sukses
-					PaymentMethod:         transaction.PaymentMethod,
-					Amount:                fmt.Sprintf("%d", transaction.Amount),
-					Status:                "success",
-					Currency:              transaction.Currency,
-					ItemName:              transaction.ItemName,
-					ItemID:                transaction.ItemId,
-					ReferenceID:           transaction.ReferenceID,
-				}
-
-				// Kirim ke CallbackQueue
-				CallbackQueue <- CallbackQueueStruct{
-					Data:          callbackData,
-					TransactionId: transaction.ID,
-					Secret:        arrClient.ClientSecret,
-					MerchantURL:   arrClient.CallbackURL,
-				}
-			}(transaction)
-		}
-
-		time.Sleep(5 * time.Second)
+			// Kirim ke CallbackQueue
+			CallbackQueue <- CallbackQueueStruct{
+				Data:          callbackData,
+				TransactionId: transaction.ID,
+				Secret:        arrClient.ClientSecret,
+				MerchantURL:   arrClient.CallbackURL,
+			}
+		}(transaction)
 	}
 }
 

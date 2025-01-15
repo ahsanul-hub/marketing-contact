@@ -602,6 +602,12 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 	appKey := c.Get("appkey")
 	appID := c.Get("appid")
 
+	if appKey == "" || appID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing header: appkey & appid",
+		})
+	}
+
 	pageStr := c.Query("page", "1")
 	limitStr := c.Query("limit", "10")
 

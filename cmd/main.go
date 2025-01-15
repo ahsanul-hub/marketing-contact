@@ -53,8 +53,8 @@ func main() {
 
 	database.ConnectDB()
 	go lib.ProcessPendingTransactions()
+	// go repository.ProcessTransactions()
 	go repository.ProcessCallbackQueue()
-	go repository.ProcessTransactions()
 
 	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
 	router.SetupRoutes(app)
