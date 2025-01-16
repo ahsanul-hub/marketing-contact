@@ -9,6 +9,7 @@ import (
 	"app/pkg/response"
 	"app/repository"
 	"context"
+	"encoding/csv"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/xuri/excelize/v2"
 	"go.elastic.co/apm"
 )
 
@@ -488,6 +490,8 @@ func GetTransactions(c *fiber.Ctx) error {
 
 	pageStr := c.Query("page", "1")
 	limitStr := c.Query("limit", "10")
+	exportCSV := c.Query("export_csv", "false")
+	exportExcel := c.Query("export_excel", "false")
 
 	appID := c.Query("app_id")
 	userMDN := helper.BeautifyIDNumber(c.Query("user_mdn"), true)
@@ -554,6 +558,14 @@ func GetTransactions(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
+	if exportCSV == "true" {
+		return exportTransactionsToCSV(c, transactions)
+	}
+
+	if exportExcel == "true" {
+		return exportTransactionsToExcel(c, transactions)
+	}
+
 	totalPages := int64(math.Ceil(float64(totalItems) / float64(limit)))
 
 	return c.JSON(fiber.Map{
@@ -566,6 +578,125 @@ func GetTransactions(c *fiber.Ctx) error {
 			"items_per_page": limit,
 		},
 	})
+}
+
+func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) error {
+	// Set header untuk file CSV
+	c.Set("Content-Type", "text/csv")
+	c.Set("Content-Disposition", "attachment; filename=transactions.csv")
+
+	// Buat writer untuk CSV
+	writer := csv.NewWriter(c)
+	defer writer.Flush()
+
+	// Tulis header CSV
+	header := []string{"ID", "MT TID", "Payment Method", "Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Reference ID", "Status Code"}
+	if err := writer.Write(header); err != nil {
+		return err
+	}
+
+	// Tulis data transaksi ke CSV
+	for _, transaction := range transactions {
+		var status string
+		switch transaction.StatusCode {
+		case 1005:
+			status = "Failed"
+		case 1001 | 1003:
+			status = "Pending"
+		case 1000:
+			status = "Success"
+		}
+
+		record := []string{
+			transaction.ID,
+			transaction.MtTid,
+			transaction.PaymentMethod,
+			strconv.Itoa(int(transaction.Amount)),
+			transaction.UserId,
+			transaction.AppName,
+			transaction.Currency,
+			transaction.ItemName,
+			transaction.ItemId,
+			transaction.ReferenceID,
+			status,
+		}
+		if err := writer.Write(record); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) error {
+	// Buat file Excel baru
+	f := excelize.NewFile()
+	sheetName := "Transactions"
+	index, _ := f.NewSheet(sheetName)
+
+	// Tulis header
+	headers := []string{"Transaction ID", "MT TID", "Payment Method", "Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Reference ID", "Status Code"}
+	for i, header := range headers {
+		cell := getColumnName(i+1) + "1" // Menggunakan getColumnName untuk mendapatkan kolom A, B, C, ...
+		f.SetCellValue(sheetName, cell, header)
+		// f.SetCellStyle(sheetName, cell, cell, `{"font":{"bold":true}}`) // Set header menjadi bold
+	}
+
+	// Tulis data transaksi
+	for rowIndex, transaction := range transactions {
+		var status string
+		switch transaction.StatusCode {
+		case 1005:
+			status = "Failed"
+		case 1001 | 1003:
+			status = "Pending"
+		case 1000:
+			status = "Success"
+		}
+
+		row := rowIndex + 2 // Mulai dari baris kedua setelah header
+		f.SetCellValue(sheetName, "A"+strconv.Itoa(row), transaction.ID)
+		f.SetCellValue(sheetName, "B"+strconv.Itoa(row), transaction.MtTid)
+		f.SetCellValue(sheetName, "C"+strconv.Itoa(row), transaction.PaymentMethod)
+		f.SetCellValue(sheetName, "D"+strconv.Itoa(row), transaction.Amount)
+		f.SetCellValue(sheetName, "E"+strconv.Itoa(row), transaction.UserId)
+		f.SetCellValue(sheetName, "F"+strconv.Itoa(row), transaction.AppName)
+		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), transaction.Currency)
+		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), transaction.ItemName)
+		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), transaction.ItemId)
+		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.ReferenceID)
+		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), status)
+	}
+
+	// Set border untuk header
+	// style, err := f.NewStyle(`{"border":[{"type":"thin","color":"#000000","size":1}]}`)
+	// if err != nil {
+	// 	return err
+	// }
+	for i := 0; i < len(headers); i++ {
+		// cell := getColumnName(i+1) + "1"
+		// f.SetCellStyle(sheetName, cell, cell,)
+	}
+
+	// Set active sheet
+	f.SetActiveSheet(index)
+
+	// Simpan file Excel
+	c.Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Set("Content-Disposition", "attachment; filename=transactions.xlsx")
+
+	return f.Write(c)
+}
+
+// Fungsi untuk mendapatkan nama kolom berdasarkan indeks
+func getColumnName(index int) string {
+	columnName := ""
+	for index > 0 {
+		index-- // Mengurangi 1 untuk mengubah indeks ke 0-based
+		columnName = string('A'+(index%26)) + columnName
+		index /= 26
+	}
+	return columnName
 }
 
 func GetTransactionByID(c *fiber.Ctx) error {
@@ -610,6 +741,8 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 
 	pageStr := c.Query("page", "1")
 	limitStr := c.Query("limit", "10")
+	exportCSV := c.Query("export_csv", "false")
+	exportExcel := c.Query("export_excel", "false")
 
 	userMDN := c.Query("user_mdn")
 	paymentMethodStr := c.Query("payment_method")
@@ -667,6 +800,14 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
+	if exportCSV == "true" {
+		return exportTransactionsToCSV(c, convertToExportFormat(transactions))
+	}
+
+	if exportExcel == "true" {
+		return exportTransactionsToExcel(c, convertToExportFormat(transactions))
+	}
+
 	totalPages := int64(math.Ceil(float64(totalItems) / float64(limit)))
 
 	return c.JSON(fiber.Map{
@@ -680,6 +821,34 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		},
 	})
 
+}
+
+func convertToExportFormat(transactions []model.TransactionMerchantResponse) []model.Transactions {
+	var exportData []model.Transactions
+	for _, transaction := range transactions {
+		exportData = append(exportData, model.Transactions{
+			ID:                      transaction.ID,
+			UserMDN:                 transaction.UserMDN,
+			UserId:                  transaction.UserID,
+			PaymentMethod:           transaction.PaymentMethod,
+			MtTid:                   transaction.MerchantTransactionID,
+			AppName:                 transaction.AppName,
+			StatusCode:              transaction.StatusCode,
+			TimestampRequestDate:    transaction.TimestampRequestDate,
+			TimestampSubmitDate:     transaction.TimestampSubmitDate,
+			TimestampCallbackDate:   transaction.TimestampCallbackDate,
+			TimestampCallbackResult: transaction.TimestampCallbackResult,
+			ItemId:                  transaction.ItemId,
+			ItemName:                transaction.ItemName,
+			Route:                   transaction.Route,
+			Currency:                transaction.Currency,
+			Amount:                  transaction.Amount,
+			Price:                   transaction.Price,
+			CreatedAt:               transaction.CreatedAt,
+			UpdatedAt:               transaction.UpdatedAt,
+		})
+	}
+	return exportData
 }
 
 func ManualCallback(c *fiber.Ctx) error {

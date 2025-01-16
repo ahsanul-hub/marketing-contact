@@ -250,7 +250,7 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom i
 		return nil, 0, fmt.Errorf("unable to count transactions: %w", err)
 	}
 
-	if err := query.Select("user_mdn, user_id, payment_method, mt_tid , status_code, amount, price, item_name, item_id, created_at, updated_at").Order("created_at DESC").
+	if err := query.Select("user_mdn, user_id, payment_method, mt_tid , status_code, amount, price, item_name, item_id,app_name, created_at, updated_at").Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&transactions).Error; err != nil {
