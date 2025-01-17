@@ -294,6 +294,8 @@ func CreateTransaction(c *fiber.Ctx) error {
 	span, spanCtx := apm.StartSpan(c.Context(), "CreateTransactionV2", "handler")
 	defer span.End()
 
+	bodysign := c.Get("bodysign")
+
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -333,7 +335,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 	}
 
 	transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
-
+	transaction.BodySign = bodysign
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	createdTransId, err := repository.CreateTransaction(context.Background(), &transaction, arrClient)
 	if err != nil {
