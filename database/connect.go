@@ -49,6 +49,16 @@ func ConnectDB() {
 	// 	log.Fatalf("Failed to run migrations: %v", err)
 	// }
 
+	// Get the underlying sql.DB object to configure connection pool
+	sqlDB, err := DB.DB()
+	if err != nil {
+		log.Fatalf("Failed to get database object: %v", err)
+	}
+
+	sqlDB.SetMaxOpenConns(60)
+
+	sqlDB.SetMaxIdleConns(20)
+
 	err = DB.AutoMigrate(&model.User{}, &model.Client{}, &model.Transactions{}, &model.PaymentMethodClient{}, &model.PaymentMethod{}, &model.SettlementClient{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
