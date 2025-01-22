@@ -44,20 +44,20 @@ func main() {
 	app.Use(middleware.TrackMetrics())
 
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*", // Ganti dengan domain yang diizinkan jika perlu
+		AllowOrigins: "*",
 		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
 		AllowHeaders: "Origin, Content-Type, Accept, Authorization, appid, appkey",
 	}))
 
 	middleware.PrometheusInit()
 
-	database.ConnectDB()
+	db := database.ConnectDB()
 	go lib.ProcessPendingTransactions()
 	// go repository.ProcessTransactions()
 	go repository.ProcessCallbackQueue()
 
 	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
-	router.SetupRoutes(app)
+	router.SetupRoutes(app, db)
 
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)

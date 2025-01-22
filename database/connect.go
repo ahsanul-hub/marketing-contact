@@ -18,7 +18,7 @@ import (
 
 var MongoClient *mongo.Client
 
-func ConnectDB() {
+func ConnectDB() *gorm.DB {
 	var err error
 
 	// Construct the Data Source Name (DSN) for PostgreSQL
@@ -64,6 +64,7 @@ func ConnectDB() {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
 	fmt.Println("Database Migrated")
+	return DB
 }
 
 // func SetupMongoDB() {

@@ -360,13 +360,13 @@ func CreateTransaction(c *fiber.Ctx) error {
 			}
 		}
 
-		if !validAmount {
+		if !validAmount && !paymentMethodClient.Flexible {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "This denom is not supported for this payment method",
 			})
 		}
 
-		_, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
+		_, err := lib.RequestChargingXL(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -380,6 +380,28 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode": "0000",
 			"message": "Successful Created Transaction",
 		})
+	case "indosat_airtime":
+		validAmounts, exists := routes["indosat_triyakom"]
+		if !exists {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No valid amounts found for the specified payment method",
+			})
+		}
+
+		validAmount := false
+		for _, route := range validAmounts {
+			if transactionAmountStr == route {
+				validAmount = true
+				break
+			}
+		}
+
+		if !validAmount && !paymentMethodClient.Flexible {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "This denom is not supported for this payment method",
+			})
+		}
+
 	case "smartfren":
 		// Implementasi untuk smartfren
 	}
@@ -458,13 +480,13 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			}
 		}
 
-		if !validAmount {
+		if !validAmount && !paymentMethodClient.Flexible {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "This denom is not supported for this payment method",
 			})
 		}
 
-		_, err := lib.RequestCharging(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
+		_, err := lib.RequestChargingXL(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
 		if err != nil {
 
 			log.Println("Charging request failed:", err)
@@ -479,6 +501,28 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"retcode": "0000",
 			"message": "Successful Created Transaction",
 		})
+	case "indosat_airtime":
+		validAmounts, exists := routes["indosat_triyakom"]
+		if !exists {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No valid amounts found for the specified payment method",
+			})
+		}
+
+		validAmount := false
+		for _, route := range validAmounts {
+			if transactionAmountStr == route {
+				validAmount = true
+				break
+			}
+		}
+
+		if !validAmount {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "This denom is not supported for this payment method",
+			})
+		}
+
 	case "smartfren":
 
 	}

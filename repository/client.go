@@ -18,26 +18,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// func FindClient(clientAppKey, clientAppID string) (*model.Client, error) {
-// 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-// 	defer cancel()
-
-// 	collection := database.GetCollection("dcb", "clients")
-
-// 	var result model.Client
-// 	filter := bson.M{
-// 		"client_appkey": clientAppKey,
-// 		"client_appid":  clientAppID,
-// 	}
-
-// 	err := collection.FindOne(ctx, filter).Decode(&result)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	return &result, nil
-
-// }
+type PaymentMethodRepository struct {
+	DB *gorm.DB
+}
 
 var merchantCache *cache.Cache
 
@@ -286,6 +269,9 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 			if settlement.ShareRedision != nil {
 				extSettlement.ShareRedision = settlement.ShareRedision
 			}
+			if settlement.AdditionalPercent != nil {
+				extSettlement.AdditionalPercent = settlement.AdditionalPercent
+			}
 			if settlement.SharePartner != nil {
 				extSettlement.SharePartner = settlement.SharePartner
 			}
@@ -293,7 +279,6 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 				extSettlement.IsDivide1Poin1 = settlement.IsDivide1Poin1
 			}
 
-			// Save the updated settlement
 			if err := db.Save(&extSettlement).Error; err != nil {
 				return fmt.Errorf("failed to update settlement for client %s: %w", existingClient.UID, err)
 			}
@@ -389,4 +374,41 @@ func GetSettlementConfig(clientID string) ([]model.SettlementClient, error) {
 	merchantCache.Set(cacheKey, config, cache.DefaultExpiration)
 
 	return config, nil
+}
+
+func NewPaymentMethodRepository(db *gorm.DB) *PaymentMethodRepository {
+	return &PaymentMethodRepository{DB: db}
+}
+
+func (r *PaymentMethodRepository) Create(paymentMethod *model.PaymentMethod) error {
+	return r.DB.Create(paymentMethod).Error
+}
+
+func (r *PaymentMethodRepository) GetAll() ([]model.PaymentMethod, error) {
+	var paymentMethods []model.PaymentMethod
+	err := r.DB.Find(&paymentMethods).Error
+	return paymentMethods, err
+}
+
+func (r *PaymentMethodRepository) GetBySlug(slug string) (*model.PaymentMethod, error) {
+	var paymentMethod model.PaymentMethod
+	err := r.DB.Where("slug = ?", slug).First(&paymentMethod).Error
+	if err != nil {
+		return nil, err
+	}
+	return &paymentMethod, nil
+}
+
+func (r *PaymentMethodRepository) Update(paymentMethod *model.PaymentMethod) error {
+	return r.DB.Save(paymentMethod).Error
+}
+
+func (r *PaymentMethodRepository) Delete(slug string) error {
+	var paymentMethod model.PaymentMethod
+
+	if err := r.DB.Where("slug = ?", slug).First(&paymentMethod).Error; err != nil {
+		return err
+	}
+
+	return r.DB.Delete(&paymentMethod).Error
 }

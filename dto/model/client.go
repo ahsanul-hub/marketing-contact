@@ -9,6 +9,7 @@ type PaymentMethodClient struct {
 	ID       uint            `gorm:"primaryKey" json:"id"`
 	Name     string          `gorm:"size:255;not null" json:"name"`
 	Route    json.RawMessage `gorm:"type:jsonb" json:"route"`
+	Flexible bool            `json:"flexible"`
 	Status   int             `json:"status"`
 	Msisdn   int             `json:"msisdn"`
 	ClientID string          `gorm:"size:50;not null" json:"client_id"`
@@ -44,6 +45,8 @@ type Client struct {
 	AppName        string                `gorm:"size:255;not null" json:"app_name"`
 	Mobile         string                `gorm:"size:50;not null" json:"mobile"`
 	ClientStatus   int                   `gorm:"not null" json:"client_status"`
+	Phone          string                `gorm:"size:255" json:"phone"`
+	Email          string                `gorm:"size:255" json:"email"`
 	Testing        int                   `gorm:"size:10;not null" json:"testing"`
 	Lang           string                `gorm:"size:10;not null" json:"lang"`
 	CallbackURL    string                `gorm:"size:255;not null" json:"callback_url"`

@@ -206,7 +206,7 @@ func GetAccessTokenXl(clientID, clientSecret string) (string, error) {
 	return tokenResp.AccessToken, nil
 }
 
-func RequestCharging(msisdn, itemID, itemDesc, transactionId string, chargingPrice uint) (ChargingResponse, error) {
+func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingPrice uint) (ChargingResponse, error) {
 
 	config, _ := config.GetGatewayConfig("xl_twt")
 	arrayOptions := config.Options["development"].(map[string]interface{})

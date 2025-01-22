@@ -17,14 +17,13 @@ func IndosatTriyakom(data model.InputPaymentRequest) (error, map[string]interfac
 	config, _ := config.GetGatewayConfig("indosat_triyakom")
 	arrayOptions := config.Options["production"].(map[string]interface{})
 	currentTime := time.Now()
-	// arrayDenoms := config.Denom
 
-	partnerID := "REDIS" //arrayOptions["partnerid"].(string)
+	partnerID := arrayOptions["partnerid"].(string)
 	// itemID := arrayDenoms[strconv.FormatFloat(data.Amount, 'f', 0, 64)]
 	cbParam := "6749a928109k5273128b7576" //data.TransactionID
 	date := currentTime.Format("1/2/2006")
 	secretKey := "DE9D7033E2584FCBBC479FFD654F44C7" //arrayOptions["seckey"].(string)
-	amount := data.Amount
+	amount := data.Price
 
 	// Generate token sesuai dengan spesifikasi
 	// Gabungkan parameter menjadi satu string
@@ -35,7 +34,7 @@ func IndosatTriyakom(data model.InputPaymentRequest) (error, map[string]interfac
 	joinedString := fmt.Sprintf("%s%.0f%s%s%s", partnerID, amount, cbParam, date, secretKey)
 	lowerCaseString := strings.ToLower(joinedString)
 	token := fmt.Sprintf("%x", md5.Sum([]byte(lowerCaseString)))
-	// log.Println("lowerCaseString: ", lowerCaseString)
+	log.Println("lowerCaseString: ", lowerCaseString)
 	log.Println("token: ", token)
 
 	arrBody := map[string]interface{}{
@@ -63,7 +62,6 @@ func IndosatTriyakom(data model.InputPaymentRequest) (error, map[string]interfac
 
 	req.Header.Set("Content-Type", "application/json")
 
-	// Send the request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -75,7 +73,6 @@ func IndosatTriyakom(data model.InputPaymentRequest) (error, map[string]interfac
 		return fmt.Errorf("received non-200 response status: %s", resp.Status), nil
 	}
 
-	// Handle the response
 	var response map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return fmt.Errorf("error decoding response: %v", err), nil

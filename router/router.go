@@ -3,16 +3,21 @@ package router
 import (
 	"app/handler"
 	"app/middleware"
+	"app/repository"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"go.elastic.co/apm/module/apmfiber"
+	"gorm.io/gorm"
 )
 
-// SetupRoutes setup router api
-func SetupRoutes(app *fiber.App) {
-	// Middleware
+func SetupRoutes(app *fiber.App, db *gorm.DB) {
+
 	api := app.Group("/api", logger.New())
+
+	paymentMethodRepo := repository.NewPaymentMethodRepository(db)
+	paymentMethodHandler := handler.NewPaymentMethodHandler(paymentMethodRepo)
+
 	api.Use(apmfiber.Middleware())
 	api.Get("/", handler.Hello)
 	api.Post("/create", handler.CreateOrder)
@@ -37,12 +42,19 @@ func SetupRoutes(app *fiber.App) {
 	user.Delete("/:id", middleware.Protected(), handler.DeleteUser)
 
 	admin := api.Group("/admin", middleware.Protected())
+
 	admin.Get("/users", handler.GetUser)
 	admin.Delete("/user/:id", handler.DeleteUser)
+
+	admin.Post("/payment-methods", middleware.AdminOnly(false), paymentMethodHandler.CreatePaymentMethod)
+	admin.Get("/payment-methods", middleware.AdminOnly(false), paymentMethodHandler.GetPaymentMethods)
+	admin.Get("/payment-methods/:slug", middleware.AdminOnly(false), paymentMethodHandler.GetPaymentMethodByID)
+	admin.Put("/payment-methods/:slug", middleware.AdminOnly(false), paymentMethodHandler.UpdatePaymentMethod)
+	admin.Delete("/payment-methods/:slug", middleware.AdminOnly(false), paymentMethodHandler.DeletePaymentMethod)
+
 	admin.Post("/merchant", middleware.AdminOnly(false), handler.AddMerchant)
 	admin.Put("/merchant/:clientID", middleware.AdminOnly(true), handler.UpdateMerchant)
 	admin.Get("/merchants", middleware.AdminOnly(true), handler.GetAllMerchants)
 	admin.Get("/merchant/:clientID", handler.GetMerchantByAppID)
 	admin.Delete("/merchant/:clientID", middleware.AdminOnly(false), handler.DeleteMerchant)
-
 }

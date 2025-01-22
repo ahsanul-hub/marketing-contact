@@ -55,12 +55,6 @@ func CreatePayment(c *fiber.Ctx) error {
 		})
 	}
 
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err.Error(),
-		})
-	}
-
 	// checksecret() cek code legacy
 
 	arrayTransactionCheck := CheckedTransaction(&req, arrClient)
