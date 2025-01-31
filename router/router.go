@@ -28,6 +28,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/manual-callback/:id", middleware.Protected(), middleware.AdminOnly(true), handler.ManualCallback)
 	api.Get("/check/:id", handler.CheckTrans)
 	api.Post("/test-payment", handler.TestPayment)
+	api.Post("/receive-callback1", handler.ReceiveCallback)
 	api.Get("/order/:appid/:token", handler.PaymentPage)
 	api.Get("/success-payment/:msisdn/:token", handler.SuccessPage)
 
