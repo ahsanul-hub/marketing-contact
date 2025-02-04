@@ -30,6 +30,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/test-payment", handler.TestPayment)
 	api.Post("/receive-callback1", handler.ReceiveCallback)
 	api.Get("/order/:appid/:token", handler.PaymentPage)
+	api.Get("/callback-triyakom", handler.CallbackTriyakom)
 	api.Get("/success-payment/:msisdn/:token", handler.SuccessPage)
 
 	merchant := api.Group("/merchant")

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Payment Page</title>
+    <title>Otp Page</title>
     <link
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.5.2/css/bootstrap.min.css"
@@ -84,7 +84,7 @@
       <div class="divider">
         <hr class="custom-hr" />
       </div>
-      <div style="display: flex">
+      <!-- <div style="display: flex">
         <div style="width: 50%">
           <h5 class="text-center">{{ .AppName }}</h5>
           <h5 class="text-center">{{ .ItemName }}</h5>
@@ -92,16 +92,16 @@
         <div style="width: 50%">
           <h4 class="text-center">Total: {{ .Currency }} {{ .Price}}</h4>
         </div>
-      </div>
+      </div> -->
 
       <form action="/api/payment" method="POST" id="paymentForm">
         <div class="form-group">
-          <label for="userMdn">Masukan Nomor HP:</label>
+          <label for="userMdn">Masukan OTP yang didapat dari SMS:</label>
           <br />
           <input
             type="text"
             class="form-control"
-            id="userMdn"
+            id="otp"
             style="
               width: 96%;
               margin-top: 12px;
@@ -153,9 +153,9 @@
         <input type="hidden" name="bodysign" value="{{ .BodySign }}" />
         <input type="hidden" name="item_id" value="{{ .ItemId }}" />
       </form>
-      <p class="text-center" style="font-size: 14px">
+      <!-- <p class="text-center" style="font-size: 14px">
         Harga termasuk pajak dan biaya layanan.
-      </p>
+      </p> -->
     </div>
     <script>
       document

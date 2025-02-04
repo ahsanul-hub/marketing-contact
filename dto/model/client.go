@@ -41,7 +41,7 @@ type Client struct {
 	ClientName     string                `gorm:"size:255;not null" json:"client_name"`
 	ClientAppkey   string                `gorm:"size:255;not null;unique" json:"client_appkey"`
 	ClientSecret   string                `gorm:"size:255;not null;unique" json:"client_secret"`
-	ClientAppID    string                `gorm:"size:255;not null;unique" json:"client_appid"`
+	ClientID       string                `gorm:"size:255;not null;unique" json:"client_appid"`
 	AppName        string                `gorm:"size:255;not null" json:"app_name"`
 	Mobile         string                `gorm:"size:50;not null" json:"mobile"`
 	ClientStatus   int                   `gorm:"not null" json:"client_status"`
@@ -56,6 +56,22 @@ type Client struct {
 	CreatedAt      time.Time             `gorm:"not null" json:"created_at"`
 	PaymentMethods []PaymentMethodClient `gorm:"foreignKey:ClientID" json:"payment_methods"`
 	Settlements    []SettlementClient    `gorm:"foreignKey:ClientID" json:"settlements"`
+	ClientApps     []ClientApp           `gorm:"foreignKey:ClientID" json:"apps"`
+}
+
+type ClientApp struct {
+	ID           uint      `gorm:"primaryKey" json:"id"`
+	AppName      string    `gorm:"size:255;not null" json:"app_name"`
+	AppID        string    `gorm:"size:255;unique" json:"appid"`
+	AppKey       string    `gorm:"size:255;unique" json:"appkey"`
+	CallbackURL  string    `gorm:"size:255" json:"callback_url"`
+	Testing      int       `gorm:"size:10;not null" json:"testing"`
+	Status       int       `gorm:"not null" json:"status"`
+	Mobile       string    `gorm:"size:20" json:"mobile"`
+	FailCallback string    `gorm:"size:255" json:"fail_callback"`
+	ClientID     string    `gorm:"not null" json:"client_id"` // Foreign key to Client
+	CreatedAt    time.Time `gorm:"not null" json:"created_at"`
+	UpdatedAt    time.Time `gorm:"not null" json:"updated_at"`
 }
 
 type InputClientRequest struct {
@@ -70,6 +86,7 @@ type InputClientRequest struct {
 	Isdcb          *string               `json:"isdcb"`
 	PaymentMethods []PaymentMethodClient `json:"payment_methods"`
 	Settlements    []SettlementClient    `json:"settlements"`
+	ClientApp      []ClientApp           `json:"client_app"`
 }
 
 // type PaymentMethodClient struct {

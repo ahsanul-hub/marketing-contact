@@ -35,12 +35,12 @@ func SendPaymentSmartfren(data model.InputPaymentRequest, appKey string, bodySig
 	smsCode := generateSMSCode()
 	amountStr := strconv.FormatFloat(float64(amount), 'f', 0, 32)
 	keyword := config.Denom[amountStr]
-	hexMsg := keyword["keyword"] + " " + smsCode // Assuming 'value' is the key for the string in the map
+	hexMsg := keyword["keyword"] + " " + smsCode
 
 	query := url.Values{}
 	query.Add("serviceNode", serviceNode)
 	// query.Add("msisdn", msisdn)
-	query.Add("keyword", keyword["keyword"]) // Assuming 'keyword' is the key for the string in the map
+	query.Add("keyword", keyword["keyword"])
 	query.Add("msgCoding", msgCoding.(string))
 	query.Add("sender", sender.(string))
 	query.Add("hexMsg", hexMsg)

@@ -249,6 +249,19 @@ func PaymentPage(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "Transaction not found"})
 }
 
+func OtpPage(c *fiber.Ctx) error {
+	span, _ := apm.StartSpan(c.Context(), "OtpPage", "handler")
+	defer span.End()
+	ximpaytoken := c.Get("ximpaytoken")
+	ximpayid := c.Get("ximpayid")
+
+	return c.Render("paymentotp", fiber.Map{
+		"XimpayID":    ximpayid,
+		"XimpayToken": ximpaytoken,
+	})
+
+}
+
 func SuccessPage(c *fiber.Ctx) error {
 	span, _ := apm.StartSpan(c.Context(), "SuccessPage", "handler")
 	defer span.End()

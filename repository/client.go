@@ -28,19 +28,19 @@ func init() {
 	merchantCache = cache.New(23*time.Hour, 24*time.Hour)
 }
 
-func FindClient(ctx context.Context, clientAppKey, clientAppID string) (*model.Client, error) {
+func FindClient(ctx context.Context, clientAppKey, clientID string) (*model.Client, error) {
 	span, _ := apm.StartSpan(ctx, "FindClient", "repository")
 	defer span.End()
 	db := database.DB
 
-	cacheKey := fmt.Sprintf("client:%s:%s", clientAppKey, clientAppID)
+	cacheKey := fmt.Sprintf("client:%s:%s", clientAppKey, clientID)
 	if cachedClient, found := merchantCache.Get(cacheKey); found {
 		return cachedClient.(*model.Client), nil
 	}
 
 	var client model.Client
-	// Mencari client berdasarkan clientAppKey dan clientAppID
-	if err := db.Preload("PaymentMethods").Where("client_appkey = ? AND client_app_id = ?", clientAppKey, clientAppID).First(&client).Error; err != nil {
+	// Mencari client berdasarkan clientAppKey dan clientID
+	if err := db.Preload("PaymentMethods").Where("client_appkey = ? AND client_id = ?", clientAppKey, clientID).First(&client).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("client not found: %w", err)
 		}
@@ -98,13 +98,12 @@ func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	client := model.Client{
 		UID:          uuidClient.String(),
 		ClientName:   *input.ClientName,
 		ClientAppkey: clientAppKey,
 		ClientSecret: clientSecret,
-		ClientAppID:  clientAppID,
+		ClientID:     clientAppID,
 		AppName:      *input.AppName,
 		Mobile:       *input.Mobile,
 		ClientStatus: *input.ClientStatus,
@@ -116,6 +115,7 @@ func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 	}
 
 	if err := database.DB.Create(&client).Error; err != nil {
+
 		return fmt.Errorf("unable to create client: %w", err)
 	}
 
@@ -125,11 +125,18 @@ func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 			return err
 		}
 	}
-	log.Println("settlement: ", input.Settlements)
+	// log.Println("settlement: ", input.Settlements)
 
 	for _, settlements := range input.Settlements {
 		if err := AddSettlements(client.UID, &settlements); err != nil {
 			log.Printf("Failed to add settlement for client %s: %s", client.UID, err)
+			return err
+		}
+	}
+
+	for _, clients := range input.ClientApp {
+		if err := AddClientApps(client.UID, &clients); err != nil {
+			log.Printf("Failed to add client app for client %s: %s", client.UID, err)
 			return err
 		}
 	}
@@ -141,11 +148,11 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 	db := database.DB
 
 	var existingClient model.Client
-	if err := db.Where("client_app_id = ?", clientID).First(&existingClient).Error; err != nil {
+	if err := db.Where("client_id = ?", clientID).First(&existingClient).Error; err != nil {
 		return fmt.Errorf("client not found: %w", err)
 	}
 
-	cacheKey := fmt.Sprintf("client:%s:%s", existingClient.ClientAppkey, existingClient.ClientAppID)
+	cacheKey := fmt.Sprintf("client:%s:%s", existingClient.ClientAppkey, existingClient.ClientID)
 	merchantCache.Delete(cacheKey)
 
 	updateData := map[string]interface{}{}
@@ -218,6 +225,51 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 			// Save the updated payment method
 			if err := db.Save(&existingPM).Error; err != nil {
 				log.Printf("Failed to update payment method for client %s: %s", existingClient.UID, err)
+				return err
+			}
+		}
+	}
+
+	for _, app := range input.ClientApp {
+		var existingApps model.ClientApp
+
+		// Check if the payment method exists
+		if err := db.Where("client_id = ? AND app_id = ?", existingClient.UID, app.AppID).First(&existingApps).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Create new payment method if it doesn't exist
+				app.ClientID = existingClient.UID
+				if err := AddClientApps(existingClient.UID, &app); err != nil {
+					log.Printf("Failed to add client app for client %s: %s", existingClient.UID, err)
+					return err
+				}
+			} else {
+				log.Printf("Failed to check existing payment method: %s", err)
+				return err
+			}
+		} else {
+			// Update existing payment method only if properties are provided
+			if app.AppName != "" {
+				existingApps.AppName = app.AppName
+			}
+			if app.CallbackURL != "" {
+				existingApps.CallbackURL = app.CallbackURL
+			}
+			if app.Testing != 0 {
+				existingApps.Testing = app.Testing
+			}
+			if app.Status != 0 {
+				existingApps.Status = app.Status
+			}
+			if app.FailCallback != "" {
+				existingApps.FailCallback = app.FailCallback
+			}
+			if app.Mobile != "" {
+				existingApps.Mobile = app.Mobile
+			}
+
+			// Save the updated payment method
+			if err := db.Save(&existingApps).Error; err != nil {
+				log.Printf("Failed to update app for client %s: %s", existingClient.UID, err)
 				return err
 			}
 		}
@@ -304,7 +356,7 @@ func AddPaymentMethod(clientID string, paymentMethod *model.PaymentMethodClient)
 func AddSettlements(clientID string, settlements *model.SettlementClient) error {
 	settlements.ClientID = clientID
 
-	log.Println(settlements)
+	// log.Println(settlements)
 
 	err := database.DB.Create(settlements).Error
 	if err != nil {
@@ -314,9 +366,35 @@ func AddSettlements(clientID string, settlements *model.SettlementClient) error 
 	return nil
 }
 
+func AddClientApps(clientID string, clients *model.ClientApp) error {
+
+	clientAppID, err := generateUniqueKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate client app ID: %w", err)
+	}
+
+	clientAppKey, err := generateUniqueKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate client app ID: %w", err)
+	}
+
+	clients.ClientID = clientID
+	clients.AppID = clientAppID
+	clients.AppKey = clientAppKey
+
+	// log.Println(settlements)
+
+	err = database.DB.Create(clients).Error
+	if err != nil {
+		return fmt.Errorf("failed to add  method: %w", err)
+	}
+
+	return nil
+}
+
 func GetByClientAppID(clientAppID string) (model.Client, error) {
 	var client model.Client
-	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Where("client_app_id = ?", clientAppID).First(&client).Error; err != nil {
+	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Preload("ClientApps").Where("client_id = ?", clientAppID).First(&client).Error; err != nil {
 		return client, fmt.Errorf("client not found: %w", err)
 	}
 	return client, nil
@@ -324,22 +402,22 @@ func GetByClientAppID(clientAppID string) (model.Client, error) {
 
 func GetAllClients() ([]model.Client, error) {
 	var clients []model.Client
-	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Find(&clients).Error; err != nil {
+	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Preload("ClientApps").Find(&clients).Error; err != nil {
 		return nil, fmt.Errorf("unable to fetch clients: %w", err)
 	}
 
 	return clients, nil
 }
 
-func DeleteMerchant(clientAppID string) error {
+func DeleteMerchant(clientID string) error {
 	db := database.DB
 
 	var existingClient model.Client
-	if err := db.Where("client_app_id = ?", clientAppID).First(&existingClient).Error; err != nil {
+	if err := db.Where("client_id = ?", clientID).First(&existingClient).Error; err != nil {
 		return fmt.Errorf("client not found: %w", err)
 	}
 
-	cacheKey := fmt.Sprintf("client:%s:%s", existingClient.ClientAppkey, existingClient.ClientAppID)
+	cacheKey := fmt.Sprintf("client:%s:%s", existingClient.ClientAppkey, existingClient.ClientID)
 	merchantCache.Delete(cacheKey)
 
 	if err := db.Where("client_id = ?", existingClient.UID).Delete(&model.PaymentMethodClient{}).Error; err != nil {
@@ -349,6 +427,11 @@ func DeleteMerchant(clientAppID string) error {
 
 	if err := db.Where("client_id = ?", existingClient.UID).Delete(&model.SettlementClient{}).Error; err != nil {
 		log.Printf("Failed to delete settlements for client %s: %s", existingClient.UID, err)
+		return err
+	}
+
+	if err := db.Where("client_id = ?", existingClient.UID).Delete(&model.ClientApp{}).Error; err != nil {
+		log.Printf("Failed to delete app for client %s: %s", existingClient.UID, err)
 		return err
 	}
 

@@ -337,7 +337,8 @@ func CreateTransaction(c *fiber.Ctx) error {
 	transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
 	transaction.BodySign = bodysign
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
-	createdTransId, err := repository.CreateTransaction(context.Background(), &transaction, arrClient)
+
+	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -402,11 +403,138 @@ func CreateTransaction(c *fiber.Ctx) error {
 			})
 		}
 
-	case "smartfren":
-		// Implementasi untuk smartfren
+		_, err := lib.RequestChargingIsatTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
+		if err != nil {
+			log.Println("Charging request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
+		})
+	case "tri_airtime":
+		validAmounts, exists := routes["tri_triyakom"]
+		if !exists {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No valid amounts found for the specified payment method",
+			})
+		}
+
+		validAmount := false
+		for _, route := range validAmounts {
+			if transactionAmountStr == route {
+				validAmount = true
+				break
+			}
+		}
+
+		if !validAmount && !paymentMethodClient.Flexible {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "This denom is not supported for this payment method",
+			})
+		}
+
+		_, err := lib.RequestChargingTriTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transactionAmountStr)
+		if err != nil {
+			log.Println("Charging request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
+		})
+
+	case "telkomsel_airtime":
+
+		// validAmounts, exists := routes["indosat_triyakom"]
+		// if !exists {
+		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		// 		"error": "No valid amounts found for the specified payment method",
+		// 	})
+		// }
+
+		// validAmount := false
+		// for _, route := range validAmounts {
+		// 	if transactionAmountStr == route {
+		// 		validAmount = true
+		// 		break
+		// 	}
+		// }
+
+		// if !validAmount && !paymentMethodClient.Flexible {
+		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		// 		"error": "This denom is not supported for this payment method",
+		// 	})
+		// }
+
+		_, err := lib.RequestMoTsel(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
+		if err != nil {
+			log.Println("Charging request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
+		})
+
+	case "smartfren_airtime":
+		validAmounts, exists := routes["smartfren_triyakom"]
+		if !exists {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No valid amounts found for the specified payment method",
+			})
+		}
+
+		validAmount := false
+		for _, route := range validAmounts {
+			if transactionAmountStr == route {
+				validAmount = true
+				break
+			}
+		}
+
+		if !validAmount && !paymentMethodClient.Flexible {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "This denom is not supported for this payment method",
+			})
+		}
+
+		err, _ := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transaction.Amount)
+		if err != nil {
+			log.Println("Charging request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
+		})
 	}
 
-	return response.ResponseSuccess(c, fiber.StatusOK, "Transaction created successfully")
+	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		"success": true,
+		"retcode": "0000",
+		"message": "Successful Created Transaction",
+	})
 }
 
 func CreateTransactionV1(c *fiber.Ctx) error {
@@ -437,7 +565,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	createdTransId, err := repository.CreateTransaction(spanCtx, &transaction, arrClient)
+	createdTransId, _, err := repository.CreateTransaction(spanCtx, &transaction, arrClient)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -524,10 +652,48 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		}
 
 	case "smartfren":
+		validAmounts, exists := routes["smartfren_triyakom"]
+		if !exists {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No valid amounts found for the specified payment method",
+			})
+		}
 
+		validAmount := false
+		for _, route := range validAmounts {
+			if transactionAmountStr == route {
+				validAmount = true
+				break
+			}
+		}
+
+		if !validAmount && !paymentMethodClient.Flexible {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "This denom is not supported for this payment method",
+			})
+		}
+
+		err, _ := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transaction.Amount)
+		if err != nil {
+			log.Println("Charging request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
+		})
 	}
 
-	return response.ResponseSuccess(c, fiber.StatusOK, "Transaction created successfully")
+	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		"success": true,
+		"retcode": "0000",
+		"message": "Successful Created Transaction",
+	})
 }
 
 func GetTransactions(c *fiber.Ctx) error {

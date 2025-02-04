@@ -150,17 +150,14 @@ func CheckNumberXl(msisdn string, token string) (bool, error) {
 
 	url := fmt.Sprintf("%s?MSISDN=%s", baseURL, msisdn)
 
-	// Create HTTP GET request
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return false, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set the HTTP headers if needed
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("access-token", token)
 
-	// Send the request
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -221,7 +218,7 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 	isNumberActive, err := CheckNumberXl(beautifyMsisdn, token)
 	if !isNumberActive {
 		log.Println("err:", err)
-		err := repository.UpdateTransactionFailReason(context.Background(), transactionId, "Msisdn not active")
+		err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1005, "", nil, "Msisdn not active")
 		if err != nil {
 			log.Println("err: ", err)
 		}
@@ -362,7 +359,7 @@ func CheckTransactionStatus(transaction model.Transactions) {
 
 	// Memperbarui status berdasarkan response
 	if response.TransactionStatus.ResponseCode == "00" { // Sukses
-		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, "ok"); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, "ok", nil, ""); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 		}
 
@@ -372,7 +369,7 @@ func CheckTransactionStatus(transaction model.Transactions) {
 
 		expired := createdAt.Before(timeLimit)
 		if expired {
-			if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, ""); err != nil {
+			if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", ""); err != nil {
 				log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
 			}
 		}
@@ -382,20 +379,19 @@ func CheckTransactionStatus(transaction model.Transactions) {
 
 func ProcessPendingTransactions() {
 	for {
-		// Ambil transaksi yang statusnya pending
 		go repository.ProcessTransactions()
-		transactions, err := repository.GetPendingTransactions(context.Background())
+		transactions, err := repository.GetPendingTransactions(context.Background(), "xl_airtime")
+
 		if err != nil {
 			log.Printf("Error retrieving pending transactions: %s", err)
-			time.Sleep(1 * time.Minute) // Tunggu sebelum mencoba lagi
+			time.Sleep(1 * time.Minute)
 			continue
 		}
 
 		for _, transaction := range transactions {
-			go CheckTransactionStatus(transaction) // Jalankan pengecekan dalam goroutine
+			go CheckTransactionStatus(transaction)
 		}
 
-		// Tidur sebentar sebelum melakukan pengecekan lagi
-		time.Sleep(5 * time.Second) // Sesuaikan waktu tidur sesuai kebutuhan
+		time.Sleep(5 * time.Second)
 	}
 }

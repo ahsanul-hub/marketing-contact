@@ -6,14 +6,33 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 )
 
-func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargingPrice uint) (error, map[string]interface{}) {
-	config, _ := config.GetGatewayConfig("indosat_triyakom")
+type XimpayItem struct {
+	ItemName  string `json:"item_name"`
+	ItemDesc  string `json:"item_desc"`
+	AmountExc int    `json:"amount_exc"`
+	Name      string `json:"name"`
+	Price     int    `json:"price"`
+}
+
+type XimpayTransaction struct {
+	ResponseCode int          `json:"responsecode"`
+	XimpayID     string       `json:"ximpayid"`
+	XimpayItem   []XimpayItem `json:"ximpayitem"`
+}
+
+type XimpayResponse struct {
+	XimpayTransaction []XimpayTransaction `json:"ximpaytransaction"`
+}
+
+func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount uint) (error, map[string]interface{}) {
+	config, _ := config.GetGatewayConfig("smartfren_triyakom")
 	arrayOptions := config.Options["production"].(map[string]interface{})
 	currentTime := time.Now()
 
@@ -21,24 +40,20 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 	cbParam := fmt.Sprintf("r%s", transactionId)
 	date := currentTime.Format("1/2/2006")
 	secretKey := arrayOptions["seckey"].(string)
-	amount := chargingPrice
 
 	joinedString := fmt.Sprintf("%s%d%s%s%s", partnerID, amount, cbParam, date, secretKey)
 	lowerCaseString := strings.ToLower(joinedString)
 	token := fmt.Sprintf("%x", md5.Sum([]byte(lowerCaseString)))
-	log.Println("lowerCaseString: ", lowerCaseString)
-	log.Println("token: ", token)
 
 	arrBody := map[string]interface{}{
-		"partnerid":   strings.ToLower(partnerID),
-		"amount":      amount,
-		"item_name":   itemName,
-		"charge_type": "ISAT_GENERAL",
-		"item_desc":   itemName,
-		"cbparam":     cbParam,
-		"token":       token,
-		"op":          "ISAT",
-		"msisdn":      msisdn,
+		"partnerid":  strings.ToLower(partnerID),
+		"amount_exc": amount,
+		"item_name":  itemName,
+		"item_desc":  itemName,
+		"cbparam":    cbParam,
+		"token":      token,
+		"op":         "SF",
+		"msisdn":     msisdn,
 	}
 
 	jsonBody, err := json.Marshal(arrBody)
@@ -46,7 +61,6 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 		return fmt.Errorf("error marshalling body: %v", err), nil
 	}
 
-	// Prepare the request
 	requestURL := arrayOptions["requestUrl"].(string)
 	req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
@@ -60,30 +74,28 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err), nil
 	}
-	// _, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return fmt.Errorf("error reading response body: %v", err), nil
-	// }
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response body: %v", err), nil
+	}
 
-	// Log the response body as a string
 	// log.Println("resp:", string(body))
 
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received non-200 response status: %s", resp.Status), nil
-	}
-
-	var response map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	var response XimpayResponse
+	if err := json.Unmarshal(body, &response); err != nil {
 		return fmt.Errorf("error decoding response: %v", err), nil
 	}
 
-	responseCodeInterface := response["ximpaytransaction"]
+	responseCode := response.XimpayTransaction[0].ResponseCode
 
-	// var responseCode string
-	// switch v := responseCodeInterface.(type) {
-	// case string:
+	if responseCode != 1 {
+		log.Printf("error request charging with code: %d", responseCode)
+		return fmt.Errorf("error request charging with code: %d", responseCode), nil
+	}
+	// switch responseCode {
+	// case :
 	// 	responseCode = v // Jika sudah string, langsung gunakan
 	// case float64:
 	// 	responseCode = fmt.Sprintf("%.0f", v) // Konversi float64 ke string
@@ -94,7 +106,7 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 	return nil, map[string]interface{}{
 		"success": true,
 		"response": map[string]interface{}{
-			"responsecode": responseCodeInterface,
+			"responsecode": responseCode,
 			"token":        arrBody,
 			"code":         "00",
 			"message":      "success",

@@ -73,7 +73,7 @@ func CreateOrder(ctx context.Context, input *model.InputPaymentRequest, client *
 		Price:         input.Price,
 	}
 
-	transaction.AppID = client.ClientAppID
+	transaction.AppID = client.ClientID
 	transaction.MerchantName = client.ClientName
 	transaction.ClientAppKey = client.ClientAppkey
 
@@ -96,7 +96,7 @@ func CreateOrder(ctx context.Context, input *model.InputPaymentRequest, client *
 // 	return intVal
 // }
 
-func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, client *model.Client) (string, error) {
+func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, client *model.Client) (string, uint, error) {
 	span, _ := apm.StartSpan(ctx, "CreateTransaction", "repository")
 	defer span.End()
 	uniqueID, err := uuid.NewV7()
@@ -149,16 +149,16 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		BodySign:      input.BodySign,
 	}
 
-	transaction.AppID = client.ClientAppID
+	transaction.AppID = client.ClientID
 	transaction.MerchantName = client.ClientName
 	transaction.AppName = client.AppName
 	transaction.ClientAppKey = client.ClientAppkey
 
 	if err := database.DB.Create(&transaction).Error; err != nil {
-		return "", fmt.Errorf("failed to create transaction: %w", err)
+		return "", 0, fmt.Errorf("failed to create transaction: %w", err)
 	}
 
-	return transaction.ID, nil
+	return transaction.ID, transaction.Price, nil
 }
 
 func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, transactionId, merchantTransactionId, appID, userMDN, userId, appName string, merchants, paymentMethods []string, startDate, endDate *time.Time) ([]model.Transactions, int64, error) {
@@ -329,11 +329,12 @@ func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (
 	return &response, nil
 }
 
-func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
+func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, newStatusCode int, responseCallback, failReason string) error {
 	db := database.DB
 
 	transactionUpdate := model.Transactions{
 		StatusCode: newStatusCode,
+		FailReason: failReason,
 	}
 	timeLimit := time.Now().Add(-9 * time.Minute)
 
@@ -344,19 +345,19 @@ func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, n
 	return nil
 }
 
-func UpdateTransactionFailReason(ctx context.Context, transactionID string, FailReason string) error {
-	db := database.DB
+// func UpdateTransactionFailReason(ctx context.Context, transactionID string, FailReason string) error {
+// 	db := database.DB
 
-	transactionUpdate := model.Transactions{
-		FailReason: FailReason,
-	}
+// 	transactionUpdate := model.Transactions{
+// 		FailReason: FailReason,
+// 	}
 
-	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
-		return fmt.Errorf("failed to update fail reason: %w", err)
-	}
+// 	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
+// 		return fmt.Errorf("failed to update fail reason: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // func UpdateTransactionStatusFailCallback(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
 // 	db := database.DB
@@ -372,11 +373,19 @@ func UpdateTransactionFailReason(ctx context.Context, transactionID string, Fail
 // 	return nil
 // }
 
-func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
+func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, responseCallback string, ximpayId *string, failReason string) error {
 	db := database.DB
 
 	transactionUpdate := model.Transactions{
 		StatusCode: newStatusCode,
+	}
+
+	if ximpayId != nil {
+		transactionUpdate.XimpayID = *ximpayId
+	}
+
+	if failReason != "" {
+		transactionUpdate.FailReason = failReason
 	}
 
 	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
@@ -386,7 +395,7 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 	return nil
 }
 
-func GetPendingTransactions(ctx context.Context) ([]model.Transactions, error) {
+func GetPendingTransactions(ctx context.Context, paymentMethod string) ([]model.Transactions, error) {
 	var transactions []model.Transactions
 	// timeLimit := time.Now().Add(-8 * time.Minute)
 
@@ -397,9 +406,14 @@ func GetPendingTransactions(ctx context.Context) ([]model.Transactions, error) {
 	// 	return nil, fmt.Errorf("error fetching transactions: %w", err)
 	// }
 
-	err := database.DB.Raw("SELECT id, merchant_name, status_code FROM transactions WHERE status_code = ?", 1001).Scan(&transactions).Error
-	if err != nil {
-		log.Fatalf("Error fetching transactions: %v", err)
+	query := database.DB.Select("id, merchant_name, status_code").Where("status_code = ?", 1001)
+
+	if paymentMethod != "" {
+		query = query.Where("payment_method = ?", paymentMethod)
+	}
+
+	if err := query.Find(&transactions).Error; err != nil {
+		return nil, fmt.Errorf("error fetching pending transactions: %w", err)
 	}
 
 	return transactions, nil

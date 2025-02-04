@@ -6,38 +6,35 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strings"
 	"time"
 )
 
-func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargingPrice uint) (error, map[string]interface{}) {
-	config, _ := config.GetGatewayConfig("indosat_triyakom")
+func RequestChargingTriTriyakom(msisdn, itemName, transactionId, amount string) (error, map[string]interface{}) {
+	config, _ := config.GetGatewayConfig("tri")
 	arrayOptions := config.Options["production"].(map[string]interface{})
 	currentTime := time.Now()
+	keyword := config.Denom[amount]
 
 	partnerID := arrayOptions["partnerid"].(string)
 	cbParam := fmt.Sprintf("r%s", transactionId)
+	itemId := keyword["keyword"]
 	date := currentTime.Format("1/2/2006")
 	secretKey := arrayOptions["seckey"].(string)
-	amount := chargingPrice
 
-	joinedString := fmt.Sprintf("%s%d%s%s%s", partnerID, amount, cbParam, date, secretKey)
+	joinedString := fmt.Sprintf("%s%s%s%s%s", partnerID, itemId, cbParam, date, secretKey)
 	lowerCaseString := strings.ToLower(joinedString)
 	token := fmt.Sprintf("%x", md5.Sum([]byte(lowerCaseString)))
-	log.Println("lowerCaseString: ", lowerCaseString)
-	log.Println("token: ", token)
 
 	arrBody := map[string]interface{}{
 		"partnerid":   strings.ToLower(partnerID),
-		"amount":      amount,
-		"item_name":   itemName,
-		"charge_type": "ISAT_GENERAL",
+		"charge_type": "HTI_GENERAL",
+		"itemid":      itemId,
 		"item_desc":   itemName,
 		"cbparam":     cbParam,
 		"token":       token,
-		"op":          "ISAT",
+		"op":          "HTI",
 		"msisdn":      msisdn,
 	}
 
@@ -60,12 +57,12 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 	if err != nil {
 		return fmt.Errorf("error sending request: %v", err), nil
 	}
-	// _, err := ioutil.ReadAll(resp.Body)
+	// body, err := ioutil.ReadAll(resp.Body)
 	// if err != nil {
 	// 	return fmt.Errorf("error reading response body: %v", err), nil
 	// }
 
-	// Log the response body as a string
+	// // Log the response body as a string
 	// log.Println("resp:", string(body))
 
 	defer resp.Body.Close()
