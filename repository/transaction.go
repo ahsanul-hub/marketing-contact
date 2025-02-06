@@ -373,7 +373,7 @@ func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, n
 // 	return nil
 // }
 
-func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, responseCallback string, ximpayId *string, failReason string) error {
+func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, ximpayId *string, failReason string) error {
 	db := database.DB
 
 	transactionUpdate := model.Transactions{
@@ -388,7 +388,7 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 		transactionUpdate.FailReason = failReason
 	}
 
-	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
+	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? AND status_code = ", transactionID, 1001).Updates(transactionUpdate).Error; err != nil {
 		return fmt.Errorf("failed to update transaction status: %w", err)
 	}
 
