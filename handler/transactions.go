@@ -403,13 +403,18 @@ func CreateTransaction(c *fiber.Ctx) error {
 			})
 		}
 
-		_, err := lib.RequestChargingIsatTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
+		ximpayId, err := lib.RequestChargingIsatTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
 				"message": "Charging request failed",
 			})
+		}
+
+		err = repository.UpdateXimpayID(context.Background(), createdTransId, ximpayId)
+		if err != nil {
+			log.Println("Updated Ximpay ID error:", err)
 		}
 
 		return c.JSON(fiber.Map{
@@ -439,13 +444,18 @@ func CreateTransaction(c *fiber.Ctx) error {
 			})
 		}
 
-		_, err := lib.RequestChargingTriTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transactionAmountStr)
+		ximpayId, err := lib.RequestChargingTriTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transactionAmountStr)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
 				"message": "Charging request failed",
 			})
+		}
+
+		err = repository.UpdateXimpayID(context.Background(), createdTransId, ximpayId)
+		if err != nil {
+			log.Println("Updated Ximpay ID error:", err)
 		}
 
 		return c.JSON(fiber.Map{
@@ -477,13 +487,18 @@ func CreateTransaction(c *fiber.Ctx) error {
 		// 	})
 		// }
 
-		_, err := lib.RequestMoTsel(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
+		_, keyword, otp, err := lib.RequestMoTsel(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
 				"message": "Charging request failed",
 			})
+		}
+
+		err = repository.UpdateTransactionKeyword(context.Background(), createdTransId, keyword, otp)
+		if err != nil {
+			log.Println("Updated Ximpay ID error:", err)
 		}
 
 		return c.JSON(fiber.Map{
@@ -514,13 +529,18 @@ func CreateTransaction(c *fiber.Ctx) error {
 			})
 		}
 
-		err, _ := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transaction.Amount)
+		ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
 				"message": "Charging request failed",
 			})
+		}
+
+		err = repository.UpdateXimpayID(context.Background(), createdTransId, ximpayId)
+		if err != nil {
+			log.Println("Updated Ximpay ID error:", err)
 		}
 
 		return c.JSON(fiber.Map{
@@ -673,13 +693,18 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			})
 		}
 
-		err, _ := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transaction.Amount)
+		ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
 				"message": "Charging request failed",
 			})
+		}
+
+		err = repository.UpdateXimpayID(context.Background(), createdTransId, ximpayId)
+		if err != nil {
+			log.Println("Updated Ximpay ID error:", err)
 		}
 
 		return c.JSON(fiber.Map{

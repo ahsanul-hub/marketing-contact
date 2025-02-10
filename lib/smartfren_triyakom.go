@@ -18,7 +18,7 @@ type XimpayItem struct {
 	ItemDesc  string `json:"item_desc"`
 	AmountExc int    `json:"amount_exc"`
 	Name      string `json:"name"`
-	Price     int    `json:"price"`
+	Price     string `json:"price"`
 }
 
 type XimpayTransaction struct {
@@ -31,7 +31,7 @@ type XimpayResponse struct {
 	XimpayTransaction []XimpayTransaction `json:"ximpaytransaction"`
 }
 
-func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount uint) (error, map[string]interface{}) {
+func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount uint) (string, error) {
 	config, _ := config.GetGatewayConfig("smartfren_triyakom")
 	arrayOptions := config.Options["production"].(map[string]interface{})
 	currentTime := time.Now()
@@ -58,13 +58,13 @@ func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount ui
 
 	jsonBody, err := json.Marshal(arrBody)
 	if err != nil {
-		return fmt.Errorf("error marshalling body: %v", err), nil
+		return "", fmt.Errorf("error marshalling body: %v", err)
 	}
 
 	requestURL := arrayOptions["requestUrl"].(string)
 	req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
-		return fmt.Errorf("error creating request: %v", err), nil
+		return "", fmt.Errorf("error creating request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -72,11 +72,11 @@ func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount ui
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending request: %v", err), nil
+		return "", fmt.Errorf("error sending request: %v", err)
 	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Errorf("error reading response body: %v", err), nil
+		return "", fmt.Errorf("error reading response body: %v", err)
 	}
 
 	// log.Println("resp:", string(body))
@@ -85,15 +85,17 @@ func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount ui
 
 	var response XimpayResponse
 	if err := json.Unmarshal(body, &response); err != nil {
-		return fmt.Errorf("error decoding response: %v", err), nil
+		return "", fmt.Errorf("error decoding response: %v", err)
 	}
 
 	responseCode := response.XimpayTransaction[0].ResponseCode
+	ximpayID := response.XimpayTransaction[0].XimpayID
 
 	if responseCode != 1 {
 		log.Printf("error request charging with code: %d", responseCode)
-		return fmt.Errorf("error request charging with code: %d", responseCode), nil
+		return "", fmt.Errorf("error request charging with code: %d", responseCode)
 	}
+
 	// switch responseCode {
 	// case :
 	// 	responseCode = v // Jika sudah string, langsung gunakan
@@ -103,31 +105,5 @@ func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount ui
 	// 	return fmt.Errorf("unexpected type for responsecode: %T", v), nil // Tangani tipe yang tidak terduga
 	// }
 
-	return nil, map[string]interface{}{
-		"success": true,
-		"response": map[string]interface{}{
-			"responsecode": responseCode,
-			"token":        arrBody,
-			"code":         "00",
-			"message":      "success",
-			// "transaction_id": data.,
-		},
-		// "phone_number": data.UserMDN,
-	}
-	// if responseCode == "1" {
-	// 	// Handle success
-	// 	return nil, map[string]interface{}{
-	// 		"success": true,
-	// 		"response": map[string]interface{}{
-	// 			"responsecode": responseCode,
-	// 			"code":         "00",
-	// 			"message":      "success",
-	// 			// "transaction_id": data.,
-	// 		},
-	// 		"phone_number": data.UserMDN,
-	// 	}
-	// } else {
-	// 	// Handle failure
-	// 	return fmt.Errorf("transaction failed with response code: %s", responseCodeInterface), nil
-	// }
+	return ximpayID, nil
 }

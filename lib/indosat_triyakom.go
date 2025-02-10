@@ -6,13 +6,14 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 )
 
-func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargingPrice uint) (error, map[string]interface{}) {
+func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargingPrice uint) (string, error) {
 	config, _ := config.GetGatewayConfig("indosat_triyakom")
 	arrayOptions := config.Options["production"].(map[string]interface{})
 	currentTime := time.Now()
@@ -43,14 +44,14 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 
 	jsonBody, err := json.Marshal(arrBody)
 	if err != nil {
-		return fmt.Errorf("error marshalling body: %v", err), nil
+		return "", fmt.Errorf("error marshalling body: %v", err)
 	}
 
 	// Prepare the request
 	requestURL := arrayOptions["requestUrl"].(string)
 	req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonBody))
 	if err != nil {
-		return fmt.Errorf("error creating request: %v", err), nil
+		return "", fmt.Errorf("error creating request: %v", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
@@ -58,50 +59,43 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		return fmt.Errorf("error sending request: %v", err), nil
+		return "", fmt.Errorf("error sending request: %v", err)
 	}
-	// _, err := ioutil.ReadAll(resp.Body)
-	// if err != nil {
-	// 	return fmt.Errorf("error reading response body: %v", err), nil
-	// }
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("error reading response body: %v", err)
+	}
 
-	// Log the response body as a string
 	// log.Println("resp:", string(body))
 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("received non-200 response status: %s", resp.Status), nil
+		return "", fmt.Errorf("received non-200 response status: %s", resp.Status)
 	}
 
-	var response map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return fmt.Errorf("error decoding response: %v", err), nil
-	}
-
-	responseCodeInterface := response["ximpaytransaction"]
-
-	// var responseCode string
-	// switch v := responseCodeInterface.(type) {
-	// case string:
-	// 	responseCode = v // Jika sudah string, langsung gunakan
-	// case float64:
-	// 	responseCode = fmt.Sprintf("%.0f", v) // Konversi float64 ke string
-	// default:
-	// 	return fmt.Errorf("unexpected type for responsecode: %T", v), nil // Tangani tipe yang tidak terduga
+	// var response map[string]interface{}
+	// if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+	// 	return fmt.Errorf("error decoding response: %v", err), nil
 	// }
 
-	return nil, map[string]interface{}{
-		"success": true,
-		"response": map[string]interface{}{
-			"responsecode": responseCodeInterface,
-			"token":        arrBody,
-			"code":         "00",
-			"message":      "success",
-			// "transaction_id": data.,
-		},
-		// "phone_number": data.UserMDN,
+	// responseCodeInterface := response["ximpaytransaction"]
+	// ximpayID := response.XimpayTransaction[0].XimpayID
+
+	var response XimpayResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return "", fmt.Errorf("error decoding response: %v", err)
 	}
+
+	responseCode := response.XimpayTransaction[0].ResponseCode
+	ximpayID := response.XimpayTransaction[0].XimpayID
+
+	if responseCode != 1 {
+		log.Printf("error request charging with code: %d", responseCode)
+		return "", fmt.Errorf("error request charging with code: %d", responseCode)
+	}
+
+	return ximpayID, nil
 	// if responseCode == "1" {
 	// 	// Handle success
 	// 	return nil, map[string]interface{}{

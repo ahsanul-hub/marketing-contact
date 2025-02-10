@@ -388,8 +388,23 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 		transactionUpdate.FailReason = failReason
 	}
 
-	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? AND status_code = ", transactionID, 1001).Updates(transactionUpdate).Error; err != nil {
+	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? AND status_code = ?", transactionID, 1001).Updates(transactionUpdate).Error; err != nil {
 		return fmt.Errorf("failed to update transaction status: %w", err)
+	}
+
+	return nil
+}
+
+func UpdateTransactionKeyword(ctx context.Context, transactionID string, keyword string, otp int) error {
+	db := database.DB
+
+	transactionUpdate := model.Transactions{
+		Keyword: keyword,
+		Otp:     otp,
+	}
+
+	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ?", transactionID).Updates(transactionUpdate).Error; err != nil {
+		return fmt.Errorf("failed to update transaction keyword/otp: %w", err)
 	}
 
 	return nil
@@ -462,6 +477,26 @@ func UpdateTransactionTimestamps(ctx context.Context, transactionID string, requ
 		if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ?", transactionID).Updates(updates).Error; err != nil {
 			return fmt.Errorf("failed to update transaction timestamps: %w", err)
 		}
+	}
+
+	return nil
+}
+
+func UpdateXimpayID(ctx context.Context, transactionID string, ximpayID string) error {
+	db := database.DB
+
+	var transaction model.Transactions
+	if err := db.WithContext(ctx).Where("id = ?", transactionID).First(&transaction).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("transaction not found: %s", transactionID)
+		}
+		return fmt.Errorf("error fetching transaction: %w", err)
+	}
+
+	transaction.XimpayID = ximpayID
+
+	if err := db.WithContext(ctx).Save(&transaction).Error; err != nil {
+		return fmt.Errorf("failed to update XimpayID: %w", err)
 	}
 
 	return nil

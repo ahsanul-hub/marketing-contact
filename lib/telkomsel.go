@@ -24,7 +24,7 @@ func generateXSignature(apiKey, secret string) string {
 	return fmt.Sprintf("%x", hash)
 }
 
-func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string) (MOResponseTsel, error) {
+func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string) (MOResponseTsel, string, int, error) {
 
 	config, _ := config.GetGatewayConfig("telkomsel_airtime")
 	arrayOptions := config.Options
@@ -36,7 +36,7 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 
 	denomConfig, exists := config.Denom[denom]
 	if !exists {
-		return MOResponseTsel{}, fmt.Errorf("denom %s not found in gateway config", denom)
+		return MOResponseTsel{}, "", 0, fmt.Errorf("denom %s not found in gateway config", denom)
 	}
 
 	keyword := denomConfig["keyword"]
@@ -69,7 +69,7 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	// Membuat request
 	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
-		return MOResponseTsel{}, fmt.Errorf("error creating request: %v", err)
+		return MOResponseTsel{}, "", 0, fmt.Errorf("error creating request: %v", err)
 	}
 
 	// Menambahkan header
@@ -83,23 +83,23 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 
 	resp, err := client.Do(req)
 	if err != nil {
-		return MOResponseTsel{}, fmt.Errorf("error sending request: %v", err)
+		return MOResponseTsel{}, "", 0, fmt.Errorf("error sending request: %v", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return MOResponseTsel{}, fmt.Errorf("error reading response body: %v", err)
+		return MOResponseTsel{}, "", 0, fmt.Errorf("error reading response body: %v", err)
 	}
 
 	if resp.StatusCode != http.StatusOK {
-		return MOResponseTsel{}, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)
+		return MOResponseTsel{}, "", 0, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)
 	}
 
 	// Decode response body
 	var response MOResponseTsel
 
-	return response, nil
+	return response, keyword, otp, nil
 
 }
 
