@@ -57,6 +57,6 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	admin.Post("/merchant", middleware.AdminOnly(false), handler.AddMerchant)
 	admin.Put("/merchant/:clientID", middleware.AdminOnly(true), handler.UpdateMerchant)
 	admin.Get("/merchants", middleware.AdminOnly(true), handler.GetAllMerchants)
-	admin.Get("/merchant/:clientID", handler.GetMerchantByAppID)
+	admin.Get("/merchant/:clientID", handler.GetMerchantByID)
 	admin.Delete("/merchant/:clientID", middleware.AdminOnly(false), handler.DeleteMerchant)
 }
