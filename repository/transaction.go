@@ -249,7 +249,7 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom i
 		return nil, 0, fmt.Errorf("unable to count transactions: %w", err)
 	}
 
-	if err := query.Select("user_mdn, user_id, payment_method, mt_tid , status_code, amount, price, item_name, item_id,app_name, created_at, updated_at").Order("created_at DESC").
+	if err := query.Select("id, user_mdn, user_id, payment_method, mt_tid , status_code, amount, price, item_name, item_id,app_name, created_at, updated_at").Order("created_at DESC").
 		Limit(limit).
 		Offset(offset).
 		Find(&transactions).Error; err != nil {
@@ -259,6 +259,7 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom i
 	var response []model.TransactionMerchantResponse
 	for _, transaction := range transactions {
 		response = append(response, model.TransactionMerchantResponse{
+			ID:                      transaction.ID,
 			UserMDN:                 transaction.UserMDN,
 			UserID:                  transaction.UserId,
 			PaymentMethod:           transaction.PaymentMethod,
@@ -305,7 +306,7 @@ func GetAppNameFromClient(client *model.Client, clientID string) string {
 
 func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (*model.TransactionMerchantResponse, error) {
 	var transaction model.Transactions
-	if err := database.DB.Where("mt_tid = ? AND client_app_key = ? AND app_id = ?", id, appKey, appId).First(&transaction).Error; err != nil {
+	if err := database.DB.Where("id = ?", id).First(&transaction).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("transaction not found: %w", err)
 		}
