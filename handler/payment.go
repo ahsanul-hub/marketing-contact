@@ -8,7 +8,6 @@ import (
 	"app/pkg/response"
 	"app/repository"
 	"context"
-	"encoding/json"
 	"log"
 	"math"
 	"strings"
@@ -156,7 +155,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	bodyJSON, err := json.Marshal(input)
+	// bodyJSON, err := json.Marshal(input)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
@@ -165,12 +164,12 @@ func CreateOrder(c *fiber.Ctx) error {
 	}
 
 	// Ubah bodyJSON menjadi string untuk dicetak
-	bodyJSONString := string(bodyJSON)
+	// bodyJSONString := string(bodyJSON)
 	// log.Println("bodyJSON:", bodyJSONString)
 
 	appSecret := arrClient.ClientSecret
 
-	expectedBodysign, _ := helper.GenerateBodySign(bodyJSONString, appSecret)
+	expectedBodysign := helper.GenerateBodySign(input, appSecret)
 	log.Println("expectedBodysign", expectedBodysign)
 
 	// if receivedBodysign != expectedBodysign {

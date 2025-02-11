@@ -96,7 +96,7 @@ func CreateOrder(ctx context.Context, input *model.InputPaymentRequest, client *
 // 	return intVal
 // }
 
-func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, client *model.Client) (string, uint, error) {
+func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, client *model.Client, appkey, appid string) (string, uint, error) {
 	span, _ := apm.StartSpan(ctx, "CreateTransaction", "repository")
 	defer span.End()
 	uniqueID, err := uuid.NewV7()
@@ -132,7 +132,6 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 
 	transaction := model.Transactions{
 		ID:            uniqueID.String(),
-		ClientAppKey:  input.ClientAppKey,
 		MtTid:         input.MtTid,
 		StatusCode:    1001,
 		ItemName:      input.ItemName,
@@ -149,10 +148,10 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		BodySign:      input.BodySign,
 	}
 
-	transaction.AppID = client.ClientID
+	transaction.AppID = appid
 	transaction.MerchantName = client.ClientName
 	transaction.AppName = client.AppName
-	transaction.ClientAppKey = client.ClientAppkey
+	transaction.ClientAppKey = appkey
 
 	if err := database.DB.Create(&transaction).Error; err != nil {
 		return "", 0, fmt.Errorf("failed to create transaction: %w", err)
@@ -213,7 +212,7 @@ func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, t
 	return transactions, totalItems, nil
 }
 
-func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom int, merchantTransactionId, appKey, appID, userMDN, appName string, paymentMethods []string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
+func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom int, merchantTransactionId, clientName, userMDN, appName string, paymentMethods []string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
 	var transactions []model.Transactions
 	query := database.DB
 	var totalItems int64
@@ -221,20 +220,20 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom i
 	if merchantTransactionId != "" {
 		query = query.Where("mt_tid = ?", merchantTransactionId)
 	}
-	if appKey != "" {
-		query = query.Where("client_app_key = ?", appKey)
-	}
+	// if appKey != "" {
+	// 	query = query.Where("client_app_key = ?", appKey)
+	// }
 	if status != 0 {
 		query = query.Where("status_code = ?", status)
 	}
 	if denom != 0 {
 		query = query.Where("amount = ?", denom)
 	}
+	if clientName != "" {
+		query = query.Where("merchant_name = ?", clientName)
+	}
 	if appName != "" {
 		query = query.Where("app_name = ?", appName)
-	}
-	if appID != "" {
-		query = query.Where("app_id = ?", appID)
 	}
 	if userMDN != "" {
 		query = query.Where("user_mdn = ?", userMDN)
@@ -293,6 +292,15 @@ func GetTransactionByID(ctx context.Context, id string) (*model.Transactions, er
 		return nil, fmt.Errorf("error fetching transaction: %w", err)
 	}
 	return &transaction, nil
+}
+
+func GetAppNameFromClient(client *model.Client, clientID string) string {
+	for _, app := range client.ClientApps {
+		if app.AppID == clientID {
+			return app.AppName
+		}
+	}
+	return ""
 }
 
 func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (*model.TransactionMerchantResponse, error) {

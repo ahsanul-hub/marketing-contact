@@ -40,7 +40,10 @@ func FindClient(ctx context.Context, clientAppKey, clientID string) (*model.Clie
 
 	var client model.Client
 	// Mencari client berdasarkan clientAppKey dan clientID
-	if err := db.Preload("PaymentMethods").Where("client_appkey = ? AND client_id = ?", clientAppKey, clientID).First(&client).Error; err != nil {
+	if err := db.Joins("JOIN client_apps ON client_apps.client_id = clients.uid").
+		Where("client_apps.app_id = ? AND client_apps.app_key = ?", clientID, clientAppKey).
+		Preload("ClientApps").Preload("PaymentMethods").
+		First(&client).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("client not found: %w", err)
 		}
@@ -392,9 +395,9 @@ func AddClientApps(clientID string, clients *model.ClientApp) error {
 	return nil
 }
 
-func GetByClientAppID(clientAppID string) (model.Client, error) {
+func GetByClientID(clientAppID string) (model.Client, error) {
 	var client model.Client
-	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Preload("ClientApps").Where("client_id = ?", clientAppID).First(&client).Error; err != nil {
+	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Preload("ClientApps").Where("id = ?", clientAppID).First(&client).Error; err != nil {
 		return client, fmt.Errorf("client not found: %w", err)
 	}
 	return client, nil

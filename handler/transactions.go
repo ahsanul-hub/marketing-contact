@@ -295,6 +295,8 @@ func CreateTransaction(c *fiber.Ctx) error {
 	defer span.End()
 
 	bodysign := c.Get("bodysign")
+	appkey := c.Get("appkey")
+	appid := c.Get("appid")
 
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
@@ -310,10 +312,15 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	}
 
-	arrClient, err := repository.FindClient(spanCtx, c.Get("appkey"), c.Get("appid"))
+	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
+
+	appName := repository.GetAppNameFromClient(arrClient, appid)
+
+	// expectedBodysign := helper.GenerateBodySign(transaction, arrClient.ClientSecret)
+	// log.Println("arrClient", arrClient)
 
 	paymentMethodMap := make(map[string]model.PaymentMethodClient)
 	for _, pm := range arrClient.PaymentMethods {
@@ -337,11 +344,16 @@ func CreateTransaction(c *fiber.Ctx) error {
 	transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
 	transaction.BodySign = bodysign
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
+	arrClient.AppName = appName
 
-	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient)
+	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, appkey, appid)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
+
+	// createdTransId := "rawgg36"
+	// var chargingPrice uint
+	// chargingPrice = 5550
 
 	switch transaction.PaymentMethod {
 	case "xl_airtime":
@@ -562,6 +574,8 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	defer span.End()
 
 	bodysign := c.Get("bodysign")
+	appkey := c.Get("appkey")
+	appid := c.Get("appid")
 
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
@@ -576,7 +590,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amounr must not be empty",
 		})
 	}
-	arrClient, err := repository.FindClient(spanCtx, c.Get("appkey"), c.Get("appid"))
+	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
 
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	transaction.BodySign = bodysign
@@ -585,7 +599,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	createdTransId, _, err := repository.CreateTransaction(spanCtx, &transaction, arrClient)
+	createdTransId, _, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -1032,7 +1046,12 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, status, denom, merchantTransactionId, appKey, appID, userMDN, appName, paymentMethods, startDate, endDate)
+	arrClient, err := repository.FindClient(context.Background(), appKey, appID)
+	if err != nil {
+		fmt.Println("Error fetching client:", err)
+	}
+
+	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, status, denom, merchantTransactionId, arrClient.ClientName, userMDN, appName, paymentMethods, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

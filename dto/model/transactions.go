@@ -70,22 +70,22 @@ type TransactionMerchantResponse struct {
 }
 
 type InputPaymentRequest struct {
-	ClientAppKey  string `json:"client_appkey"`
-	AppName       string `json:"app_name"`
-	AppID         string `json:"app_id"`
-	Status        string `json:"status"`
-	MtTid         string `json:"merchant_transaction_id"`
-	BodySign      string `json:"bodysign"`
-	ItemId        string `json:"item_id"`
-	Mobile        string `json:"mobile"`
-	Testing       bool   `json:"testing"`
-	Route         string `json:"route"`
-	PaymentMethod string `json:"payment_method"`
-	UserId        string `json:"user_id"`
-	Currency      string `json:"currency"`
-	Price         uint   `json:"price"`
-	Amount        uint   `json:"amount"`
-	ItemName      string `json:"item_name"`
-	UserMDN       string `json:"user_mdn"`
-	RedirectURL   string `json:"redirect_url"`
+	ClientAppKey  string `json:"client_appkey,omitempty"`
+	AppName       string `json:"app_name,omitempty"`
+	AppID         string `json:"app_id,omitempty"`
+	Status        string `json:"status,omitempty"`
+	MtTid         string `json:"merchant_transaction_id,omitempty"`
+	BodySign      string `json:"bodysign,omitempty"`
+	ItemId        string `json:"item_id,omitempty"`
+	Mobile        string `json:"mobile,omitempty"`
+	Testing       bool   `json:"testing,omitempty"`
+	Route         string `json:"route,omitempty"`
+	PaymentMethod string `json:"payment_method,omitempty"`
+	UserId        string `json:"user_id,omitempty"`
+	Currency      string `json:"currency,omitempty"`
+	Price         uint   `json:"price,omitempty"`
+	Amount        uint   `json:"amount,omitempty"`
+	ItemName      string `json:"item_name,omitempty"`
+	UserMDN       string `json:"user_mdn,omitempty"`
+	RedirectURL   string `json:"redirect_url,omitempty"`
 }

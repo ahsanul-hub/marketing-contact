@@ -59,16 +59,16 @@ func UpdateMerchant(c *fiber.Ctx) error {
 	return response.ResponseSuccess(c, fiber.StatusOK, "Client updated successfully")
 }
 
-func GetMerchantByAppID(c *fiber.Ctx) error {
-	clientAppID := c.Params("clientID")
-	if clientAppID == "" {
+func GetMerchantByID(c *fiber.Ctx) error {
+	clientID := c.Params("id")
+	if clientID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Client App ID is required",
 		})
 	}
 
-	client, err := repository.GetByClientAppID(clientAppID)
+	client, err := repository.GetByClientID(clientID)
 	if err != nil {
 		return response.Response(c, fiber.StatusNotFound, err.Error())
 	}
