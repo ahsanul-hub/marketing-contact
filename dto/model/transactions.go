@@ -70,22 +70,22 @@ type TransactionMerchantResponse struct {
 }
 
 type InputPaymentRequest struct {
+	RedirectURL   string `json:"redirect_url,omitempty"`
+	UserId        string `json:"user_id,omitempty"`
+	UserMDN       string `json:"user_mdn,omitempty"`
+	MtTid         string `json:"merchant_transaction_id,omitempty"`
+	PaymentMethod string `json:"payment_method,omitempty"`
+	Currency      string `json:"currency,omitempty"`
+	Amount        uint   `json:"amount,omitempty"`
+	ItemId        string `json:"item_id,omitempty"`
+	ItemName      string `json:"item_name,omitempty"`
 	ClientAppKey  string `json:"client_appkey,omitempty"`
 	AppName       string `json:"app_name,omitempty"`
 	AppID         string `json:"app_id,omitempty"`
 	Status        string `json:"status,omitempty"`
-	MtTid         string `json:"merchant_transaction_id,omitempty"`
 	BodySign      string `json:"bodysign,omitempty"`
-	ItemId        string `json:"item_id,omitempty"`
 	Mobile        string `json:"mobile,omitempty"`
 	Testing       bool   `json:"testing,omitempty"`
 	Route         string `json:"route,omitempty"`
-	PaymentMethod string `json:"payment_method,omitempty"`
-	UserId        string `json:"user_id,omitempty"`
-	Currency      string `json:"currency,omitempty"`
 	Price         uint   `json:"price,omitempty"`
-	Amount        uint   `json:"amount,omitempty"`
-	ItemName      string `json:"item_name,omitempty"`
-	UserMDN       string `json:"user_mdn,omitempty"`
-	RedirectURL   string `json:"redirect_url,omitempty"`
 }
