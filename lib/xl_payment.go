@@ -218,7 +218,7 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 	isNumberActive, err := CheckNumberXl(beautifyMsisdn, token)
 	if !isNumberActive {
 		log.Println("err:", err)
-		err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1005, nil, "Msisdn not active")
+		err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1005, nil, nil, "Msisdn not active")
 		if err != nil {
 			log.Println("err: ", err)
 		}
@@ -357,9 +357,11 @@ func CheckTransactionStatus(transaction model.Transactions) {
 		return
 	}
 
+	referenceId := response.TransactionInfo.ReferenceId
+
 	// Memperbarui status berdasarkan response
 	if response.TransactionStatus.ResponseCode == "00" { // Sukses
-		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, nil, ""); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, referenceId, nil, ""); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 		}
 

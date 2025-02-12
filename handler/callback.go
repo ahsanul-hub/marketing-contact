@@ -18,7 +18,7 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 
 	switch ximpayStatus {
 	case "1":
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1003, nil, ""); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1003, nil, nil, ""); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionId, err)
 		}
 	case "2":
@@ -40,5 +40,22 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "Success",
+	})
+}
+
+func MoTelkomsel(c *fiber.Ctx) error {
+	rawInput := c.Queries()
+	// msisdn := c.Query("msisdn")
+	// sms := c.Query("sms")
+	// adn := c.Query("adn")
+
+	params := rawInput
+	for k, v := range params {
+		log.Println("key, v : ", k, v)
+	}
+
+	return c.JSON(fiber.Map{
+		"message": "MO request received",
+		"data":    rawInput,
 	})
 }

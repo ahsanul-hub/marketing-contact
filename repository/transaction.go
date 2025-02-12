@@ -330,6 +330,7 @@ func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (
 		AppName:                 transaction.AppName,
 		Route:                   transaction.Route,
 		Amount:                  transaction.Amount,
+		FailReason:              transaction.FailReason,
 		Price:                   transaction.Price,
 		CreatedAt:               transaction.CreatedAt,
 		UpdatedAt:               transaction.UpdatedAt,
@@ -382,7 +383,7 @@ func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, n
 // 	return nil
 // }
 
-func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, ximpayId *string, failReason string) error {
+func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, referenceId, ximpayId *string, failReason string) error {
 	db := database.DB
 
 	transactionUpdate := model.Transactions{
@@ -391,6 +392,9 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 
 	if ximpayId != nil {
 		transactionUpdate.XimpayID = *ximpayId
+	}
+	if referenceId != nil {
+		transactionUpdate.ReferenceID = *referenceId
 	}
 
 	if failReason != "" {
