@@ -179,7 +179,7 @@ func CheckNumberXl(msisdn string, token string) (bool, error) {
 	if checkNumberResponse.InquiryStatus.ResponseCode == "00" || checkNumberResponse.InquiryStatus.ResponseCode == "21" {
 		return true, nil
 	} else if checkNumberResponse.InquiryStatus.ResponseCode == "20" {
-		return false, nil
+		return false, fmt.Errorf(checkNumberResponse.InquiryStatus.ResponseDesc)
 	}
 
 	return false, fmt.Errorf("unexpected response code: %s", checkNumberResponse.InquiryStatus.ResponseCode)
@@ -367,7 +367,7 @@ func CheckTransactionStatus(transaction model.Transactions) {
 
 	} else {
 		createdAt := transaction.CreatedAt
-		timeLimit := time.Now().Add(-9 * time.Minute)
+		timeLimit := time.Now().Add(-10 * time.Minute)
 
 		expired := createdAt.Before(timeLimit)
 		if expired {

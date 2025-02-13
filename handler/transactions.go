@@ -379,7 +379,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			})
 		}
 
-		_, err := lib.RequestChargingXL(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
+		_, err := lib.RequestChargingXL(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, chargingPrice)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
