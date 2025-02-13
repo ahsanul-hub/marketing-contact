@@ -13,6 +13,21 @@
       rel="stylesheet"
     />
     <style>
+      /* Untuk browser berbasis WebKit (Chrome, Safari, Edge) */
+      #userMdn {
+        appearance: textfield; /* Properti standar untuk kompatibilitas */
+      }
+
+      #userMdn::-webkit-outer-spin-button,
+      #userMdn::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+
+      /* Untuk Firefox */
+      #userMdn {
+        -moz-appearance: textfield;
+      }
       body {
         display: flex;
         justify-content: center;
@@ -99,7 +114,7 @@
           <label for="userMdn">Masukan Nomor HP:</label>
           <br />
           <input
-            type="text"
+            type="number"
             class="form-control"
             id="userMdn"
             style="
@@ -213,6 +228,12 @@
               submitButton.disabled = false;
               console.error("Error:", error);
             });
+        });
+
+      document
+        .getElementById("userMdn")
+        .addEventListener("input", function (event) {
+          this.value = this.value.replace(/[^0-9]/g, "");
         });
     </script>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
