@@ -599,7 +599,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	createdTransId, _, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
+	createdTransId, chargingPrice, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -648,7 +648,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			})
 		}
 
-		_, err := lib.RequestChargingXL(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transaction.Amount)
+		_, err := lib.RequestChargingXL(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, chargingPrice)
 		if err != nil {
 
 			log.Println("Charging request failed:", err)
