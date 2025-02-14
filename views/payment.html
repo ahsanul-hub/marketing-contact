@@ -221,7 +221,7 @@
               if (data.success) {
                 window.location.href = `/api/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`;
               } else {
-                alert(data.message || "Transaksi gagal");
+                alert(data.error || data.message || "Transaksi gagal");
               }
             })
             .catch((error) => {

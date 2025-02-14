@@ -18,6 +18,7 @@ import (
 )
 
 var tokenCache = cache.New(56*time.Minute, 58*time.Minute)
+var NumberCache = cache.New(1*time.Minute, 2*time.Minute)
 
 type TokenRequest struct {
 	ClientID     string `json:"client_id"`
@@ -179,6 +180,7 @@ func CheckNumberXl(msisdn string, token string) (bool, error) {
 	if checkNumberResponse.InquiryStatus.ResponseCode == "00" || checkNumberResponse.InquiryStatus.ResponseCode == "21" {
 		return true, nil
 	} else if checkNumberResponse.InquiryStatus.ResponseCode == "20" {
+		NumberCache.Set(msisdn, "xl_airtime", cache.DefaultExpiration)
 		return false, fmt.Errorf(checkNumberResponse.InquiryStatus.ResponseDesc)
 	}
 
@@ -222,7 +224,7 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 		if err != nil {
 			log.Println("err: ", err)
 		}
-		return ChargingResponse{}, fmt.Errorf("E0016")
+		return ChargingResponse{}, fmt.Errorf("invalid phone number or not found")
 	}
 	chargingRequest := ChargingRequest{
 		CustomerInfo: RequestChargingInfo{
@@ -366,7 +368,7 @@ func CheckTransactionStatus(transaction model.Transactions) {
 		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, referenceId, nil, ""); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 		}
-		log.Printf("%s, transaction ID : %s", response.TransactionStatus.ResponseDesc, transaction.ID)
+		log.Printf("%s, transaction ID : %s, responseCode: %s", response.TransactionStatus.ResponseDesc, transaction.ID, response.TransactionStatus.ResponseCode)
 	} else {
 		createdAt := transaction.CreatedAt
 		timeLimit := time.Now().Add(-10 * time.Minute)

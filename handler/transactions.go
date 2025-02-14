@@ -590,6 +590,16 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amounr must not be empty",
 		})
 	}
+	beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
+
+	if _, found := lib.NumberCache.Get(beautifyMsisdn); found {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": fmt.Sprintf("Phone number %s is inactive or invalid, please try another number", transaction.UserMDN),
+		})
+
+	}
+
 	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
 
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
@@ -654,7 +664,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"message": fmt.Sprintf("request failed: %v", err),
 			})
 		}
 
