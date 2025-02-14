@@ -8,7 +8,6 @@ import (
 	"app/pkg/response"
 	"app/repository"
 	"context"
-	"log"
 	"math"
 	"strings"
 	"time"
@@ -156,12 +155,12 @@ func CreateOrder(c *fiber.Ctx) error {
 	}
 
 	// bodyJSON, err := json.Marshal(input)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"message": "Error generating JSON",
-		})
-	}
+	// if err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	// 		"success": false,
+	// 		"message": "Error generating JSON",
+	// 	})
+	// }
 
 	// Ubah bodyJSON menjadi string untuk dicetak
 	// bodyJSONString := string(bodyJSON)
@@ -170,7 +169,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	appSecret := arrClient.ClientSecret
 
 	expectedBodysign := helper.GenerateBodySign(input, appSecret)
-	log.Println("expectedBodysign", expectedBodysign)
+	// log.Println("expectedBodysign", expectedBodysign)
 
 	if receivedBodysign != expectedBodysign {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

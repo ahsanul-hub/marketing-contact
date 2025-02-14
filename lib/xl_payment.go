@@ -286,6 +286,8 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 		return ChargingResponse{}, fmt.Errorf("failed to decode response: %w", err)
 	}
 
+	log.Printf("Charging requested with id: %s, msisdn no: %s , chargingPrice %d", transactionId, msisdn, chargingPrice)
+
 	return responseMap.ChargingResponse, nil
 }
 
