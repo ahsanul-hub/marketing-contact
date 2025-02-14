@@ -361,12 +361,12 @@ func CheckTransactionStatus(transaction model.Transactions) {
 
 	referenceId := response.TransactionInfo.ReferenceId
 
-	// Memperbarui status berdasarkan response
 	if response.TransactionStatus.ResponseCode == "00" { // Sukses
+
 		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, referenceId, nil, ""); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 		}
-
+		log.Printf("%s, transaction ID : %s", response.TransactionStatus.ResponseDesc, transaction.ID)
 	} else {
 		createdAt := transaction.CreatedAt
 		timeLimit := time.Now().Add(-10 * time.Minute)
