@@ -841,6 +841,44 @@ func GetTransactions(c *fiber.Ctx) error {
 	})
 }
 
+func ExportTransactions(c *fiber.Ctx) error {
+	_, spanCtx := apm.StartSpan(c.Context(), "ExportTransactionsCSV", "handler")
+	exportCSV := c.Query("export_csv", "false")
+	exportExcel := c.Query("export_excel", "false")
+
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		parsedStartDate, err := time.Parse(time.RFC1123, startDateStr)
+		if err == nil {
+			startDate = &parsedStartDate
+		}
+	}
+	if endDateStr != "" {
+		parsedEndDate, err := time.Parse(time.RFC1123, endDateStr)
+		if err == nil {
+			endDate = &parsedEndDate
+		}
+	}
+
+	transactions, err := repository.GetTransactionsByDateRange(spanCtx, startDate, endDate)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	if exportCSV == "true" {
+		return exportTransactionsToCSV(c, transactions)
+	}
+
+	if exportExcel == "true" {
+		return exportTransactionsToExcel(c, transactions)
+	}
+
+	return nil
+
+}
+
 func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) error {
 	// Set header untuk file CSV
 	c.Set("Content-Type", "text/csv")
@@ -851,12 +889,13 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 	defer writer.Flush()
 
 	// Tulis header CSV
-	header := []string{"ID", "MT TID", "Payment Method", "Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Reference ID", "Status Code"}
+	header := []string{"ID", "Date", "MT TID", "Payment Method", "Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status Code"}
 	if err := writer.Write(header); err != nil {
 		return err
 	}
 
-	// Tulis data transaksi ke CSV
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+
 	for _, transaction := range transactions {
 		var status string
 		switch transaction.StatusCode {
@@ -868,8 +907,11 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			status = "Success"
 		}
 
+		createdAt := transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
+
 		record := []string{
 			transaction.ID,
+			createdAt,
 			transaction.MtTid,
 			transaction.PaymentMethod,
 			strconv.Itoa(int(transaction.Amount)),
@@ -878,7 +920,6 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			transaction.Currency,
 			transaction.ItemName,
 			transaction.ItemId,
-			transaction.ReferenceID,
 			status,
 		}
 		if err := writer.Write(record); err != nil {
@@ -896,13 +937,14 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 	index, _ := f.NewSheet(sheetName)
 
 	// Tulis header
-	headers := []string{"Transaction ID", "MT TID", "Payment Method", "Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Reference ID", "Status Code"}
+	headers := []string{"Transaction ID", "Date", "MT TID", "Payment Method", "Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status Code"}
 	for i, header := range headers {
-		cell := getColumnName(i+1) + "1" // Menggunakan getColumnName untuk mendapatkan kolom A, B, C, ...
+		cell := getColumnName(i+1) + "1"
 		f.SetCellValue(sheetName, cell, header)
 		// f.SetCellStyle(sheetName, cell, cell, `{"font":{"bold":true}}`) // Set header menjadi bold
 	}
 
+	loc, _ := time.LoadLocation("Asia/Jakarta")
 	// Tulis data transaksi
 	for rowIndex, transaction := range transactions {
 		var status string
@@ -915,17 +957,19 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 			status = "Success"
 		}
 
+		createdAt := transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
+
 		row := rowIndex + 2 // Mulai dari baris kedua setelah header
 		f.SetCellValue(sheetName, "A"+strconv.Itoa(row), transaction.ID)
-		f.SetCellValue(sheetName, "B"+strconv.Itoa(row), transaction.MtTid)
-		f.SetCellValue(sheetName, "C"+strconv.Itoa(row), transaction.PaymentMethod)
-		f.SetCellValue(sheetName, "D"+strconv.Itoa(row), transaction.Amount)
-		f.SetCellValue(sheetName, "E"+strconv.Itoa(row), transaction.UserId)
-		f.SetCellValue(sheetName, "F"+strconv.Itoa(row), transaction.AppName)
-		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), transaction.Currency)
-		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), transaction.ItemName)
-		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), transaction.ItemId)
-		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.ReferenceID)
+		f.SetCellValue(sheetName, "B"+strconv.Itoa(row), createdAt)
+		f.SetCellValue(sheetName, "C"+strconv.Itoa(row), transaction.MtTid)
+		f.SetCellValue(sheetName, "D"+strconv.Itoa(row), transaction.PaymentMethod)
+		f.SetCellValue(sheetName, "E"+strconv.Itoa(row), transaction.Amount)
+		f.SetCellValue(sheetName, "F"+strconv.Itoa(row), transaction.UserId)
+		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), transaction.AppName)
+		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), transaction.Currency)
+		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), transaction.ItemName)
+		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.ItemId)
 		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), status)
 	}
 

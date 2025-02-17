@@ -212,6 +212,27 @@ func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, t
 	return transactions, totalItems, nil
 }
 
+func GetTransactionsByDateRange(ctx context.Context, startDate, endDate *time.Time) ([]model.Transactions, error) {
+	span, _ := apm.StartSpan(ctx, "GetTransactionsByDateRange", "repository")
+	defer span.End()
+
+	var transactions []model.Transactions
+	query := database.DB
+
+	if startDate != nil && endDate != nil {
+		startUTC := startDate.UTC()
+		endUTC := endDate.UTC()
+
+		query = query.Where("created_at BETWEEN ? AND ?", startUTC, endUTC)
+	}
+
+	if err := query.Order("created_at DESC").Find(&transactions).Error; err != nil {
+		return nil, fmt.Errorf("unable to fetch transactions: %w", err)
+	}
+
+	return transactions, nil
+}
+
 func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom int, merchantTransactionId, clientName, userMDN, appName string, paymentMethods []string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
 	var transactions []model.Transactions
 	query := database.DB
