@@ -84,19 +84,10 @@
       <div class="divider">
         <hr class="custom-hr" />
       </div>
-      <!-- <div style="display: flex">
-        <div style="width: 50%">
-          <h5 class="text-center">{{ .AppName }}</h5>
-          <h5 class="text-center">{{ .ItemName }}</h5>
-        </div>
-        <div style="width: 50%">
-          <h4 class="text-center">Total: {{ .Currency }} {{ .Price}}</h4>
-        </div>
-      </div> -->
 
-      <form action="/api/payment" method="POST" id="paymentForm">
+      <form method="POST" id="paymentForm">
         <div class="form-group">
-          <label for="userMdn">Masukan OTP yang didapat dari SMS:</label>
+          <label for="otp">Masukan OTP yang didapat dari SMS:</label>
           <br />
           <input
             type="text"
@@ -108,8 +99,7 @@
               height: 24px;
               padding-left: 10px;
             "
-            name="user_mdn"
-            placeholder="081234567899"
+            name="otp"
             required
           />
         </div>
@@ -125,37 +115,9 @@
             Lanjut
           </button>
         </div>
-        <input type="hidden" name="price" value="{{ .Price }}" />
-        <input type="hidden" name="amount" value="{{ .Amount }}" />
-        <input type="hidden" name="client_appkey" value="{{ .ClientAppKey }}" />
-        <input
-          type="hidden"
-          name="payment_method"
-          value="{{ .PaymentMethod }}"
-        />
-
-        <input type="hidden" name="app_name" value="{{ .AppName }}" />
-        <input
-          type="hidden"
-          name="merchant_transaction_id"
-          value="{{ .MtID }}"
-        />
-        <input type="hidden" name="user_id" value="{{ .UserId }}" />
-        <input
-          type="hidden"
-          name="merchant_transaction_id"
-          value="{{ .MtID }}"
-        />
-        <input type="hidden" name="item_name" value="{{ .ItemName }}" />
-        <input type="hidden" name="curency" value="{{ .Currency }}" />
-        <input type="hidden" name="app_id" value="{{ .AppID }}" />
+        <input type="hidden" name="reff_id" value="{{ .ReffId }}" />
         <input type="hidden" name="token" value="{{ .Token }}" />
-        <input type="hidden" name="bodysign" value="{{ .BodySign }}" />
-        <input type="hidden" name="item_id" value="{{ .ItemId }}" />
       </form>
-      <!-- <p class="text-center" style="font-size: 14px">
-        Harga termasuk pajak dan biaya layanan.
-      </p> -->
     </div>
     <script>
       document
@@ -170,33 +132,15 @@
           const data = Object.fromEntries(formData.entries());
 
           const dataFormated = {
-            amount: parseFloat(data.amount),
-            price: parseFloat(data.price),
-            user_mdn: data.user_mdn,
-            client_appkey: data.client_appkey,
-            payment_method: data.payment_method,
-            app_name: data.app_name,
-            merchant_transaction_id: data.merchant_transaction_id,
-            user_id: data.user_id,
-            item_name: data.item_name,
-            item_id: data.item_id,
-            currency: data.currency,
-            app_id: data.app_id,
-            redirect_url: data.redirect_url,
+            reff_id: data.reff_id,
+            otp: data.otp,
             token: data.token,
           };
 
-          if (data.payment_method === "smartfren_airtime") {
-          }
-
-          fetch("/api/payment", {
+          fetch(`/api/mt-smartfren/${data.token}`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              appid: data.app_id,
-              appkey: data.client_appkey,
-              token: data.token,
-              bodysign: data.bodysign,
             },
             body: JSON.stringify(dataFormated),
           })
@@ -204,7 +148,7 @@
             .then((data) => {
               submitButton.disabled = false;
               if (data.success) {
-                window.location.href = `/api/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`;
+                window.location.href = `/api/success-payment/otp/${dataFormated.token}`;
               } else {
                 alert(data.message || "Transaksi gagal");
               }

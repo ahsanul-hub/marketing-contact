@@ -25,7 +25,7 @@ type PaymentMethodRepository struct {
 var merchantCache *cache.Cache
 
 func init() {
-	merchantCache = cache.New(23*time.Hour, 24*time.Hour)
+	merchantCache = cache.New(30*time.Minute, 35*time.Minute)
 }
 
 func FindClient(ctx context.Context, clientAppKey, clientID string) (*model.Client, error) {

@@ -420,7 +420,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"message": "Charging request indosat failed",
 			})
 		}
 
@@ -458,7 +458,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 		ximpayId, err := lib.RequestChargingTriTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transactionAmountStr)
 		if err != nil {
-			log.Println("Charging request failed:", err)
+			log.Println("Charging request tri failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
 				"message": "Charging request failed",
@@ -543,7 +543,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 		ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transaction.Amount)
 		if err != nil {
-			log.Println("Charging request failed:", err)
+			log.Println("Charging request smartfren failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"success": false,
 				"message": "Charging request failed",
@@ -694,8 +694,49 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 				"error": "This denom is not supported for this payment method",
 			})
 		}
+	case "tri_airtime":
+		validAmounts, exists := routes["tri_triyakom"]
+		if !exists {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "No valid amounts found for the specified payment method",
+			})
+		}
 
-	case "smartfren":
+		validAmount := false
+		for _, route := range validAmounts {
+			if transactionAmountStr == route {
+				validAmount = true
+				break
+			}
+		}
+
+		if !validAmount && !paymentMethodClient.Flexible {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "This denom is not supported for this payment method",
+			})
+		}
+
+		ximpayId, err := lib.RequestChargingTriTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transactionAmountStr)
+		if err != nil {
+			log.Println("Charging request tri failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		err = repository.UpdateXimpayID(context.Background(), createdTransId, ximpayId)
+		if err != nil {
+			log.Println("Updated Ximpay ID error:", err)
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
+		})
+
+	case "smartfren_airtime":
 		validAmounts, exists := routes["smartfren_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -734,6 +775,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"success": true,
 			"retcode": "0000",
+			"reff_id": ximpayId,
 			"message": "Successful Created Transaction",
 		})
 	}
@@ -751,8 +793,6 @@ func GetTransactions(c *fiber.Ctx) error {
 
 	pageStr := c.Query("page", "1")
 	limitStr := c.Query("limit", "10")
-	exportCSV := c.Query("export_csv", "false")
-	exportExcel := c.Query("export_excel", "false")
 
 	appID := c.Query("app_id")
 	userMDN := helper.BeautifyIDNumber(c.Query("user_mdn"), true)
@@ -817,14 +857,6 @@ func GetTransactions(c *fiber.Ctx) error {
 	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, appID, userMDN, userId, appName, merchants, paymentMethods, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
-	}
-
-	if exportCSV == "true" {
-		return exportTransactionsToCSV(c, transactions)
-	}
-
-	if exportExcel == "true" {
-		return exportTransactionsToExcel(c, transactions)
 	}
 
 	totalPages := int64(math.Ceil(float64(totalItems) / float64(limit)))
@@ -1221,5 +1253,36 @@ func CheckTrans(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    status,
+	})
+}
+
+func MTSmartfren(c *fiber.Ctx) error {
+
+	var transaction model.InputPaymentRequest
+	if err := c.BodyParser(&transaction); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	if transaction.ReffId == "" || transaction.Otp == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing mandatory fields: ReffId, Otp must not be empty",
+		})
+	}
+
+	err := lib.DoMT(transaction.ReffId, transaction.Otp)
+	if err != nil {
+		log.Println("MT request smartfren failed:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Charging request failed",
+		})
+	}
+
+	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		"success": true,
+		"message": "Successful MT Transaction",
 	})
 }

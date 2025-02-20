@@ -8,6 +8,7 @@ import (
 	"app/pkg/response"
 	"app/repository"
 	"context"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -19,7 +20,7 @@ import (
 	"go.elastic.co/apm"
 )
 
-var TransactionCache = cache.New(4*time.Minute, 5*time.Minute)
+var TransactionCache = cache.New(5*time.Minute, 6*time.Minute)
 
 func CreatePayment(c *fiber.Ctx) error {
 	headers := map[string]string{
@@ -221,6 +222,12 @@ func PaymentPage(c *fiber.Ctx) error {
 			StrPaymentMethod = "XL"
 		case "telkomsel_airtime":
 			StrPaymentMethod = "Telkomsel"
+		case "tri_airtime":
+			StrPaymentMethod = "Tri"
+		case "smartfren_airtime":
+			StrPaymentMethod = "Smartfren"
+		case "indosat_airtime":
+			StrPaymentMethod = "Indosat"
 		}
 
 		// log.Println("inputreq:", inputReq)
@@ -247,15 +254,17 @@ func PaymentPage(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "Transaction not found"})
 }
 
-func OtpPage(c *fiber.Ctx) error {
+func InputOTPSF(c *fiber.Ctx) error {
 	span, _ := apm.StartSpan(c.Context(), "OtpPage", "handler")
 	defer span.End()
-	ximpaytoken := c.Get("ximpaytoken")
-	ximpayid := c.Get("ximpayid")
+	// ximpaytoken := c.Get("ximpaytoken")
+	ximpayid := c.Params("ximpayid")
+	token := c.Params("token")
 
 	return c.Render("paymentotp", fiber.Map{
-		"XimpayID":    ximpayid,
-		"XimpayToken": ximpaytoken,
+		"ReffId":           ximpayid,
+		"Token":            token,
+		"PaymentMethodStr": "Smartfren",
 	})
 
 }
@@ -285,6 +294,33 @@ func SuccessPage(c *fiber.Ctx) error {
 		return c.Render("success_payment", fiber.Map{
 			"PaymentMethodStr": StrPaymentMethod,
 			"Msisdn":           msisdn,
+			"RedirectURL":      inputReq.RedirectURL,
+		})
+	}
+
+	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "Error"})
+}
+
+func SuccessPageOTP(c *fiber.Ctx) error {
+	span, _ := apm.StartSpan(c.Context(), "SuccessPage", "handler")
+	defer span.End()
+	token := c.Params("token")
+
+	if cachedData, found := TransactionCache.Get(token); found {
+		inputReq := cachedData.(model.InputPaymentRequest)
+		var StrPaymentMethod string
+
+		switch inputReq.PaymentMethod {
+		case "xl_airtime":
+			StrPaymentMethod = "XL"
+		case "telkomsel_airtime":
+			StrPaymentMethod = "Telkomsel"
+		case "smartfren_airtime":
+			StrPaymentMethod = "Smartfren"
+		}
+		log.Println("berhasil")
+		return c.Render("success_payment_otp", fiber.Map{
+			"PaymentMethodStr": StrPaymentMethod,
 			"RedirectURL":      inputReq.RedirectURL,
 		})
 	}

@@ -26,6 +26,7 @@ type Transactions struct {
 	TimestampRequestDate     *time.Time `json:"timestamp_request_date"`
 	TimestampSubmitDate      *time.Time `json:"timestamp_submit_date"`
 	TimestampCallbackDate    *time.Time `json:"timestamp_callback_date"`
+	ReceiveCallbackDate      *time.Time `json:"receive_callback_date"`
 	TimestampCallbackResult  string     `gorm:"type:VARCHAR(255)" json:"timestamp_callback_result"`
 	Stan                     string     `gorm:"type:VARCHAR(255)" json:"json"`
 	Amount                   uint       `gorm:"type:INTEGER" json:"amount"`
@@ -89,4 +90,6 @@ type InputPaymentRequest struct {
 	Testing       bool   `json:"testing,omitempty"`
 	Route         string `json:"route,omitempty"`
 	Price         uint   `json:"price,omitempty"`
+	Otp           string `json:"otp,omitempty"`
+	ReffId        string `json:"reff_id,omitempty"`
 }

@@ -21,7 +21,7 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 
 	switch ximpayStatus {
 	case "1":
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1003, nil, nil, ""); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1003, nil, nil, "", nil); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionId, err)
 		}
 	case "2":

@@ -31,6 +31,20 @@ type XimpayResponse struct {
 	XimpayTransaction []XimpayTransaction `json:"ximpaytransaction"`
 }
 
+type DoMTRequest struct {
+	XimpayID    string `json:"ximpayid"`
+	CodePin     string `json:"codepin"`
+	XimpayToken string `json:"ximpaytoken"`
+}
+
+type DoMTResponse struct {
+	XimpayTransaction []struct {
+		ResponseCode int    `json:"responsecode"`
+		XimpayID     string `json:"ximpayid"`
+		Pin          string `json:"pin"`
+	} `json:"ximpaytransaction"`
+}
+
 func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount uint) (string, error) {
 	config, _ := config.GetGatewayConfig("smartfren_triyakom")
 	arrayOptions := config.Options["production"].(map[string]interface{})
@@ -106,4 +120,62 @@ func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount ui
 	// }
 
 	return ximpayID, nil
+}
+
+func DoMT(ximpayID, codePin string) error {
+	config, _ := config.GetGatewayConfig("smartfren_triyakom")
+	arrayOptions := config.Options["production"].(map[string]interface{})
+	secretKey := arrayOptions["seckey"].(string)
+
+	joinedString := fmt.Sprintf("%s%s%s", ximpayID, codePin, secretKey)
+	lowerCaseString := strings.ToLower(joinedString)
+	ximpayToken := fmt.Sprintf("%x", md5.Sum([]byte(lowerCaseString)))
+
+	requestBody := DoMTRequest{
+		XimpayID:    ximpayID,
+		CodePin:     codePin,
+		XimpayToken: ximpayToken,
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("error marshalling request body: %v", err)
+	}
+
+	requestURL := arrayOptions["confirmUrl"].(string)
+	req, err := http.NewRequest("POST", requestURL, bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return fmt.Errorf("error creating request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response body: %v", err)
+	}
+
+	var response DoMTResponse
+	if err := json.Unmarshal(body, &response); err != nil {
+		return fmt.Errorf("error decoding response: %v", err)
+	}
+
+	if len(response.XimpayTransaction) == 0 {
+		return fmt.Errorf("unexpected empty response")
+	}
+
+	responseCode := response.XimpayTransaction[0].ResponseCode
+	if responseCode != 1 {
+		log.Printf("error request DoMT with code: %d", responseCode)
+		return fmt.Errorf("error request DoMT with code: %d", responseCode)
+	}
+
+	return nil
 }

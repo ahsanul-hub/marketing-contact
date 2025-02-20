@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Page</title>
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        height: 100vh;
+        background-color: #f8f9fa;
+        font-family: "Roboto", sans-serif;
+      }
+      .payment-container {
+        background: white;
+        margin-top: 50px !important;
+        padding-top: 16px !important;
+        padding: 20px;
+        border-radius: 8px;
+        height: fit-content;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        width: 400px;
+      }
+      .btn-custom {
+        width: 100%;
+        cursor: pointer;
+      }
+      .divider {
+        margin: 20px 0;
+      }
+      .custom-hr {
+        border: 0;
+        height: 1px;
+        background-color: #e5dddd;
+      }
+      .btn-custom {
+        width: 100%;
+        background-color: white;
+        border: 1px solid #5e5e5e;
+        padding: 6px;
+        font-size: 12px;
+        transition: background-color 0.3s;
+      }
+      .btn-back {
+        border-radius: 4px;
+      }
+      .btn-custom:hover {
+        background-color: #0552bf;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="payment-container">
+      <p style="font-size: 24px">{{ .PaymentMethodStr}}</p>
+      <div class="divider">
+        <hr class="custom-hr" />
+      </div>
+      <div style="margin-bottom: 20px">
+        <p
+          class="text-center"
+          style="
+            font-size: 16px;
+            color: #0a8f63;
+            text-align: center;
+            background-color: #e2ffee;
+            padding: 10px;
+            border: 1px solid #aaffae;
+            border-radius: 6px;
+          "
+        >
+          Sedang memproses transaksi ke operator. Silahkan cek inbox SMS untuk
+          melihat status transaksi
+        </p>
+      </div>
+    </div>
+    <script></script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  </body>
+</html>
