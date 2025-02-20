@@ -148,7 +148,7 @@
             .then((data) => {
               submitButton.disabled = false;
               if (data.success) {
-                window.location.href = `/api/success-payment/otp/${dataFormated.token}`;
+                window.location.href = `/api/success-otp/${dataFormated.token}`;
               } else {
                 alert(data.message || "Transaksi gagal");
               }

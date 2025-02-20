@@ -8,7 +8,6 @@ import (
 	"app/pkg/response"
 	"app/repository"
 	"context"
-	"log"
 	"math"
 	"strings"
 	"time"
@@ -318,7 +317,6 @@ func SuccessPageOTP(c *fiber.Ctx) error {
 		case "smartfren_airtime":
 			StrPaymentMethod = "Smartfren"
 		}
-		log.Println("berhasil")
 		return c.Render("success_payment_otp", fiber.Map{
 			"PaymentMethodStr": StrPaymentMethod,
 			"RedirectURL":      inputReq.RedirectURL,

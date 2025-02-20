@@ -33,7 +33,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/order/:appid/:token", handler.PaymentPage)
 	api.Get("/callback-triyakom", handler.CallbackTriyakom)
 	api.Get("/success-payment/:msisdn/:token", handler.SuccessPage)
-	api.Get("/success-payment/otp/:token", handler.SuccessPageOTP)
+	api.Get("/success-otp/:token", handler.SuccessPageOTP)
 	api.Get("/input-otp/:ximpayid/:token", handler.InputOTPSF)
 	api.Post("/mt-smartfren/:token", handler.MTSmartfren)
 
