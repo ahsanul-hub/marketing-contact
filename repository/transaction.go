@@ -684,7 +684,7 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 	// log.Println("jsonData", bodyJSONString)
 
 	bodySign, _ := GenerateBodySign(bodyJSONString, secret)
-	log.Println("merchantURL", merchantURL)
+	// log.Println("bodySign", bodySign)
 
 	req, err := http.NewRequest(http.MethodPost, merchantURL, bytes.NewBuffer(jsonData))
 	if err != nil {
