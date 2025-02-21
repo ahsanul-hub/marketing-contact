@@ -588,7 +588,7 @@ func ProcessTransactions() {
 	// 	fmt.Println("Error fetching transactions:", err)
 	// 	return
 	// }
-	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency,item_name, item_id, reference_id, status_code FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
+	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, status_code FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
 	if err != nil {
 		fmt.Println("Error fetching transactions:", err)
 		return
