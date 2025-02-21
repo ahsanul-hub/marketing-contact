@@ -603,6 +603,19 @@ func ProcessTransactions() {
 		// Proses transaksi dalam goroutine
 		go func(transaction model.Transactions) {
 			arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
+			var callbackURL string
+			for _, app := range arrClient.ClientApps {
+				if app.AppID == transaction.AppID {
+					callbackURL = app.CallbackURL
+					break
+				}
+			}
+
+			if callbackURL == "" {
+				log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
+				return
+			}
+
 			if err != nil {
 				log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
 				return
@@ -626,7 +639,7 @@ func ProcessTransactions() {
 				Data:          callbackData,
 				TransactionId: transaction.ID,
 				Secret:        arrClient.ClientSecret,
-				MerchantURL:   arrClient.CallbackURL,
+				MerchantURL:   callbackURL,
 			}
 		}(transaction)
 	}
@@ -671,7 +684,7 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 	// log.Println("jsonData", bodyJSONString)
 
 	bodySign, _ := GenerateBodySign(bodyJSONString, secret)
-	// log.Println("bodySign", bodySign)
+	log.Println("merchantURL", merchantURL)
 
 	req, err := http.NewRequest(http.MethodPost, merchantURL, bytes.NewBuffer(jsonData))
 	if err != nil {
