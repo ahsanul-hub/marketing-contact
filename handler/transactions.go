@@ -312,6 +312,23 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	}
 
+	beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
+
+	if _, found := lib.NumberCache.Get(beautifyMsisdn); found {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": fmt.Sprintf("Phone number %s is inactive or invalid, please try another number", transaction.UserMDN),
+		})
+
+	}
+
+	if !helper.IsValidPrefix(beautifyMsisdn, transaction.PaymentMethod) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "Invalid prefix, please use valid phone number.",
+		})
+	}
+
 	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
@@ -598,6 +615,13 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"message": fmt.Sprintf("Phone number %s is inactive or invalid, please try another number", transaction.UserMDN),
 		})
 
+	}
+
+	if !helper.IsValidPrefix(beautifyMsisdn, transaction.PaymentMethod) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "Invalid prefix, please use valid phone number.",
+		})
 	}
 
 	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
@@ -1210,8 +1234,16 @@ func ManualCallback(c *fiber.Ctx) error {
 		fmt.Println("Error fetching client:", err)
 	}
 
-	if arrClient.CallbackURL == "" {
-		return response.Response(c, fiber.StatusInternalServerError, "Merchant URL is not available")
+	var callbackURL string
+	for _, app := range arrClient.ClientApps {
+		if app.AppID == transaction.AppID {
+			callbackURL = app.CallbackURL
+			break
+		}
+	}
+
+	if callbackURL == "" {
+		log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
 	}
 
 	statusCode := 1000
@@ -1229,7 +1261,7 @@ func ManualCallback(c *fiber.Ctx) error {
 		ReferenceID:           transaction.ReferenceID,
 	}
 
-	err = repository.SendCallback(arrClient.CallbackURL, arrClient.ClientSecret, transaction.ID, callbackData)
+	err = repository.SendCallback(callbackURL, arrClient.ClientSecret, transaction.ID, callbackData)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

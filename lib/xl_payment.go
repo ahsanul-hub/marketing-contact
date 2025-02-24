@@ -18,7 +18,7 @@ import (
 )
 
 var tokenCache = cache.New(56*time.Minute, 58*time.Minute)
-var NumberCache = cache.New(1*time.Minute, 2*time.Minute)
+var NumberCache = cache.New(2*time.Minute, 3*time.Minute)
 
 type TokenRequest struct {
 	ClientID     string `json:"client_id"`

@@ -5,6 +5,7 @@ import (
 	"app/dto/model"
 	"crypto/hmac"
 	"crypto/sha256"
+	"math"
 	"strings"
 	"sync"
 
@@ -122,7 +123,8 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		additionalPercent = float64(*selectedSettlement.AdditionalPercent) / 100
 	}
 
-	chargingPrice := float64(input.Amount)*additionalPercent + float64(input.Amount)
+	chargingPrice := math.Ceil(float64(input.Amount)*additionalPercent + float64(input.Amount))
+
 	nettSettlement := float64(input.Amount) * (float64(*selectedSettlement.SharePartner) / 100)
 
 	currency := input.Currency
@@ -719,9 +721,8 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 		return fmt.Errorf("callback failed with status: %s , bodySign: %s", resp.Status, bodySign)
 	}
 
-	// Update timestamp callback date dan result
-	ctx := context.Background() // Buat context untuk digunakan dalam pembaruan
-	callbackDate := time.Now()  // Ambil waktu sekarang sebagai callback date
+	ctx := context.Background()
+	callbackDate := time.Now()
 
 	if err := UpdateTransactionCallbackTimestamps(ctx, transactionID, 1000, &callbackDate, callbackResult); err != nil {
 		return fmt.Errorf("failed to update transaction callback timestamps: %v", err)
