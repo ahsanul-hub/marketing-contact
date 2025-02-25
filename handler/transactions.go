@@ -626,8 +626,11 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 
 	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
 
+	appName := repository.GetAppNameFromClient(arrClient, appid)
+
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	transaction.BodySign = bodysign
+	arrClient.AppName = appName
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
@@ -718,6 +721,27 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 				"error": "This denom is not supported for this payment method",
 			})
 		}
+
+		ximpayId, err := lib.RequestChargingIsatTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
+		if err != nil {
+			log.Println("Charging request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request indosat failed",
+			})
+		}
+
+		err = repository.UpdateXimpayID(context.Background(), createdTransId, ximpayId)
+		if err != nil {
+			log.Println("Updated Ximpay ID error:", err)
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
+		})
+
 	case "tri_airtime":
 		validAmounts, exists := routes["tri_triyakom"]
 		if !exists {
