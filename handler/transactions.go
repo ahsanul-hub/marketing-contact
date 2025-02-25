@@ -713,7 +713,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			}
 		}
 
-		if !validAmount {
+		if !validAmount && !paymentMethodClient.Flexible {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "This denom is not supported for this payment method",
 			})

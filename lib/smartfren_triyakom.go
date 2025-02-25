@@ -2,7 +2,9 @@ package lib
 
 import (
 	"app/config"
+	"app/repository"
 	"bytes"
+	"context"
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
@@ -108,6 +110,15 @@ func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount ui
 	if responseCode != 1 {
 		log.Printf("error request charging with code: %d", responseCode)
 		return "", fmt.Errorf("error request charging with code: %d", responseCode)
+	}
+
+	now := time.Now()
+
+	requestDate := &now
+
+	err = repository.UpdateTransactionTimestamps(context.Background(), transactionId, requestDate, nil, nil)
+	if err != nil {
+		log.Printf("Error updating request timestamp for transaction %s: %s", transactionId, err)
 	}
 
 	// switch responseCode {
