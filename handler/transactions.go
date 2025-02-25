@@ -558,7 +558,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			})
 		}
 
-		ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transaction.Amount)
+		ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
 		if err != nil {
 			log.Println("Charging request smartfren failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -782,7 +782,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			})
 		}
 
-		ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transaction.Amount)
+		ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

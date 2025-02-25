@@ -277,6 +277,7 @@ func SuccessPage(c *fiber.Ctx) error {
 	if cachedData, found := TransactionCache.Get(token); found {
 		inputReq := cachedData.(model.InputPaymentRequest)
 		var StrPaymentMethod string
+		var steps []string
 
 		currency := inputReq.Currency
 		if currency == "" {
@@ -286,6 +287,12 @@ func SuccessPage(c *fiber.Ctx) error {
 		switch inputReq.PaymentMethod {
 		case "xl_airtime":
 			StrPaymentMethod = "XL"
+			steps = []string{
+				"Cek SMS yang masuk ke nomor anda",
+				"Cek kembali informasi yang diterima di sms, kemudian balas sms dengan kode OTP yang diterima",
+				"Pastikan pulsa cukup sesuai nominal transaksi",
+				"Transaksi akan diproses setelah OTP dikirim.",
+			}
 		case "telkomsel_airtime":
 			StrPaymentMethod = "Telkomsel"
 		}
@@ -294,6 +301,7 @@ func SuccessPage(c *fiber.Ctx) error {
 			"PaymentMethodStr": StrPaymentMethod,
 			"Msisdn":           msisdn,
 			"RedirectURL":      inputReq.RedirectURL,
+			"Steps":            steps,
 		})
 	}
 

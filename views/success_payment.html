@@ -57,6 +57,15 @@
         background-color: #0552bf;
         color: white;
       }
+
+      li {
+        margin-top: 4px;
+        /* border: 1px solid grey; */
+      }
+
+      li:first-child {
+        margin-top: 0;
+      }
     </style>
   </head>
   <body>
@@ -73,6 +82,26 @@
           Hanya berlaku untuk nomor : <strong>{{ .Msisdn}}</strong>
         </p>
       </div>
+
+      {{ if .Steps }}
+      <div
+        style="
+          border: 1px solid grey;
+          padding-left: 8px;
+          margin-bottom: 16px;
+          border-radius: 6px;
+        "
+      >
+        <h5 style="margin-top: 8px">Langkah selanjutnya:</h5>
+        <div style="font-size: 14px; margin-top: -12px">
+          <ol style="margin-left: -12px">
+            {{ range .Steps }}
+            <li>{{ . }}</li>
+            {{ end }}
+          </ol>
+        </div>
+      </div>
+      {{ end }}
       <a href="{{ .RedirectURL }}" style="text-decoration: none">
         <div style="width: 100%; display: flex; margin-top: 12px">
           <button type="button" class="btn btn-secondary btn-custom btn-back">
