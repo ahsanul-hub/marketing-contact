@@ -12,8 +12,9 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 	// ximpayId := c.Query("ximpayid")
 	ximpayStatus := c.Query("ximpaystatus")
 	cbParam := c.Query("cbparam")
+
 	// ximpaytoken := c.Query("ximpaytoken")
-	// failcode := c.Query("failcode")
+	failcode := c.Query("failcode")
 	transactionId := cbParam[1:]
 
 	// log.Println("cbParam", cbParam)
@@ -29,9 +30,31 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 			log.Printf("Error updating transaction status for %s to expired: %s", transactionId, err)
 		}
 	case "3":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionId, 1005, "", "Undeliverable"); err != nil {
+		var failReason string
+
+		switch failcode {
+		case "301":
+			failReason = "User not input phone number"
+		case "302":
+			failReason = "User not send sms"
+		case "303":
+			failReason = "User not input PIN"
+		case "304":
+			failReason = "Failed send PIN to user"
+		case "305":
+			failReason = "Over limit balance"
+		case "306":
+			failReason = "Failed Charge"
+		case "307":
+			failReason = "Failed send to operator"
+		default:
+			failReason = "Failed / Undeliverable"
+
+		}
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionId, 1005, "", failReason); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", transactionId, err)
 		}
+
 	default:
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
