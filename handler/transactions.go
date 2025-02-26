@@ -1168,13 +1168,13 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 
 	var startDate, endDate *time.Time
 	if startDateStr != "" {
-		parsedStartDate, err := time.Parse("2006-01-02", startDateStr)
+		parsedStartDate, err := time.Parse(time.RFC1123, startDateStr)
 		if err == nil {
 			startDate = &parsedStartDate
 		}
 	}
 	if endDateStr != "" {
-		parsedEndDate, err := time.Parse("2006-01-02", endDateStr)
+		parsedEndDate, err := time.Parse(time.RFC1123, endDateStr)
 		if err == nil {
 			endDate = &parsedEndDate
 		}
