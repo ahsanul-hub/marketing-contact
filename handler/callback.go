@@ -9,19 +9,19 @@ import (
 )
 
 type MidtransCallbackRequest struct {
-	StatusCode        string `json:"status_code"`
-	TransactionID     string `json:"transaction_id"`
-	GrossAmount       string `json:"gross_amount"`
-	Currency          string `json:"currency"`
-	OrderID           string `json:"order_id"`
-	PaymentType       string `json:"payment_type"`
-	SignatureKey      string `json:"signature_key"`
-	TransactionStatus string `json:"transaction_status"`
-	FraudStatus       string `json:"fraud_status"`
-	StatusMessage     string `json:"status_message"`
-	MerchantID        string `json:"merchant_id"`
-	TransactionTime   string `json:"transaction_time"`
-	ExpiryTime        string `json:"expiry_time"`
+	StatusCode        *string `json:"status_code"`
+	TransactionID     *string `json:"transaction_id"`
+	GrossAmount       *string `json:"gross_amount"`
+	Currency          *string `json:"currency"`
+	OrderID           *string `json:"order_id"`
+	PaymentType       *string `json:"payment_type"`
+	SignatureKey      *string `json:"signature_key"`
+	TransactionStatus *string `json:"transaction_status"`
+	FraudStatus       *string `json:"fraud_status"`
+	StatusMessage     *string `json:"status_message"`
+	MerchantID        *string `json:"merchant_id"`
+	TransactionTime   *string `json:"transaction_time"`
+	ExpiryTime        *string `json:"expiry_time"`
 }
 
 func CallbackTriyakom(c *fiber.Ctx) error {
@@ -113,25 +113,32 @@ func MidtransCallback(c *fiber.Ctx) error {
 
 	log.Printf("Received Midtrans callback: %+v", req)
 
-	// switch req.TransactionStatus {
-	// case "settlement":
-	// 	if err := repository.UpdateTransactionStatus(context.Background(), req.TransactionID, 1003, nil, nil, "", nil); err != nil {
-	// 		log.Printf("Error updating transaction status for %s: %s", req.TransactionID, err)
-	// 	}
-	// case "expire":
-	// 	if err := repository.UpdateTransactionStatusExpired(context.Background(), req.TransactionID, 1005, "", "Transaction expired"); err != nil {
-	// 		log.Printf("Error updating transaction status for %s to expired: %s", req.TransactionID, err)
-	// 	}
-	// case "cancel", "deny", "failure":
-	// 	if err := repository.UpdateTransactionStatusExpired(context.Background(), req.TransactionID, 1005, "", "Transaction failed"); err != nil {
-	// 		log.Printf("Error updating transaction status for %s to failed: %s", req.TransactionID, err)
-	// 	}
-	// default:
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"status":  "error",
-	// 		"message": "Invalid transaction status",
-	// 	})
-	// }
+	if req.OrderID == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Missing required fields",
+		})
+	}
+
+	switch *req.TransactionStatus {
+	case "settlement":
+		if err := repository.UpdateTransactionStatus(context.Background(), *req.TransactionID, 1003, nil, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", *req.TransactionID, err)
+		}
+	case "expire":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), *req.TransactionID, 1005, "", "Transaction expired"); err != nil {
+			log.Printf("Error updating transaction status for %s to expired: %s", *req.TransactionID, err)
+		}
+	case "cancel", "deny", "failure":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), *req.TransactionID, 1005, "", "Transaction failed"); err != nil {
+			log.Printf("Error updating transaction status for %s to failed: %s", *req.TransactionID, err)
+		}
+	default:
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid transaction status",
+		})
+	}
 
 	return c.JSON(fiber.Map{
 		"status":  "success",
