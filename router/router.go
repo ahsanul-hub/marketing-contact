@@ -32,10 +32,13 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/receive-callback1", handler.ReceiveCallback)
 	api.Get("/order/:appid/:token", handler.PaymentPage)
 	api.Get("/callback-triyakom", handler.CallbackTriyakom)
+	api.Get("/callback/midtrans", handler.MidtransCallback)
 	api.Get("/success-payment/:msisdn/:token", handler.SuccessPage)
 	api.Get("/success-otp/:token", handler.SuccessPageOTP)
 	api.Get("/input-otp/:ximpayid/:token", handler.InputOTPSF)
 	api.Post("/mt-smartfren/:token", handler.MTSmartfren)
+	api.Post("/block-mdn", middleware.Protected(), middleware.AdminOnly(true), handler.BlockMDNHandler)
+	api.Post("/unblock-mdn", middleware.Protected(), middleware.AdminOnly(true), handler.UnblockMDNHandler)
 
 	merchant := api.Group("/merchant")
 	merchant.Get("/transactions", handler.GetTransactionsMerchant)
