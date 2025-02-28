@@ -146,9 +146,35 @@ func PaymentPage(c *fiber.Ctx) error {
 			StrPaymentMethod = "Smartfren"
 		case "indosat_airtime":
 			StrPaymentMethod = "Indosat"
+		case "shopeepay":
+			StrPaymentMethod = "Shopeepay"
+		case "gopay":
+			StrPaymentMethod = "Gopay"
+		case "qris":
+			StrPaymentMethod = "Qris"
 		}
 
-		// log.Println("inputreq:", inputReq)
+		if inputReq.PaymentMethod == "shopeepay" || inputReq.PaymentMethod == "gopay" || inputReq.PaymentMethod == "qris" {
+			vat := inputReq.Price - inputReq.Amount
+			return c.Render("payment_midtrans", fiber.Map{
+				"AppName":          inputReq.AppName,
+				"PaymentMethod":    inputReq.PaymentMethod,
+				"PaymentMethodStr": StrPaymentMethod,
+				"ItemName":         inputReq.ItemName,
+				"ItemId":           inputReq.ItemId,
+				"Price":            inputReq.Price,
+				"Amount":           inputReq.Amount,
+				"Currency":         currency,
+				"ClientAppKey":     inputReq.ClientAppKey,
+				"VAT":              vat,
+				"AppID":            inputReq.AppID,
+				"MtID":             inputReq.MtTid,
+				"UserId":           inputReq.UserId,
+				"Token":            token,
+				"BodySign":         inputReq.BodySign,
+			})
+		}
+
 		return c.Render("payment", fiber.Map{
 			"AppName":          inputReq.AppName,
 			"PaymentMethod":    inputReq.PaymentMethod,

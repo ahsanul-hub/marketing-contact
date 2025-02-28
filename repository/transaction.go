@@ -541,6 +541,26 @@ func UpdateXimpayID(ctx context.Context, transactionID string, ximpayID string) 
 	return nil
 }
 
+func UpdateMidtransId(ctx context.Context, transactionID string, midtransId string) error {
+	db := database.DB
+
+	var transaction model.Transactions
+	if err := db.WithContext(ctx).Where("id = ?", transactionID).First(&transaction).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("transaction not found: %s", transactionID)
+		}
+		return fmt.Errorf("error fetching transaction: %w", err)
+	}
+
+	transaction.MidtransTransactionId = midtransId
+
+	if err := db.WithContext(ctx).Save(&transaction).Error; err != nil {
+		return fmt.Errorf("failed to update Midtrans ID: %w", err)
+	}
+
+	return nil
+}
+
 // func ProcessTransactions() {
 // 	var transactions []model.Transactions
 

@@ -43,6 +43,7 @@ type Transactions struct {
 	RedirectTarget           string     `gorm:"type:TEXT" json:"redirect_target"`
 	ReferenceID              string     `gorm:"type:VARCHAR(255)" json:"reference_id"`
 	XimpayID                 string     `gorm:"type:VARCHAR(100)" json:"ximpay_id"`
+	MidtransTransactionId    string     `gorm:"type:VARCHAR(100)" json:"midtrans_transaction_id"`
 	FailReason               string     `gorm:"type:VARCHAR(255)" json:"fail_reason"`
 	CreatedAt                time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt                time.Time  `gorm:"autoCreateTime" json:"updated_at"`

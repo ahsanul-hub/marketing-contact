@@ -607,6 +607,138 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	})
 }
 
+func CreateTransactionNonTelco(c *fiber.Ctx) error {
+	span, spanCtx := apm.StartSpan(c.Context(), "CreateTransactionV1", "handler")
+	defer span.End()
+
+	bodysign := c.Get("bodysign")
+	appkey := c.Get("appkey")
+	appid := c.Get("appid")
+
+	var transaction model.InputPaymentRequest
+	if err := c.BodyParser(&transaction); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	var isMidtrans bool
+
+	if transaction.PaymentMethod == "shopeepay" || transaction.PaymentMethod == "gopay" || transaction.PaymentMethod == "qris" {
+		isMidtrans = true
+	}
+
+	if !isMidtrans && (transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amount must not be empty",
+		})
+	}
+
+	// beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
+
+	// isBlocked, err := repository.IsMDNBlocked(beautifyMsisdn)
+	// if err != nil {
+	// 	log.Println("Msisdn is blocked")
+
+	// }
+
+	// if isBlocked {
+	// 	log.Println(" diblokir")
+	// 	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+	// 		"success": false,
+	// 		"message": "Msisdn is blocked",
+	// 	})
+	// }
+
+	// if _, found := lib.NumberCache.Get(beautifyMsisdn); found {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"success": false,
+	// 		"message": fmt.Sprintf("Phone number %s is inactive or invalid, please try another number", transaction.UserMDN),
+	// 	})
+
+	// }
+
+	// if !helper.IsValidPrefix(beautifyMsisdn, transaction.PaymentMethod) {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"success": false,
+	// 		"error":   "Invalid prefix, please use valid phone number.",
+	// 	})
+	// }
+
+	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
+
+	appName := repository.GetAppNameFromClient(arrClient, appid)
+
+	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
+	transaction.BodySign = bodysign
+	arrClient.AppName = appName
+
+	if err != nil {
+		return response.Response(c, fiber.StatusBadRequest, "E0001")
+	}
+	createdTransId, chargingPrice, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
+	if err != nil {
+		log.Println("err", err)
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	// paymentMethodMap := make(map[string]model.PaymentMethodClient)
+	// for _, pm := range arrClient.PaymentMethods {
+	// 	paymentMethodMap[pm.Name] = pm
+	// }
+
+	// paymentMethodClient, exists := paymentMethodMap[transaction.PaymentMethod]
+	// if !exists {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"error": "Invalid payment method",
+	// 	})
+	// }
+
+	// var routes map[string][]string
+	// if err := json.Unmarshal(paymentMethodClient.Route, &routes); err != nil {
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+	// 		"error": err,
+	// 	})
+	// }
+
+	// transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
+
+	switch transaction.PaymentMethod {
+	case "shopeepay":
+
+		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice)
+		if err != nil {
+			log.Println("Charging request shopee failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
+		if err != nil {
+			log.Println("Updated Midtrans ID error:", err)
+		}
+
+		// log.Println("redirect: ", res.Actions[0].URL)
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"redirect": res.Actions[0].URL,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+		})
+	case "gopay":
+
+	}
+
+	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		"success": true,
+		"retcode": "0000",
+		"message": "Successful Created Transaction",
+	})
+}
+
 func GetTransactions(c *fiber.Ctx) error {
 	span, spanCtx := apm.StartSpan(c.Context(), "GetTransactions", "handler")
 	defer span.End()
