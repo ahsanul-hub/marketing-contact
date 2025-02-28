@@ -111,7 +111,8 @@ func MidtransCallback(c *fiber.Ctx) error {
 		})
 	}
 
-	log.Printf("Received Midtrans callback: %+v", req)
+	log.Println("transactionId: ", *req.OrderID)
+	log.Println("transaction status: ", *req.TransactionStatus)
 
 	if req.OrderID == nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
