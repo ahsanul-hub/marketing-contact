@@ -121,17 +121,26 @@ func MidtransCallback(c *fiber.Ctx) error {
 		})
 	}
 
+	var transactionID string
+
+	transactionID = *req.OrderID
+
+	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
+	if err != nil || transaction == nil {
+		return nil // Skip jika transaksi tidak ditemukan
+	}
+
 	switch *req.TransactionStatus {
 	case "settlement":
-		if err := repository.UpdateTransactionStatus(context.Background(), *req.TransactionID, 1003, nil, nil, "", nil); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", nil); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", *req.TransactionID, err)
 		}
 	case "expire":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), *req.TransactionID, 1005, "", "Transaction expired"); err != nil {
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction expired"); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", *req.TransactionID, err)
 		}
 	case "cancel", "deny", "failure":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), *req.TransactionID, 1005, "", "Transaction failed"); err != nil {
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction failed"); err != nil {
 			log.Printf("Error updating transaction status for %s to failed: %s", *req.TransactionID, err)
 		}
 	default:
