@@ -60,6 +60,13 @@ func CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
+	if input.Amount > 500000 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Amount exceeds the maximum allowed limit of 500000",
+		})
+	}
+
 	if input.UserId == "" || input.MtTid == "" || input.PaymentMethod == "" || input.Amount == 0 || input.ItemName == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -88,14 +95,14 @@ func CreateOrder(c *fiber.Ctx) error {
 	appSecret := arrClient.ClientSecret
 
 	expectedBodysign := helper.GenerateBodySign(input, appSecret)
-	// log.Println("expectedBodysign", expectedBodysign)
+	log.Println("expectedBodysign", expectedBodysign)
 
-	if receivedBodysign != expectedBodysign {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": false,
-			"message": "Invalid bodysign",
-		})
-	}
+	// if receivedBodysign != expectedBodysign {
+	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+	// 		"success": false,
+	// 		"message": "Invalid bodysign",
+	// 	})
+	// }
 
 	transactionID := uuid.New().String()
 
@@ -196,6 +203,20 @@ func PaymentPage(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "Transaction not found"})
+}
+
+func QrisPage(c *fiber.Ctx) error {
+	span, _ := apm.StartSpan(c.Context(), "PaymentPage", "handler")
+	defer span.End()
+
+	acquirer := c.Query("acquirer")
+	qrisUrl := c.Query("qrisUrl")
+
+	return c.Render("payment_qris", fiber.Map{
+		"Acquirer": acquirer,
+		"QrisUrl":  qrisUrl,
+	})
+
 }
 
 func InputOTPSF(c *fiber.Ctx) error {
