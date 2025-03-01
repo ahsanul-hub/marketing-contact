@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>QRIS Payment</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f8f9fa;
+        padding: 20px;
+      }
+      .container {
+        max-width: 400px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+      .qris-img {
+        width: 100%;
+        max-width: 300px;
+        margin-bottom: 20px;
+      }
+      .btn-primary {
+        background: #007bff;
+        border: none;
+        transition: all 0.3s;
+      }
+      .btn-primary:hover {
+        background: #0056b3;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h4>Pembayaran QRIS {{ .Acquirer}}</h4>
+      <p>Silakan scan QR code di bawah ini untuk menyelesaikan pembayaran.</p>
+      <img src="{{ .QrisUrl }}" alt="QRIS Payment" class="qris-img" />
+      <!-- <button class="btn btn-primary" onclick="window.history.back();">
+        Kembali
+      </button> -->
+    </div>
+  </body>
+</html>

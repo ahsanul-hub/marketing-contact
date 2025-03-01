@@ -76,6 +76,9 @@
       </div>
 
       <form action="" method="post" class="mt-3" id="paymentForm">
+        {{ if eq .PaymentMethod "qris" }}
+        <!-- <div></div> -->
+        {{ else }}
         <div class="d-flex gap-2">
           <button
             type="button"
@@ -88,10 +91,13 @@
             type="submit"
             id="btn-submit"
             class="btn btn-primary w-50 btn-submit"
+            style="padding: 2px"
           >
             Bayar dengan {{ .PaymentMethodStr}}*
           </button>
         </div>
+        {{ end }}
+
         <input type="hidden" name="price" value="{{ .Price }}" />
         <input type="hidden" name="amount" value="{{ .Amount }}" />
         <input
@@ -118,7 +124,7 @@
         <p>Atau</p>
         <button
           type="submit"
-          class="btn btn-primary btn-sm"
+          class="btn btn-primary btn-sm btn-submit"
           style="margin-top: -10px"
         >
           Bayar dengan QRIS**
@@ -126,16 +132,45 @@
       </form>
       {{ else }}
       <!-- <div></div> -->
-      {{ end }}
+      {{ end }} {{ if eq .PaymentMethod "qris" }}
 
+      <form action="" method="post" id="paymentQrForm" class="mt-3 text-center">
+        <button
+          type="submit"
+          class="btn btn-primary btn-submit"
+          style="margin-top: 10px"
+        >
+          Bayar dengan QRIS**
+        </button>
+      </form>
+      <p class="small">
+        **Selanjutnya akan menampilkan QR code.<br />
+        Harga termasuk pajak.
+      </p>
+      {{ else }}
+      <!-- <div></div> -->
+      {{ end }} {{ if ne .PaymentMethod "qris" }}
       <p class="small">
         *Selanjutnya akan membuka aplikasi {{ .PaymentMethodStr}}.<br />
         <!-- **Selanjutnya akan
         menampilkan QR code.<br /> -->
         Harga termasuk pajak.
       </p>
+      {{ end }}
     </div>
     <script>
+      let isQris = false;
+
+      document
+        .getElementById("paymentQrForm")
+        ?.addEventListener("submit", function (event) {
+          event.preventDefault();
+          isQris = true;
+          document
+            .getElementById("paymentForm")
+            .dispatchEvent(new Event("submit"));
+        });
+
       document
         .getElementById("paymentForm")
         .addEventListener("submit", function (event) {
@@ -177,8 +212,11 @@
             .then((data) => {
               submitButton.disabled = false;
               if (data.success) {
-                console.log("data", data);
-                window.location.href = data.redirect;
+                if (isQris) {
+                  window.location.href = `/api/payment-qris?qrisUrl=${data.qrisUrl}&acquirer=Gopay`;
+                } else {
+                  window.location.href = data.redirect;
+                }
               } else {
                 alert(data.error || data.message || "Transaksi gagal");
               }

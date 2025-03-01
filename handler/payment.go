@@ -6,7 +6,9 @@ import (
 	"app/lib"
 	"app/pkg/response"
 	"app/repository"
+	"fmt"
 	"math"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -16,6 +18,7 @@ import (
 )
 
 var TransactionCache = cache.New(5*time.Minute, 6*time.Minute)
+var QrCache = cache.New(5*time.Minute, 10*time.Minute)
 
 func TestPayment(c *fiber.Ctx) error {
 	// Mendapatkan data dari request body
@@ -43,6 +46,26 @@ func TestPayment(c *fiber.Ctx) error {
 		"message": "Payment successful",
 		// "data:":   res,
 	})
+}
+
+func PaymentQrisRedirect(c *fiber.Ctx) error {
+	qrisUrl := c.Query("qrisUrl")
+	acquirer := c.Query("acquirer")
+
+	if qrisUrl == "" || acquirer == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing required parameters",
+		})
+	}
+
+	// Buat ID transaksi unik (contoh pakai timestamp, bisa pakai UUID)
+	transactionID := fmt.Sprintf("trx-%d", time.Now().UnixNano())
+
+	// Simpan data di cache
+	QrCache.Set(transactionID, qrisUrl+"|"+acquirer, cache.DefaultExpiration)
+
+	// Redirect ke halaman tanpa query di URL
+	return c.Redirect("/api/payment-qris/" + transactionID)
 }
 
 func CreateOrder(c *fiber.Ctx) error {
@@ -95,14 +118,14 @@ func CreateOrder(c *fiber.Ctx) error {
 	appSecret := arrClient.ClientSecret
 
 	expectedBodysign := helper.GenerateBodySign(input, appSecret)
-	log.Println("expectedBodysign", expectedBodysign)
+	// log.Println("expectedBodysign", expectedBodysign)
 
-	// if receivedBodysign != expectedBodysign {
-	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-	// 		"success": false,
-	// 		"message": "Invalid bodysign",
-	// 	})
-	// }
+	if receivedBodysign != expectedBodysign {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid bodysign",
+		})
+	}
 
 	transactionID := uuid.New().String()
 
@@ -206,17 +229,31 @@ func PaymentPage(c *fiber.Ctx) error {
 }
 
 func QrisPage(c *fiber.Ctx) error {
-	span, _ := apm.StartSpan(c.Context(), "PaymentPage", "handler")
-	defer span.End()
+	transactionID := c.Params("id")
 
-	acquirer := c.Query("acquirer")
-	qrisUrl := c.Query("qrisUrl")
+	if transactionID == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("Transaction ID required")
+	}
 
+	// Ambil data dari cache
+	data, found := QrCache.Get(transactionID)
+	if !found {
+		return c.Status(fiber.StatusNotFound).SendString("Transaction not found or expired")
+	}
+
+	// Pecah qrisUrl dan acquirer
+	dataStr := data.(string)
+	parts := strings.Split(dataStr, "|")
+	if len(parts) != 2 {
+		return c.Status(fiber.StatusInternalServerError).SendString("Invalid data format")
+	}
+	qrisUrl, acquirer := parts[0], parts[1]
+
+	// Render halaman tanpa menampilkan query parameter
 	return c.Render("payment_qris", fiber.Map{
-		"Acquirer": acquirer,
 		"QrisUrl":  qrisUrl,
+		"Acquirer": acquirer,
 	})
-
 }
 
 func InputOTPSF(c *fiber.Ctx) error {

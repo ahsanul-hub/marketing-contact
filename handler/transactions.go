@@ -729,7 +729,50 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			"message":  "Successful Created Transaction",
 		})
 	case "gopay":
+		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice)
+		if err != nil {
+			log.Println("Charging request gopay failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
 
+		err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
+		if err != nil {
+			log.Println("Updated Midtrans ID error:", err)
+		}
+
+		// log.Println("redirect: ", res.Actions[0].URL)
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"redirect": res.Actions[1].URL,
+			"qrisUrl":  res.Actions[0].URL,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+		})
+	case "qris":
+		res, err := lib.RequestChargingQris(createdTransId, chargingPrice)
+		if err != nil {
+			log.Println("Charging request qris failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
+		if err != nil {
+			log.Println("Updated Midtrans ID error:", err)
+		}
+
+		// log.Println("redirect: ", res.Actions[0].URL)
+		return c.JSON(fiber.Map{
+			"success": true,
+			"qrisUrl": res.Actions[0].URL,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
+		})
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
