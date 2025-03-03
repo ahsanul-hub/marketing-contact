@@ -214,12 +214,16 @@ func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, t
 	return transactions, totalItems, nil
 }
 
-func GetTransactionsByDateRange(ctx context.Context, startDate, endDate *time.Time) ([]model.Transactions, error) {
+func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endDate *time.Time) ([]model.Transactions, error) {
 	span, _ := apm.StartSpan(ctx, "GetTransactionsByDateRange", "repository")
 	defer span.End()
 
 	var transactions []model.Transactions
 	query := database.DB
+
+	if status != 0 {
+		query = query.Where("status_code = ?", status)
+	}
 
 	if startDate != nil && endDate != nil {
 		startUTC := startDate.UTC()

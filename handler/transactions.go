@@ -875,6 +875,14 @@ func ExportTransactions(c *fiber.Ctx) error {
 
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
+
+	statusStr := c.Query("status")
+
+	status, err := strconv.Atoi(statusStr)
+	if err != nil {
+		fmt.Println("error convert status")
+	}
+
 	var startDate, endDate *time.Time
 	if startDateStr != "" {
 		parsedStartDate, err := time.Parse(time.RFC1123, startDateStr)
@@ -889,7 +897,7 @@ func ExportTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, err := repository.GetTransactionsByDateRange(spanCtx, startDate, endDate)
+	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -916,7 +924,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 	defer writer.Flush()
 
 	// Tulis header CSV
-	header := []string{"ID", "Date", "MT TID", "Payment Method", "Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status Code"}
+	header := []string{"ID", "Date", "Merchant Transaction ID", "MDN", "Payment Method", "Amount", "Price", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status Code"}
 	if err := writer.Write(header); err != nil {
 		return err
 	}
@@ -940,8 +948,10 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			transaction.ID,
 			createdAt,
 			transaction.MtTid,
+			transaction.UserMDN,
 			transaction.PaymentMethod,
 			strconv.Itoa(int(transaction.Amount)),
+			strconv.Itoa(int(transaction.Price)),
 			transaction.UserId,
 			transaction.AppName,
 			transaction.Currency,
@@ -964,7 +974,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 	index, _ := f.NewSheet(sheetName)
 
 	// Tulis header
-	headers := []string{"Transaction ID", "Date", "MT TID", "Payment Method", "Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status Code"}
+	headers := []string{"ID", "Date", "Merchant Transaction ID", "MDN", "Payment Method", "Amount", "Price", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status"}
 	for i, header := range headers {
 		cell := getColumnName(i+1) + "1"
 		f.SetCellValue(sheetName, cell, header)
@@ -990,14 +1000,16 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 		f.SetCellValue(sheetName, "A"+strconv.Itoa(row), transaction.ID)
 		f.SetCellValue(sheetName, "B"+strconv.Itoa(row), createdAt)
 		f.SetCellValue(sheetName, "C"+strconv.Itoa(row), transaction.MtTid)
-		f.SetCellValue(sheetName, "D"+strconv.Itoa(row), transaction.PaymentMethod)
-		f.SetCellValue(sheetName, "E"+strconv.Itoa(row), transaction.Amount)
-		f.SetCellValue(sheetName, "F"+strconv.Itoa(row), transaction.UserId)
-		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), transaction.AppName)
-		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), transaction.Currency)
-		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), transaction.ItemName)
-		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.ItemId)
-		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), status)
+		f.SetCellValue(sheetName, "D"+strconv.Itoa(row), transaction.UserMDN)
+		f.SetCellValue(sheetName, "E"+strconv.Itoa(row), transaction.PaymentMethod)
+		f.SetCellValue(sheetName, "F"+strconv.Itoa(row), transaction.Amount)
+		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), transaction.Price)
+		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), transaction.UserId)
+		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), transaction.AppName)
+		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.Currency)
+		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), transaction.ItemName)
+		f.SetCellValue(sheetName, "L"+strconv.Itoa(row), transaction.ItemId)
+		f.SetCellValue(sheetName, "M"+strconv.Itoa(row), status)
 	}
 
 	// Set border untuk header
