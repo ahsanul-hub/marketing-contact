@@ -1,12 +1,15 @@
 package lib
 
 import (
+	"app/repository"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"time"
 )
 
 type ShopeePayChargeRequest struct {
@@ -84,7 +87,16 @@ func RequestChargingShopeePay(transactionID string, chargingPrice uint) (*Midtra
 		log.Println("res", string(body))
 		return nil, fmt.Errorf("error decoding response: %v", err)
 	}
-	// Cek status response
+
+	now := time.Now()
+
+	requestDate := &now
+
+	err = repository.UpdateTransactionTimestamps(context.Background(), transactionID, requestDate, nil, nil)
+	if err != nil {
+		log.Printf("Error updating request timestamp for transaction %s: %s", transactionID, err)
+	}
+
 	if midtransResp.StatusCode != "201" {
 		return &midtransResp, fmt.Errorf("error response from Midtrans: %s", midtransResp.StatusMessage)
 	}

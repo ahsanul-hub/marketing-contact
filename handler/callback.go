@@ -4,6 +4,7 @@ import (
 	"app/repository"
 	"context"
 	"log"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -35,10 +36,13 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 
 	// log.Println("cbParam", cbParam)
 	// log.Println("ximpayStatus", ximpayStatus)
+	now := time.Now()
+
+	receiveCallbackDate := &now
 
 	switch ximpayStatus {
 	case "1":
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1003, nil, nil, "", nil); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1003, nil, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionId, err)
 		}
 	case "2":
@@ -127,12 +131,16 @@ func MidtransCallback(c *fiber.Ctx) error {
 
 	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
 	if err != nil || transaction == nil {
-		return nil // Skip jika transaksi tidak ditemukan
+		return nil
 	}
+
+	now := time.Now()
+
+	receiveCallbackDate := &now
 
 	switch *req.TransactionStatus {
 	case "settlement":
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", nil); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", *req.TransactionID, err)
 		}
 	case "expire":

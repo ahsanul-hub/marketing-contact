@@ -367,7 +367,7 @@ func CheckTransactionStatus(transaction model.Transactions) {
 
 	receiveCallbackDate := &now
 
-	if response.TransactionStatus.ResponseCode == "00" { // Sukses
+	if response.TransactionStatus.ResponseCode == "00" {
 
 		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, referenceId, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)

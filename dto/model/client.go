@@ -81,6 +81,8 @@ type InputClientRequest struct {
 	ClientStatus   *int                  `json:"client_status"`
 	Testing        *int                  `json:"testing"`
 	Lang           *string               `json:"lang"`
+	Phone          *string               `json:"phone"`
+	Email          *string               `json:"email"`
 	CallbackURL    *string               `json:"callback_url"`
 	FailCallback   *string               `json:"fail_callback"`
 	Isdcb          *string               `json:"isdcb"`

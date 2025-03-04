@@ -112,6 +112,8 @@ func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 		ClientStatus: *input.ClientStatus,
 		Testing:      *input.Testing,
 		Lang:         *input.Lang,
+		Phone:        *input.Phone,
+		Email:        *input.Email,
 		CallbackURL:  *input.CallbackURL,
 		FailCallback: *input.FailCallback,
 		Isdcb:        *input.Isdcb,
@@ -177,6 +179,12 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 	}
 	if input.Lang != nil {
 		updateData["lang"] = *input.Lang
+	}
+	if input.Phone != nil {
+		updateData["phone"] = *input.Phone
+	}
+	if input.Email != nil {
+		updateData["email"] = *input.Email
 	}
 	if input.CallbackURL != nil {
 		updateData["callback_url"] = *input.CallbackURL

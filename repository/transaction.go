@@ -369,9 +369,12 @@ func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (
 func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, newStatusCode int, responseCallback, failReason string) error {
 	db := database.DB
 
+	callbackDate := time.Now()
+
 	transactionUpdate := model.Transactions{
-		StatusCode: newStatusCode,
-		FailReason: failReason,
+		StatusCode:          newStatusCode,
+		FailReason:          failReason,
+		ReceiveCallbackDate: &callbackDate,
 	}
 	timeLimit := time.Now().Add(-9 * time.Minute)
 
