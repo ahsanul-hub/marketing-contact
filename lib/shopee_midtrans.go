@@ -40,6 +40,7 @@ type MidtransResponse struct {
 		Method string `json:"method,omitempty"`
 		URL    string `json:"url,omitempty"`
 	} `json:"actions,omitempty"`
+	QrString               string `json:"qr_string,omitempty"`
 	ChannelResponseCode    string `json:"channel_response_code,omitempty"`
 	ChannelResponseMessage string `json:"channel_response_message,omitempty"`
 	ExpiryTime             string `json:"expiry_time,omitempty"`

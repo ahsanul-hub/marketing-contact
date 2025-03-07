@@ -54,6 +54,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 	bodysign := c.Get("bodysign")
 	appkey := c.Get("appkey")
 	appid := c.Get("appid")
+	receivedBodysign := c.Get("bodysign")
 
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
@@ -63,9 +64,15 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	}
 
-	if transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "" {
+	var isMidtrans bool
+
+	if transaction.PaymentMethod == "shopeepay" || transaction.PaymentMethod == "gopay" || transaction.PaymentMethod == "qris" {
+		isMidtrans = true
+	}
+
+	if !isMidtrans && (transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "") {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN, item_name or amount must not be empty",
+			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amount must not be empty",
 		})
 	}
 
@@ -79,7 +86,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	}
 
-	if !helper.IsValidPrefix(beautifyMsisdn, transaction.PaymentMethod) {
+	if !isMidtrans && !helper.IsValidPrefix(beautifyMsisdn, transaction.PaymentMethod) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error":   "Invalid prefix, please use valid phone number.",
@@ -93,8 +100,15 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	appName := repository.GetAppNameFromClient(arrClient, appid)
 
-	// expectedBodysign := helper.GenerateBodySign(transaction, arrClient.ClientSecret)
-	// log.Println("arrClient", arrClient)
+	expectedBodysign := helper.GenerateBodySign(transaction, arrClient.ClientSecret)
+	// log.Println("expectedBodysign", expectedBodysign)
+
+	if receivedBodysign != expectedBodysign {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid bodysign",
+		})
+	}
 
 	paymentMethodMap := make(map[string]model.PaymentMethodClient)
 	for _, pm := range arrClient.PaymentMethods {
@@ -333,6 +347,78 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"success": true,
 			"retcode": "0000",
 			"message": "Successful Created Transaction",
+		})
+
+	case "shopeepay":
+
+		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice)
+		if err != nil {
+			log.Println("Charging request shopee failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
+		if err != nil {
+			log.Println("Updated Midtrans ID error:", err)
+		}
+
+		// log.Println("redirect: ", res.Actions[0].URL)
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"redirect": res.Actions[0].URL,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+		})
+
+	case "gopay":
+		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice)
+		if err != nil {
+			log.Println("Charging request gopay failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
+		if err != nil {
+			log.Println("Updated Midtrans ID error:", err)
+		}
+
+		// log.Println("redirect: ", res.Actions[0].URL)
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"redirect": res.Actions[1].URL,
+			"qrisUrl":  res.Actions[0].URL,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+		})
+
+	case "qris":
+		res, err := lib.RequestChargingQris(createdTransId, chargingPrice)
+		if err != nil {
+			log.Println("Charging request qris failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
+		if err != nil {
+			log.Println("Updated Midtrans ID error:", err)
+		}
+
+		// log.Println("redirect: ", res.Actions[0].URL)
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"qrisUrl":  res.Actions[0].URL,
+			"qrString": res.QrString,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
 		})
 	}
 
