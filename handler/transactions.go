@@ -1317,6 +1317,19 @@ func ManualCallback(c *fiber.Ctx) error {
 
 	statusCode := 1000
 
+	var referenceID string
+
+	switch transaction.PaymentMethod {
+	case "xl_airtime":
+		referenceID = transaction.ReferenceID
+	case "tri_airtime":
+		referenceID = transaction.XimpayID
+	case "smartfren_airtime":
+		referenceID = transaction.XimpayID
+	case "indosat_airtime":
+		referenceID = transaction.XimpayID
+	}
+
 	callbackData := repository.CallbackData{
 		UserID:                transaction.UserId,
 		MerchantTransactionID: transaction.MtTid,
@@ -1327,7 +1340,7 @@ func ManualCallback(c *fiber.Ctx) error {
 		Currency:              transaction.Currency,
 		ItemName:              transaction.ItemName,
 		ItemID:                transaction.ItemId,
-		ReferenceID:           transaction.ReferenceID,
+		ReferenceID:           referenceID,
 	}
 
 	err = repository.SendCallback(callbackURL, arrClient.ClientSecret, transaction.ID, callbackData)

@@ -649,7 +649,20 @@ func ProcessTransactions() {
 				log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
 				return
 			}
-			// Siapkan data callback
+
+			var referenceID string
+
+			switch transaction.PaymentMethod {
+			case "xl_airtime":
+				referenceID = transaction.ReferenceID
+			case "tri_airtime":
+				referenceID = transaction.XimpayID
+			case "smartfren_airtime":
+				referenceID = transaction.XimpayID
+			case "indosat_airtime":
+				referenceID = transaction.XimpayID
+			}
+
 			callbackData := CallbackData{
 				UserID:                transaction.UserId,
 				MerchantTransactionID: transaction.MtTid,
@@ -660,7 +673,7 @@ func ProcessTransactions() {
 				Currency:              transaction.Currency,
 				ItemName:              transaction.ItemName,
 				ItemID:                transaction.ItemId,
-				ReferenceID:           transaction.ReferenceID,
+				ReferenceID:           referenceID,
 			}
 
 			// Kirim ke CallbackQueue
