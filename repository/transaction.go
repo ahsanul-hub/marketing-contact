@@ -663,6 +663,8 @@ func ProcessTransactions() {
 				referenceID = transaction.XimpayID
 			}
 
+			log.Println("refId: ", transaction.XimpayID)
+
 			callbackData := CallbackData{
 				UserID:                transaction.UserId,
 				MerchantTransactionID: transaction.MtTid,

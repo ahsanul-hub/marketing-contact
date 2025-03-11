@@ -1330,6 +1330,8 @@ func ManualCallback(c *fiber.Ctx) error {
 		referenceID = transaction.XimpayID
 	}
 
+	log.Println("refId: ", transaction.XimpayID)
+
 	callbackData := repository.CallbackData{
 		UserID:                transaction.UserId,
 		MerchantTransactionID: transaction.MtTid,
