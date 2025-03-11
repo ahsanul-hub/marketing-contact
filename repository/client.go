@@ -405,7 +405,7 @@ func AddClientApps(clientID string, clients *model.ClientApp) error {
 
 func GetByClientID(clientAppID string) (model.Client, error) {
 	var client model.Client
-	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Preload("ClientApps").Where("id = ?", clientAppID).First(&client).Error; err != nil {
+	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Preload("ClientApps").Where("client_id = ?", clientAppID).First(&client).Error; err != nil {
 		return client, fmt.Errorf("client not found: %w", err)
 	}
 	return client, nil
