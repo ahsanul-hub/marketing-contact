@@ -655,7 +655,7 @@ func ProcessTransactions() {
 			switch transaction.PaymentMethod {
 			case "xl_airtime":
 				referenceID = transaction.ReferenceID
-			case "tri_airtime":
+			case "three_airtime":
 				referenceID = transaction.XimpayID
 			case "smartfren_airtime":
 				referenceID = transaction.XimpayID

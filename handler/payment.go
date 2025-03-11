@@ -170,7 +170,7 @@ func PaymentPage(c *fiber.Ctx) error {
 			StrPaymentMethod = "XL"
 		case "telkomsel_airtime":
 			StrPaymentMethod = "Telkomsel"
-		case "tri_airtime":
+		case "three_airtime":
 			StrPaymentMethod = "Tri"
 		case "smartfren_airtime":
 			StrPaymentMethod = "Smartfren"

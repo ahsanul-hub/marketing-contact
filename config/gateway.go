@@ -115,7 +115,7 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 			Lang: "id",
 		},
 		"tri": {
-			DirView: "tri_triyakom",
+			DirView: "three_triyakom",
 			Driver:  "Triyakom_Tri",
 			Denom: map[string]map[string]string{
 				"1000":   {"keyword": "RED00003"},
@@ -257,6 +257,19 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 				"apikey": "9yt7a9uets3mqbwpz4dwxtsf",
 			},
 			MT:   map[string]interface{}{},
+			Lang: "id",
+		},
+		"va_bca_direct": {
+			DirView: "va_bca_direct",
+			Driver:  "Bca_Va",
+			Options: map[string]interface{}{
+				"production": map[string]interface{}{
+					"api_key":    "283256b0-6e1a-4b14-8ca4-0e50c46e1659",
+					"api_secret": "b4edb249-6748-474b-9e3a-c6d87bf5e19a",
+					"tokenUrl":   "https://sandbox.bca.co.id:443/api/oauth/token",
+					"prefix":     "11131",
+				},
+			},
 			Lang: "id",
 		},
 

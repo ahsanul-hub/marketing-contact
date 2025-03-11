@@ -222,7 +222,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode": "0000",
 			"message": "Successful Created Transaction",
 		})
-	case "tri_airtime":
+	case "three_airtime":
 		validAmounts, exists := routes["tri_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -600,7 +600,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"message": "Successful Created Transaction",
 		})
 
-	case "tri_airtime":
+	case "three_airtime":
 		validAmounts, exists := routes["tri_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -1322,7 +1322,7 @@ func ManualCallback(c *fiber.Ctx) error {
 	switch transaction.PaymentMethod {
 	case "xl_airtime":
 		referenceID = transaction.ReferenceID
-	case "tri_airtime":
+	case "three_airtime":
 		referenceID = transaction.XimpayID
 	case "smartfren_airtime":
 		referenceID = transaction.XimpayID
