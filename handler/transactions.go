@@ -1173,6 +1173,7 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 	limitStr := c.Query("limit", "10")
 	exportCSV := c.Query("export_csv", "false")
 	exportExcel := c.Query("export_excel", "false")
+	userId := c.Query("user_id")
 
 	userMDN := c.Query("user_mdn")
 	paymentMethodStr := c.Query("payment_method")
@@ -1230,7 +1231,7 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		fmt.Println("Error fetching client:", err)
 	}
 
-	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, status, denom, merchantTransactionId, arrClient.ClientName, userMDN, appName, paymentMethods, startDate, endDate)
+	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, status, denom, merchantTransactionId, arrClient.ClientName, userMDN, userId, appName, paymentMethods, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

@@ -239,7 +239,7 @@ func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endD
 	return transactions, nil
 }
 
-func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom int, merchantTransactionId, clientName, userMDN, appName string, paymentMethods []string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
+func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom int, merchantTransactionId, clientName, userMDN, userId, appName string, paymentMethods []string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
 	var transactions []model.Transactions
 	query := database.DB
 	var totalItems int64
@@ -264,6 +264,9 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom i
 	}
 	if userMDN != "" {
 		query = query.Where("user_mdn = ?", userMDN)
+	}
+	if userId != "" {
+		query = query.Where("user_id = ?", userId)
 	}
 	if len(paymentMethods) > 0 {
 		query = query.Where("payment_method IN ?", paymentMethods)
