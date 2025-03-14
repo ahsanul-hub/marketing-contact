@@ -98,6 +98,8 @@ func Login(c *fiber.Ctx) error {
 	claims["role"] = updatedUser.Role
 	claims["appid"] = updatedUser.AppID
 	claims["appkey"] = updatedUser.AppKey
+	claims["devappid"] = updatedUser.DevAppID
+	claims["devappkey"] = updatedUser.DevAppKey
 	claims["exp"] = time.Now().Add(time.Hour * 24).Unix()
 
 	t, err := token.SignedString([]byte(config.Config("SECRET", "")))
