@@ -136,6 +136,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, appkey, appid)
 	if err != nil {
+		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
@@ -266,28 +267,8 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	case "telkomsel_airtime":
 
-		// validAmounts, exists := routes["indosat_triyakom"]
-		// if !exists {
-		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-		// 		"error": "No valid amounts found for the specified payment method",
-		// 	})
-		// }
-
-		// validAmount := false
-		// for _, route := range validAmounts {
-		// 	if transactionAmountStr == route {
-		// 		validAmount = true
-		// 		break
-		// 	}
-		// }
-
-		// if !validAmount && !paymentMethodClient.Flexible {
-		// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-		// 		"error": "This denom is not supported for this payment method",
-		// 	})
-		// }
-
-		_, keyword, otp, err := lib.RequestMoTsel(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
+		beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
+		_, keyword, otp, err := lib.RequestMoTsel(beautifyMsisdn, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
 		if err != nil {
 			log.Println("Charging request failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -298,7 +279,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 		err = repository.UpdateTransactionKeyword(context.Background(), createdTransId, keyword, otp)
 		if err != nil {
-			log.Println("Updated Ximpay ID error:", err)
+			log.Println("Updated Transaction Keyword error:", err)
 		}
 
 		return c.JSON(fiber.Map{
@@ -684,6 +665,28 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"reff_id": ximpayId,
 			"message": "Successful Created Transaction",
 		})
+	case "telkomsel_airtime":
+		beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
+		_, keyword, otp, err := lib.RequestMoTsel(beautifyMsisdn, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
+		if err != nil {
+			log.Println("Charging request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		err = repository.UpdateTransactionKeyword(context.Background(), createdTransId, keyword, otp)
+		if err != nil {
+			log.Println("Updated Transaction Keyword error:", err)
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"retcode": "0000",
+			"message": "Successful Created Transaction",
+		})
+
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
@@ -711,7 +714,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 
 	var isMidtrans bool
 
-	if transaction.PaymentMethod == "shopeepay" || transaction.PaymentMethod == "gopay" || transaction.PaymentMethod == "qris" {
+	if transaction.PaymentMethod == "shopeepay" || transaction.PaymentMethod == "gopay" || transaction.PaymentMethod == "qris" || transaction.PaymentMethod == "dana" {
 		isMidtrans = true
 	}
 
@@ -763,32 +766,12 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
+
 	createdTransId, chargingPrice, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
 	if err != nil {
 		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
-
-	// paymentMethodMap := make(map[string]model.PaymentMethodClient)
-	// for _, pm := range arrClient.PaymentMethods {
-	// 	paymentMethodMap[pm.Name] = pm
-	// }
-
-	// paymentMethodClient, exists := paymentMethodMap[transaction.PaymentMethod]
-	// if !exists {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"error": "Invalid payment method",
-	// 	})
-	// }
-
-	// var routes map[string][]string
-	// if err := json.Unmarshal(paymentMethodClient.Route, &routes); err != nil {
-	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-	// 		"error": err,
-	// 	})
-	// }
-
-	// transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
 
 	switch transaction.PaymentMethod {
 	case "shopeepay":

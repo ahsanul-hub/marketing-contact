@@ -26,7 +26,7 @@ func generateXSignature(apiKey, secret string) string {
 
 func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string) (MOResponseTsel, string, int, error) {
 
-	config, _ := config.GetGatewayConfig("telkomsel_airtime")
+	config, _ := config.GetGatewayConfig("telkomsel_airtime_sms")
 	arrayOptions := config.Options
 	moUrl := arrayOptions["moUrl"].(string)
 	apiKey := arrayOptions["apikey"].(string)
@@ -58,21 +58,20 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	params.Add("trx_id", transactionId)
 	params.Add("cp_name", "redision_game")
 	params.Add("pwd", "Redision_Game")
-	params.Add("sid", fmt.Sprintf("GAMGENRRG%s_IOD", keyword))
+	params.Add("sid", "GAMGENRRGREDS350_IOD")
 
-	// Menggabungkan parameter query menjadi string
 	queryString := params.Encode()
 
-	// Menggabungkan URL dengan parameter query
 	fullURL := fmt.Sprintf("%s?%s", moUrl, queryString)
 
+	// log.Println("fullURL:", fullURL)
+	// log.Println("key", apiKey, signature)
 	// Membuat request
 	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		return MOResponseTsel{}, "", 0, fmt.Errorf("error creating request: %v", err)
 	}
 
-	// Menambahkan header
 	req.Header.Add("api_key", apiKey)
 	req.Header.Add("x-signature", signature)
 
@@ -103,9 +102,9 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 
 }
 
-func RequestMtTsel(msisdn, itemID, itemDesc, transactionId string, denom string) (MOResponseTsel, error) {
+func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, error) {
 
-	config, _ := config.GetGatewayConfig("telkomsel_airtime")
+	config, _ := config.GetGatewayConfig("telkomsel_airtime_sms")
 	arrayOptions := config.Options
 	mtUrl := arrayOptions["mtUrl"].(string)
 	apiKey := arrayOptions["apikey"].(string)
@@ -132,31 +131,28 @@ func RequestMtTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	sms := fmt.Sprintf("Terima kasih. Anda telah melakukan pembelian coin seharga Rp. %s (incl.PPN) dari PT. Redision Teknologi Indonesia. CS: bit.ly/3AqzjzU", price)
 
 	params := url.Values{}
-	params.Add("adn", "99899")
-	params.Add("sms", sms)
-	params.Add("msisdn", msisdn)
-	params.Add("trx_id", transactionId)
+	params.Add("sender", "99899")
 	params.Add("cpid", "redision_game")
-	params.Add("pwd", "Redision_Game")
+	params.Add("pwd", "R3dision!")
+	params.Add("msisdn", msisdn)
 	params.Add("sid", sid)
+	params.Add("sms", sms)
+	params.Add("trx_id", transactionId)
 
-	// Menggabungkan parameter query menjadi string
 	queryString := params.Encode()
 
-	// Menggabungkan URL dengan parameter query
 	fullURL := fmt.Sprintf("%s?%s", mtUrl, queryString)
 
-	// Membuat request
 	req, err := http.NewRequest("GET", fullURL, nil)
 	if err != nil {
 		return MOResponseTsel{}, fmt.Errorf("error creating request: %v", err)
 	}
 
-	// Menambahkan header
 	req.Header.Add("api_key", apiKey)
 	req.Header.Add("x-signature", signature)
 
-	// Membuat client HTTP
+	// log.Println("api-key signature", apiKey, signature)
+
 	client := &http.Client{
 		Timeout: 30 * time.Second,
 	}
@@ -172,11 +168,12 @@ func RequestMtTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 		return MOResponseTsel{}, fmt.Errorf("error reading response body: %v", err)
 	}
 
-	if resp.StatusCode != http.StatusOK {
+	// log.Println("res mt Tsel", string(body))
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return MOResponseTsel{}, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)
 	}
 
-	// Decode response body
 	var response MOResponseTsel
 
 	return response, nil

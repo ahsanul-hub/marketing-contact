@@ -1,9 +1,14 @@
 package handler
 
 import (
+	"app/helper"
+	"app/lib"
 	"app/repository"
 	"context"
+	"fmt"
 	"log"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -90,19 +95,56 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 }
 
 func MoTelkomsel(c *fiber.Ctx) error {
-	rawInput := c.Queries()
-	// msisdn := c.Query("msisdn")
-	// sms := c.Query("sms")
-	// adn := c.Query("adn")
+	msisdn := c.Query("msisdn")
+	sms := c.Query("sms")
+	trxId := c.Query("trx_id")
 
-	params := rawInput
-	for k, v := range params {
-		log.Println("key, v : ", k, v)
+	// Pastikan sms memiliki format yang diharapkan
+	parts := strings.Split(sms, " ")
+	if len(parts) != 2 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid SMS format",
+		})
+	}
+
+	keyword := parts[0]
+	otp, err := strconv.Atoi(parts[1])
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"message": "Invalid OTP format",
+		})
+	}
+
+	// log.Println("Parsed keyword:", keyword, "OTP:", otp)
+
+	beautifyMsisdn := helper.BeautifyIDNumber(msisdn, true)
+
+	transaction, err := repository.GetTransactionMoTelkomsel(context.Background(), beautifyMsisdn, keyword, otp)
+	if err != nil {
+		log.Println("Error get transactions tsel:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"message": "Internal server error",
+		})
+	}
+
+	if transaction == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"message": "Transaction not found",
+		})
+	}
+
+	denom := fmt.Sprintf("%d", transaction.Amount)
+	_, err = lib.RequestMtTsel(transaction.UserMDN, trxId, denom)
+	if err != nil {
+		log.Println("Mt request failed:", err)
+	}
+
+	if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &trxId, nil, "", nil); err != nil {
+		log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 	}
 
 	return c.JSON(fiber.Map{
 		"message": "MO request received",
-		"data":    rawInput,
 	})
 }
 
@@ -162,4 +204,9 @@ func MidtransCallback(c *fiber.Ctx) error {
 		"status":  "success",
 		"message": "Callback processed successfully",
 	})
+}
+
+func DanaCallback(c *fiber.Ctx) error {
+
+	return nil
 }

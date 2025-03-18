@@ -151,7 +151,7 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 			},
 			Lang: "id",
 		},
-		"telkomsel_airtime": {
+		"telkomsel_airtime_sms": {
 			DirView: "telkomsel",
 			Driver:  "Telkomsel",
 			Denom: map[string]map[string]string{
@@ -233,6 +233,7 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 				"479000": {"keyword": "REDS335300", "sid": "GAMGENRRGREDS335300_IOD", "denom": "479000", "price": "531690", "tid": ""},
 				"489000": {"keyword": "REDS342300", "sid": "GAMGENRRGREDS342300_IOD", "denom": "489000", "price": "542790", "tid": ""},
 				"550000": {"keyword": "REDS3033", "sid": "GAMGENRRGREDS3033_IOD", "denom": "550000", "price": "610500", "tid": ""},
+				"3000":   {"keyword": "REDS3K", "sid": "GAMGENRPGREDISION3K_IOD", "denom": "3000", "price": "3330", "tid": ""},
 				"5000":   {"keyword": "REDS5K", "sid": "GAMGENRPGREDISION5K_IOD", "denom": "5000", "price": "5550", "tid": "142"},
 				"15000":  {"keyword": "REDS15K", "sid": "GAMGENRRPRREDS15K_IOD", "denom": "15000", "price": "16650", "tid": "58"},
 				"10000":  {"keyword": "REDS10K", "sid": "GAMGENRPGREDISION10K_IOD", "denom": "10000", "price": "11100", "tid": "43"},
