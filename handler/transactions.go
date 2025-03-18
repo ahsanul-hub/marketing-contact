@@ -379,7 +379,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 
 	case "qris":
-		res, err := lib.RequestChargingQris(createdTransId, chargingPrice)
+		res, err := lib.RequestChargingQris(createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request qris failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -821,7 +821,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			"message":  "Successful Created Transaction",
 		})
 	case "qris":
-		res, err := lib.RequestChargingQris(createdTransId, chargingPrice)
+		res, err := lib.RequestChargingQris(createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request qris failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

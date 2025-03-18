@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Redpay</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css?family=Work+Sans&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: "Work Sans", sans-serif;
+        background-color: #f8f9fa;
+        padding: 20px;
+      }
+      .result-container {
+        max-width: 500px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      .payment-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .btn-primary {
+        background: #007bff;
+        border: none;
+        color: white;
+        transition: all 0.3s;
+      }
+      .btn-primary:hover {
+        background: #007bff;
+      }
+
+      .btn-outline {
+        border: 2px solid #007bff;
+        color: #007bff;
+        transition: all 0.3s;
+      }
+      .btn-outline:hover {
+        background: #007bff;
+        color: white;
+      }
+      .small {
+        font-size: 12px;
+        color: #777;
+        text-align: center;
+        margin-top: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="result-container">
+      <h4 class="text-center">Pembayaran {{ .PaymentMethodStr}}</h4>
+      <div class="payment-info">
+        <div>
+          <p class="mb-0">Redigame - {{ .ItemName}}</p>
+        </div>
+        <div class="text-end">
+          {{ if eq .PaymentMethod "qris" }}
+          <!-- <div></div> -->
+          <h5>Total: <strong>IDR {{ .Amount}}</strong></h5>
+
+          {{ else }}
+          <div>
+            <h6>Sub Total: IDR {{ .Amount}}</h6>
+            <h6>VAT: IDR {{ .VAT}}</h6>
+            <h5>Total: <strong>IDR {{ .Price}}</strong></h5>
+          </div>
+          {{ end }}
+        </div>
+      </div>
+
+      <form action="" method="post" class="mt-3" id="paymentForm">
+        {{ if eq .PaymentMethod "qris" }}
+        <!-- <div></div> -->
+        {{ else }}
+        <div class="d-flex gap-2">
+          <button
+            type="button"
+            class="btn btn-outline w-50"
+            onclick="window.history.back();"
+          >
+            Kembali
+          </button>
+          <button
+            type="submit"
+            id="btn-submit"
+            class="btn btn-primary w-50 btn-submit"
+            style="padding: 2px"
+          >
+            Bayar dengan {{ .PaymentMethodStr}}*
+          </button>
+        </div>
+        {{ end }}
+
+        <input type="hidden" name="price" value="{{ .Price }}" />
+        <input type="hidden" name="amount" value="{{ .Amount }}" />
+        <input
+          type="hidden"
+          name="payment_method"
+          value="{{ .PaymentMethod }}"
+        />
+        <input type="hidden" name="user_id" value="{{ .UserId }}" />
+        <input
+          type="hidden"
+          name="merchant_transaction_id"
+          value="{{ .MtID }}"
+        />
+        <input type="hidden" name="client_appkey" value="{{ .ClientAppKey }}" />
+        <input type="hidden" name="app_id" value="{{ .AppID }}" />
+        <input type="hidden" name="bodysign" value="{{ .BodySign }}" />
+        <input type="hidden" name="item_name" value="{{ .ItemName }}" />
+        <input type="hidden" name="item_id" value="{{ .ItemId }}" />
+        <input type="hidden" name="token" value="{{ .Token }}" />
+      </form>
+      {{ if eq .PaymentMethod "gopay" }}
+
+      <form action="" method="post" id="paymentQrForm" class="mt-3 text-center">
+        <p>Atau</p>
+        <button
+          type="submit"
+          class="btn btn-primary btn-sm btn-submit"
+          style="margin-top: -10px"
+        >
+          Bayar dengan QRIS**
+        </button>
+      </form>
+      {{ else }}
+      <!-- <div></div> -->
+      {{ end }} {{ if eq .PaymentMethod "qris" }}
+
+      <form action="" method="post" id="paymentQrForm" class="mt-3 text-center">
+        <button
+          type="submit"
+          class="btn btn-primary btn-submit"
+          style="margin-top: 10px"
+        >
+          Bayar dengan QRIS**
+        </button>
+      </form>
+      <p class="small">
+        **Selanjutnya akan menampilkan QR code.<br />
+        Harga termasuk pajak.
+      </p>
+      {{ else }}
+      <!-- <div></div> -->
+      {{ end }} {{ if ne .PaymentMethod "qris" }}
+      <p class="small">
+        *Selanjutnya akan membuka aplikasi {{ .PaymentMethodStr}}.<br />
+        <!-- **Selanjutnya akan
+        menampilkan QR code.<br /> -->
+        Harga termasuk pajak.
+      </p>
+      {{ end }}
+    </div>
+    <script>
+      let isQris = false;
+
+      document
+        .getElementById("paymentQrForm")
+        ?.addEventListener("submit", function (event) {
+          event.preventDefault();
+          isQris = true;
+          document
+            .getElementById("paymentForm")
+            .dispatchEvent(new Event("submit"));
+        });
+
+      document
+        .getElementById("paymentForm")
+        .addEventListener("submit", function (event) {
+          event.preventDefault();
+          const submitButton = document.querySelector(".btn-submit");
+          submitButton.disabled = true;
+
+          const formData = new FormData(this);
+
+          const data = Object.fromEntries(formData.entries());
+
+          const dataFormated = {
+            amount: parseFloat(data.amount),
+            price: parseFloat(data.price),
+            user_mdn: data.user_mdn,
+            client_appkey: data.client_appkey,
+            payment_method: data.payment_method,
+            app_name: data.app_name,
+            merchant_transaction_id: data.merchant_transaction_id,
+            user_id: data.user_id,
+            item_name: data.item_name,
+            item_id: data.item_id,
+            app_id: data.app_id,
+            token: data.token,
+          };
+
+          fetch("/api/payment/notelco", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              appid: data.app_id,
+              appkey: data.client_appkey,
+              token: data.token,
+              bodysign: data.bodysign,
+            },
+            body: JSON.stringify(dataFormated),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              submitButton.disabled = false;
+              if (data.success) {
+                if (isQris) {
+                  window.location.href = `/api/payment-qris?qrisUrl=${data.qrisUrl}&acquirer=Gopay`;
+                } else {
+                  if (data.urlPayment) {
+                    window.location.href = data.urlPayment;
+                  }
+                  window.location.href = data.redirect;
+                }
+              } else {
+                alert(data.error || data.message || "Transaksi gagal");
+              }
+            })
+            .catch((error) => {
+              submitButton.disabled = false;
+              console.error("Error:", error);
+            });
+        });
+
+      //   document
+      //     .getElementById("userMdn")
+      //     .addEventListener("input", function (event) {
+      //       this.value = this.value.replace(/[^0-9]/g, "");
+      //     });
+    </script>
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+  </body>
+</html>
