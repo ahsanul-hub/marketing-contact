@@ -100,13 +100,16 @@ func CreateOrder(ctx context.Context, input *model.InputPaymentRequest, client *
 func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, client *model.Client, appkey, appid string) (string, uint, error) {
 	span, _ := apm.StartSpan(ctx, "CreateTransaction", "repository")
 	defer span.End()
+
 	uniqueID, err := uuid.NewV7()
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Error UUID:", err)
+		return "", 0, err
 	}
+
 	settlementConfig, err := GetSettlementConfig(client.UID)
 	if err != nil {
-		log.Println(err)
+		log.Println("Error GetSettlementConfig:", err)
 	}
 
 	var selectedSettlement *model.SettlementClient
@@ -116,6 +119,10 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 			selectedSettlement = &settlement
 			break
 		}
+	}
+
+	if selectedSettlement == nil {
+		log.Println("selectedSettlement masih nil, cek input.PaymentMethod:", input.PaymentMethod)
 	}
 
 	additionalPercent := 0.11
@@ -156,6 +163,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	transaction.ClientAppKey = appkey
 
 	if err := database.DB.Create(&transaction).Error; err != nil {
+		log.Println("Failed to create transaction:", err)
 		return "", 0, fmt.Errorf("failed to create transaction: %w", err)
 	}
 
@@ -388,33 +396,41 @@ func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, n
 	return nil
 }
 
-// func UpdateTransactionFailReason(ctx context.Context, transactionID string, FailReason string) error {
-// 	db := database.DB
+func GetTransactionVa(ctx context.Context, vaNumber string) (*model.Transactions, error) {
+	var transaction model.Transactions
 
-// 	transactionUpdate := model.Transactions{
-// 		FailReason: FailReason,
-// 	}
+	// Hitung batas waktu 70 menit yang lalu
+	timeLimit := time.Now().Add(-70 * time.Minute)
 
-// 	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
-// 		return fmt.Errorf("failed to update fail reason: %w", err)
-// 	}
+	// Query berdasarkan va_bca dan CreatedAt dalam 70 menit terakhir
+	if err := database.DB.WithContext(ctx).
+		Where("va_bca = ? AND created_at >= ?", vaNumber, timeLimit).
+		First(&transaction).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("transaction not found: %w", err)
+		}
+		return nil, fmt.Errorf("error fetching transaction: %w", err)
+	}
 
-// 	return nil
-// }
+	return &transaction, nil
+}
 
-// func UpdateTransactionStatusFailCallback(ctx context.Context, transactionID string, newStatusCode int, responseCallback string) error {
-// 	db := database.DB
+func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp int) (*model.Transactions, error) {
+	var transaction model.Transactions
 
-// 	transactionUpdate := model.Transactions{
-// 		StatusCode: newStatusCode,
-// 	}
+	err := database.DB.WithContext(ctx).
+		Where("user_mdn = ? AND keyword = ? AND otp = ?", msisdn, keyword, otp).
+		First(&transaction).Error
 
-// 	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
-// 		return fmt.Errorf("failed to update transaction status: %w", err)
-// 	}
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		return nil, err
+	}
 
-// 	return nil
-// }
+	return &transaction, nil
+}
 
 func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, referenceId, ximpayId *string, failReason string, receiveCallbackDate *time.Time) error {
 	db := database.DB
@@ -571,55 +587,10 @@ func UpdateMidtransId(ctx context.Context, transactionID string, midtransId stri
 	return nil
 }
 
-// func ProcessTransactions() {
-// 	var transactions []model.Transactions
-
-// 	if err := database.DB.Where("status_code = ?", 1003).Find(&transactions).Error; err != nil {
-// 		fmt.Println("Error fetching transactions:", err)
-// 		return
-// 	}
-
-// 	for _, transaction := range transactions {
-
-// 		arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
-// 		if err != nil {
-// 			fmt.Println("Error fetching client:", err)
-// 		}
-
-// 		statusCode := 1000
-
-// 		callbackData := CallbackData{
-// 			UserID:                transaction.UserId,
-// 			MerchantTransactionID: transaction.MtTid,
-// 			StatusCode:            statusCode,
-// 			PaymentMethod:         transaction.PaymentMethod,
-// 			Amount:                fmt.Sprintf("%d", transaction.Amount),
-// 			Status:                "success",
-// 			Currency:              transaction.Currency,
-// 			ItemName:              transaction.ItemName,
-// 			ItemID:                transaction.ItemId,
-// 			ReferenceID:           transaction.ReferenceID,
-// 		}
-
-// 		CallbackQueue <- CallbackQueueStruct{
-// 			Data:          callbackData,
-// 			TransactionId: transaction.ID,
-// 			Secret:        arrClient.ClientSecret,
-// 			MerchantURL:   arrClient.CallbackURL,
-// 		}
-// 		time.Sleep(10 * time.Second)
-
-// 	}
-// 	log.Println("transactions length:", len(transactions))
-// }
-
 func ProcessTransactions() {
 
 	var transactions []model.Transactions
-	// if err := database.DB.Where("status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Find(&transactions).Error; err != nil {
-	// 	fmt.Println("Error fetching transactions:", err)
-	// 	return
-	// }
+
 	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, status_code FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
 	if err != nil {
 		fmt.Println("Error fetching transactions:", err)
