@@ -107,7 +107,7 @@ func MoTelkomsel(c *fiber.Ctx) error {
 		})
 	}
 
-	keyword := parts[0]
+	keyword := strings.ToUpper(parts[0])
 	otp, err := strconv.Atoi(parts[1])
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
