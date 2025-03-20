@@ -966,7 +966,66 @@ func ExportTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate)
+	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, "", "")
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	if exportCSV == "true" {
+		return exportTransactionsToCSV(c, transactions)
+	}
+
+	if exportExcel == "true" {
+		return exportTransactionsToExcel(c, transactions)
+	}
+
+	return nil
+
+}
+
+func ExportTransactionsMerchant(c *fiber.Ctx) error {
+	_, spanCtx := apm.StartSpan(c.Context(), "ExportTransactionsCSV", "handler")
+	exportCSV := c.Query("export_csv", "false")
+	exportExcel := c.Query("export_excel", "false")
+
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+
+	statusStr := c.Query("status")
+	appKey := c.Get("appkey")
+	appID := c.Get("appid")
+
+	if appKey == "" || appID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing header: appkey & appid",
+		})
+	}
+
+	status, err := strconv.Atoi(statusStr)
+	if err != nil {
+		fmt.Println("error convert status")
+	}
+
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		parsedStartDate, err := time.Parse(time.RFC1123, startDateStr)
+		if err == nil {
+			startDate = &parsedStartDate
+		}
+	}
+	if endDateStr != "" {
+		parsedEndDate, err := time.Parse(time.RFC1123, endDateStr)
+		if err == nil {
+			endDate = &parsedEndDate
+		}
+	}
+
+	arrClient, err := repository.FindClient(context.Background(), appKey, appID)
+	if err != nil {
+		fmt.Println("Error fetching client:", err)
+	}
+
+	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, arrClient.ClientName, arrClient.AppName)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -1002,13 +1061,25 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 
 	for _, transaction := range transactions {
 		var status string
+		var price uint
 		switch transaction.StatusCode {
 		case 1005:
 			status = "Failed"
-		case 1001 | 1003:
+		case 1001:
+			status = "Pending"
+		case 1003:
 			status = "Pending"
 		case 1000:
 			status = "Success"
+		}
+
+		switch transaction.PaymentMethod {
+		case "qris":
+			price = transaction.Amount
+		case "dana":
+			price = transaction.Amount
+		default:
+			price = transaction.Price
 		}
 
 		createdAt := transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
@@ -1020,7 +1091,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			transaction.UserMDN,
 			transaction.PaymentMethod,
 			strconv.Itoa(int(transaction.Amount)),
-			strconv.Itoa(int(transaction.Price)),
+			strconv.Itoa(int(price)),
 			transaction.UserId,
 			transaction.AppName,
 			transaction.Currency,
@@ -1063,6 +1134,16 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 			status = "Success"
 		}
 
+		var price uint
+		switch transaction.PaymentMethod {
+		case "qris":
+			price = transaction.Amount
+		case "dana":
+			price = transaction.Amount
+		default:
+			price = transaction.Price
+		}
+
 		createdAt := transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
 
 		row := rowIndex + 2 // Mulai dari baris kedua setelah header
@@ -1072,7 +1153,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 		f.SetCellValue(sheetName, "D"+strconv.Itoa(row), transaction.UserMDN)
 		f.SetCellValue(sheetName, "E"+strconv.Itoa(row), transaction.PaymentMethod)
 		f.SetCellValue(sheetName, "F"+strconv.Itoa(row), transaction.Amount)
-		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), transaction.Price)
+		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), price)
 		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), transaction.UserId)
 		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), transaction.AppName)
 		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.Currency)

@@ -222,7 +222,7 @@ func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, t
 	return transactions, totalItems, nil
 }
 
-func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endDate *time.Time) ([]model.Transactions, error) {
+func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endDate *time.Time, clientName, appName string) ([]model.Transactions, error) {
 	span, _ := apm.StartSpan(ctx, "GetTransactionsByDateRange", "repository")
 	defer span.End()
 
@@ -231,6 +231,14 @@ func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endD
 
 	if status != 0 {
 		query = query.Where("status_code = ?", status)
+	}
+
+	if clientName != "" {
+		query = query.Where("merchant_name = ?", clientName)
+	}
+
+	if appName != "" {
+		query = query.Where("app_name = ?", appName)
 	}
 
 	if startDate != nil && endDate != nil {
