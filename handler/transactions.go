@@ -308,7 +308,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"success":  true,
 			"retcode":  "0000",
 			"keyword":  keyword,
-			"sms_code": otp,
+			"sms_code": fmt.Sprintf("%d", otp),
 			"message":  "Successful Created Transaction",
 		})
 
