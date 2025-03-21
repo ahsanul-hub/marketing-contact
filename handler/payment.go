@@ -165,7 +165,28 @@ func PaymentPage(c *fiber.Ctx) error {
 			currency = "IDR"
 		}
 
+		var paymentMethod string
 		switch inputReq.PaymentMethod {
+		case "telkomsel_airtime_sms":
+			paymentMethod = "telkomsel_airtime"
+		case "telkomsel_airtime_ussd":
+			paymentMethod = "telkomsel_airtime"
+		case "xl_gcpay":
+			paymentMethod = "xl_airtime"
+		case "smartfren":
+			paymentMethod = "smartfren_airtime"
+		case "three":
+			paymentMethod = "three_airtime"
+		case "indosat_airtime_2":
+			paymentMethod = "indosat_airtime"
+		case "ovo_wallet":
+			paymentMethod = "ovo"
+		default:
+			paymentMethod = inputReq.PaymentMethod
+
+		}
+
+		switch paymentMethod {
 		case "xl_airtime":
 			StrPaymentMethod = "XL"
 		case "telkomsel_airtime":
@@ -182,13 +203,19 @@ func PaymentPage(c *fiber.Ctx) error {
 			StrPaymentMethod = "Gopay"
 		case "qris":
 			StrPaymentMethod = "Qris"
+		case "va_bca":
+			StrPaymentMethod = "BCA"
+		case "dana":
+			StrPaymentMethod = "Dana"
+		case "ovo":
+			StrPaymentMethod = "OVO"
 		}
 
-		if inputReq.PaymentMethod == "shopeepay" || inputReq.PaymentMethod == "gopay" || inputReq.PaymentMethod == "qris" {
+		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" {
 			vat := inputReq.Price - inputReq.Amount
-			return c.Render("payment_midtrans", fiber.Map{
+			return c.Render("payment_ewallet", fiber.Map{
 				"AppName":          inputReq.AppName,
-				"PaymentMethod":    inputReq.PaymentMethod,
+				"PaymentMethod":    paymentMethod,
 				"PaymentMethodStr": StrPaymentMethod,
 				"ItemName":         inputReq.ItemName,
 				"ItemId":           inputReq.ItemId,
@@ -207,7 +234,7 @@ func PaymentPage(c *fiber.Ctx) error {
 
 		return c.Render("payment", fiber.Map{
 			"AppName":          inputReq.AppName,
-			"PaymentMethod":    inputReq.PaymentMethod,
+			"PaymentMethod":    paymentMethod,
 			"PaymentMethodStr": StrPaymentMethod,
 			"ItemName":         inputReq.ItemName,
 			"ItemId":           inputReq.ItemId,

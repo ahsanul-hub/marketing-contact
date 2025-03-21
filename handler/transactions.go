@@ -64,9 +64,30 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	}
 
+	var paymentMethod string
+	switch transaction.PaymentMethod {
+	case "telkomsel_airtime_sms":
+		paymentMethod = "telkomsel_airtime"
+	case "telkomsel_airtime_ussd":
+		paymentMethod = "telkomsel_airtime"
+	case "xl_gcpay":
+		paymentMethod = "xl_airtime"
+	case "smartfren":
+		paymentMethod = "smartfren_airtime"
+	case "three":
+		paymentMethod = "three_airtime"
+	case "indosat_airtime_2":
+		paymentMethod = "indosat_airtime"
+	case "ovo_wallet":
+		paymentMethod = "ovo"
+	default:
+		paymentMethod = transaction.PaymentMethod
+
+	}
+
 	var isMidtrans bool
 
-	if transaction.PaymentMethod == "shopeepay" || transaction.PaymentMethod == "gopay" || transaction.PaymentMethod == "qris" {
+	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" {
 		isMidtrans = true
 	}
 
@@ -86,7 +107,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	}
 
-	if !isMidtrans && !helper.IsValidPrefix(beautifyMsisdn, transaction.PaymentMethod) {
+	if !isMidtrans && !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error":   "Invalid prefix, please use valid phone number.",
@@ -115,7 +136,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		paymentMethodMap[pm.Name] = pm
 	}
 
-	paymentMethodClient, exists := paymentMethodMap[transaction.PaymentMethod]
+	paymentMethodClient, exists := paymentMethodMap[paymentMethod]
 	if !exists {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid payment method",
@@ -133,6 +154,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 	transaction.BodySign = bodysign
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	arrClient.AppName = appName
+	transaction.PaymentMethod = paymentMethod
 
 	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, appkey, appid)
 	if err != nil {
@@ -144,7 +166,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 	// var chargingPrice uint
 	// chargingPrice = 5550
 
-	switch transaction.PaymentMethod {
+	switch paymentMethod {
 	case "xl_airtime":
 
 		validAmounts, exists := routes["xl_twt"]
@@ -426,6 +448,27 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		})
 	}
 
+	var paymentMethod string
+	switch transaction.PaymentMethod {
+	case "telkomsel_airtime_sms":
+		paymentMethod = "telkomsel_airtime"
+	case "telkomsel_airtime_ussd":
+		paymentMethod = "telkomsel_airtime"
+	case "xl_gcpay":
+		paymentMethod = "xl_airtime"
+	case "smartfren":
+		paymentMethod = "smartfren_airtime"
+	case "three":
+		paymentMethod = "three_airtime"
+	case "indosat_airtime_2":
+		paymentMethod = "indosat_airtime"
+	case "ovo_wallet":
+		paymentMethod = "ovo"
+	default:
+		paymentMethod = transaction.PaymentMethod
+
+	}
+
 	if transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amounr must not be empty",
@@ -456,7 +499,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 
 	}
 
-	if !helper.IsValidPrefix(beautifyMsisdn, transaction.PaymentMethod) {
+	if !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error":   "Invalid prefix, please use valid phone number.",
@@ -470,6 +513,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	transaction.BodySign = bodysign
 	arrClient.AppName = appName
+	transaction.PaymentMethod = paymentMethod
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
@@ -485,7 +529,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		paymentMethodMap[pm.Name] = pm
 	}
 
-	paymentMethodClient, exists := paymentMethodMap[transaction.PaymentMethod]
+	paymentMethodClient, exists := paymentMethodMap[paymentMethod]
 	if !exists {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid payment method",
@@ -501,7 +545,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 
 	transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
 
-	switch transaction.PaymentMethod {
+	switch paymentMethod {
 	case "xl_airtime":
 		validAmounts, exists := routes["xl_twt"]
 		if !exists {
@@ -714,7 +758,16 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 
 	var isMidtrans bool
 
-	if transaction.PaymentMethod == "shopeepay" || transaction.PaymentMethod == "gopay" || transaction.PaymentMethod == "qris" || transaction.PaymentMethod == "dana" {
+	var paymentMethod string
+	switch transaction.PaymentMethod {
+	case "ovo_wallet":
+		paymentMethod = "ovo"
+	default:
+		paymentMethod = transaction.PaymentMethod
+
+	}
+
+	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" {
 		isMidtrans = true
 	}
 
@@ -773,7 +826,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	switch transaction.PaymentMethod {
+	switch paymentMethod {
 	case "shopeepay":
 
 		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice)
