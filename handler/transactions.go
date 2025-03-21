@@ -76,7 +76,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		paymentMethod = "smartfren_airtime"
 	case "three":
 		paymentMethod = "three_airtime"
-	case "indosat_airtime_2":
+	case "indosat_airtime2":
 		paymentMethod = "indosat_airtime"
 	case "ovo_wallet":
 		paymentMethod = "ovo"
@@ -460,7 +460,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		paymentMethod = "smartfren_airtime"
 	case "three":
 		paymentMethod = "three_airtime"
-	case "indosat_airtime_2":
+	case "indosat_airtime2":
 		paymentMethod = "indosat_airtime"
 	case "ovo_wallet":
 		paymentMethod = "ovo"

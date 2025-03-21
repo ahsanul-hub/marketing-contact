@@ -17,7 +17,7 @@ import (
 	"go.elastic.co/apm"
 )
 
-var TransactionCache = cache.New(5*time.Minute, 6*time.Minute)
+var TransactionCache = cache.New(10*time.Minute, 11*time.Minute)
 var QrCache = cache.New(5*time.Minute, 10*time.Minute)
 
 func TestPayment(c *fiber.Ctx) error {
@@ -177,7 +177,7 @@ func PaymentPage(c *fiber.Ctx) error {
 			paymentMethod = "smartfren_airtime"
 		case "three":
 			paymentMethod = "three_airtime"
-		case "indosat_airtime_2":
+		case "indosat_airtime2":
 			paymentMethod = "indosat_airtime"
 		case "ovo_wallet":
 			paymentMethod = "ovo"
