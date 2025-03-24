@@ -290,7 +290,7 @@ func QrisPage(c *fiber.Ctx) error {
 	// Pecah qrisUrl dan acquirer
 	dataStr := data.(string)
 	parts := strings.Split(dataStr, "|")
-	if len(parts) != 2 {
+	if len(parts) != 3 {
 		return c.Status(fiber.StatusInternalServerError).SendString("Invalid data format")
 	}
 	qrisUrl, acquirer, backUrl := parts[0], parts[1], parts[2]

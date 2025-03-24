@@ -221,7 +221,7 @@
               submitButton.disabled = false;
               if (data.success) {
                 if (isQris) {
-                  window.location.href = `/api/payment-qris?qrisUrl=${data.qrisUrl}&acquirer=Gopay`;
+                  window.location.href = `/api/payment-qris?qrisUrl=${data.qrisUrl}&acquirer=Gopay&back_url=${data.back_url}`;
                 } else {
                   if (data.urlPayment) {
                     window.location.href = data.urlPayment;
