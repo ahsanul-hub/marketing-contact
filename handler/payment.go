@@ -52,6 +52,7 @@ func TestPayment(c *fiber.Ctx) error {
 func PaymentQrisRedirect(c *fiber.Ctx) error {
 	qrisUrl := c.Query("qrisUrl")
 	acquirer := c.Query("acquirer")
+	backUrl := c.Query("back_url")
 
 	if qrisUrl == "" || acquirer == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -63,7 +64,7 @@ func PaymentQrisRedirect(c *fiber.Ctx) error {
 	transactionID := fmt.Sprintf("trx-%d", time.Now().UnixNano())
 
 	// Simpan data di cache
-	QrCache.Set(transactionID, qrisUrl+"|"+acquirer, cache.DefaultExpiration)
+	QrCache.Set(transactionID, qrisUrl+"|"+acquirer+"|"+backUrl, cache.DefaultExpiration)
 
 	// Redirect ke halaman tanpa query di URL
 	return c.Redirect("/api/payment-qris/" + transactionID)
@@ -292,12 +293,13 @@ func QrisPage(c *fiber.Ctx) error {
 	if len(parts) != 2 {
 		return c.Status(fiber.StatusInternalServerError).SendString("Invalid data format")
 	}
-	qrisUrl, acquirer := parts[0], parts[1]
+	qrisUrl, acquirer, backUrl := parts[0], parts[1], parts[2]
 
 	// Render halaman tanpa menampilkan query parameter
 	return c.Render("payment_qris", fiber.Map{
-		"QrisUrl":  qrisUrl,
-		"Acquirer": acquirer,
+		"QrisUrl":     qrisUrl,
+		"Acquirer":    acquirer,
+		"RedirectURL": backUrl,
 	})
 }
 

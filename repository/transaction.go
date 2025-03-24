@@ -114,7 +114,6 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 
 	var selectedSettlement *model.SettlementClient
 	for _, settlement := range settlementConfig {
-
 		if settlement.Name == input.PaymentMethod {
 			selectedSettlement = &settlement
 			break
@@ -122,16 +121,15 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	}
 
 	if selectedSettlement == nil {
-		log.Println("selectedSettlement masih nil, cek input.PaymentMethod:", input.PaymentMethod)
+		log.Println("selectedSettlement nil, check input.PaymentMethod:", input.PaymentMethod)
 	}
 
 	additionalPercent := 0.11
-	if selectedSettlement.AdditionalPercent != nil {
+	if selectedSettlement != nil && selectedSettlement.AdditionalPercent != nil {
 		additionalPercent = float64(*selectedSettlement.AdditionalPercent) / 100
 	}
 
 	chargingPrice := math.Ceil(float64(input.Amount)*additionalPercent + float64(input.Amount))
-
 	nettSettlement := float64(input.Amount) * (float64(*selectedSettlement.SharePartner) / 100)
 
 	currency := input.Currency
@@ -643,6 +641,14 @@ func ProcessTransactions() {
 				referenceID = transaction.XimpayID
 			case "indosat_airtime":
 				referenceID = transaction.XimpayID
+			case "gopay":
+				referenceID = transaction.MidtransTransactionId
+			case "shopeepay":
+				referenceID = transaction.MidtransTransactionId
+			case "qris":
+				referenceID = transaction.MidtransTransactionId
+			default:
+				referenceID = transaction.ReferenceID
 			}
 
 			callbackData := CallbackData{

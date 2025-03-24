@@ -377,6 +377,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"redirect": res.Actions[0].URL,
+			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
@@ -401,6 +402,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"success":  true,
 			"redirect": res.Actions[1].URL,
 			"qrisUrl":  res.Actions[0].URL,
+			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
@@ -424,6 +426,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"qrisUrl":  res.Actions[0].URL,
+			"back_url": transaction.RedirectURL,
 			"qrString": res.QrString,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
@@ -852,6 +855,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"redirect": res.Actions[0].URL,
+			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
@@ -875,6 +879,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			"success":  true,
 			"redirect": res.Actions[1].URL,
 			"qrisUrl":  res.Actions[0].URL,
+			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
@@ -895,10 +900,11 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 
 		// log.Println("redirect: ", res.Actions[0].URL)
 		return c.JSON(fiber.Map{
-			"success": true,
-			"qrisUrl": res.Actions[0].URL,
-			"retcode": "0000",
-			"message": "Successful Created Transaction",
+			"success":  true,
+			"qrisUrl":  res.Actions[0].URL,
+			"back_url": transaction.RedirectURL,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
 		})
 	}
 
@@ -1451,6 +1457,14 @@ func ManualCallback(c *fiber.Ctx) error {
 		referenceID = transaction.XimpayID
 	case "indosat_airtime":
 		referenceID = transaction.XimpayID
+	case "gopay":
+		referenceID = transaction.MidtransTransactionId
+	case "shopeepay":
+		referenceID = transaction.MidtransTransactionId
+	case "qris":
+		referenceID = transaction.MidtransTransactionId
+	default:
+		referenceID = transaction.ReferenceID
 	}
 
 	callbackData := repository.CallbackData{
