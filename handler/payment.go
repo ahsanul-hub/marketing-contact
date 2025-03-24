@@ -149,7 +149,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		log.Println("selectedSettlement nil, check input.PaymentMethod:", input.PaymentMethod)
 	}
 
-	input.Price = uint(amountFloat + math.Round(float64(*selectedSettlement.AdditionalPercent)*amountFloat))
+	input.Price = uint(amountFloat + math.Round(float64(*selectedSettlement.AdditionalPercent)/100*amountFloat))
 	input.AppID = c.Get("appid")
 	input.ClientAppKey = c.Get("appkey")
 	input.AppName = arrClient.ClientName
