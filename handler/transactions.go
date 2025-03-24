@@ -305,11 +305,14 @@ func CreateTransaction(c *fiber.Ctx) error {
 		}
 
 		return c.JSON(fiber.Map{
-			"success":  true,
-			"retcode":  "0000",
-			"keyword":  keyword,
-			"sms_code": fmt.Sprintf("%d", otp),
-			"message":  "Successful Created Transaction",
+			"success":      true,
+			"retcode":      "0000",
+			"phone_number": transaction.UserMDN,
+			"keyword":      keyword,
+			"sms_code":     fmt.Sprintf("%d", otp),
+			"short_code":   "99899",
+			"trx_type":     "send_otp",
+			"message":      "Successful Created Transaction",
 		})
 
 	case "smartfren_airtime":
