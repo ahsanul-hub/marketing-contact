@@ -75,6 +75,8 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	span, spanCtx := apm.StartSpan(c.Context(), "CreateOrderV1", "handler")
 	defer span.End()
+	appid := c.Get("appid")
+	appkey := c.Get("appkey")
 
 	receivedBodysign := c.Get("bodysign")
 
@@ -150,9 +152,11 @@ func CreateOrder(c *fiber.Ctx) error {
 		log.Println("selectedSettlement nil, check input.PaymentMethod:", input.PaymentMethod)
 	}
 
+	log.Println("appkey & appid", appkey, appid)
+
 	input.Price = uint(amountFloat + math.Round(float64(*selectedSettlement.AdditionalPercent)/100*amountFloat))
-	input.AppID = c.Get("appid")
-	input.ClientAppKey = c.Get("appkey")
+	input.AppID = appid
+	input.ClientAppKey = appkey
 	input.AppName = arrClient.ClientName
 	input.BodySign = receivedBodysign
 
@@ -294,6 +298,7 @@ func QrisPage(c *fiber.Ctx) error {
 	if len(parts) != 3 {
 		return c.Status(fiber.StatusInternalServerError).SendString("Invalid data format")
 	}
+
 	qrisUrl, acquirer, backUrl := parts[0], parts[1], parts[2]
 
 	// Render halaman tanpa menampilkan query parameter
