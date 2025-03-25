@@ -248,6 +248,7 @@ func PaymentPage(c *fiber.Ctx) error {
 				"UserId":           inputReq.UserId,
 				"Token":            token,
 				"BodySign":         inputReq.BodySign,
+				"RedirectURL":      inputReq.RedirectURL,
 			})
 		}
 

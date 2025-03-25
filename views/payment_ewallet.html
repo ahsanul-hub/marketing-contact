@@ -125,6 +125,7 @@
         <input type="hidden" name="item_name" value="{{ .ItemName }}" />
         <input type="hidden" name="item_id" value="{{ .ItemId }}" />
         <input type="hidden" name="token" value="{{ .Token }}" />
+        <input type="hidden" name="redirect_url" value="{{ .RedirectURL }}" />
       </form>
       {{ if eq .PaymentMethod "gopay" }}
 
@@ -203,6 +204,7 @@
             item_id: data.item_id,
             app_id: data.app_id,
             token: data.token,
+            redirect_url: data.redirect_url,
           };
 
           fetch("/api/payment/notelco", {
