@@ -135,6 +135,27 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	amountFloat := float64(input.Amount)
 
+	var paymentMethod string
+	switch input.PaymentMethod {
+	case "telkomsel_airtime_sms":
+		paymentMethod = "telkomsel_airtime"
+	case "telkomsel_airtime_ussd":
+		paymentMethod = "telkomsel_airtime"
+	case "xl_gcpay":
+		paymentMethod = "xl_airtime"
+	case "smartfren":
+		paymentMethod = "smartfren_airtime"
+	case "three":
+		paymentMethod = "three_airtime"
+	case "indosat_airtime2":
+		paymentMethod = "indosat_airtime"
+	case "ovo_wallet":
+		paymentMethod = "ovo"
+	default:
+		paymentMethod = input.PaymentMethod
+
+	}
+
 	settlementConfig, err := repository.GetSettlementConfig(arrClient.UID)
 	if err != nil {
 		log.Println("Error GetSettlementConfig:", err)
@@ -142,17 +163,15 @@ func CreateOrder(c *fiber.Ctx) error {
 
 	var selectedSettlement *model.SettlementClient
 	for _, settlement := range settlementConfig {
-		if settlement.Name == input.PaymentMethod {
+		if settlement.Name == paymentMethod {
 			selectedSettlement = &settlement
 			break
 		}
 	}
 
 	if selectedSettlement == nil {
-		log.Println("selectedSettlement nil, check input.PaymentMethod:", input.PaymentMethod)
+		log.Println("selectedSettlement nil, check input.PaymentMethod:", paymentMethod)
 	}
-
-	log.Println("appkey & appid", appkey, appid)
 
 	input.Price = uint(amountFloat + math.Round(float64(*selectedSettlement.AdditionalPercent)/100*amountFloat))
 	input.AppID = appid
