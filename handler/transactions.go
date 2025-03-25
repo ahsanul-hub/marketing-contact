@@ -254,7 +254,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"message": "Successful Created Transaction",
 		})
 	case "three_airtime":
-		validAmounts, exists := routes["tri_triyakom"]
+		validAmounts, exists := routes["three_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "No valid amounts found for the specified payment method",
@@ -649,7 +649,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		})
 
 	case "three_airtime":
-		validAmounts, exists := routes["tri_triyakom"]
+		validAmounts, exists := routes["three_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 				"error": "No valid amounts found for the specified payment method",
