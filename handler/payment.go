@@ -151,6 +151,12 @@ func CreateOrder(c *fiber.Ctx) error {
 		paymentMethod = "indosat_airtime"
 	case "ovo_wallet":
 		paymentMethod = "ovo"
+	case "smartfren_airtime2":
+		paymentMethod = "smartfren_airtime"
+	case "Three":
+		paymentMethod = "three_airtime"
+	case "qr":
+		paymentMethod = "qris"
 	default:
 		paymentMethod = input.PaymentMethod
 
@@ -223,6 +229,12 @@ func PaymentPage(c *fiber.Ctx) error {
 			paymentMethod = "indosat_airtime"
 		case "ovo_wallet":
 			paymentMethod = "ovo"
+		case "smartfren_airtime2":
+			paymentMethod = "smartfren_airtime"
+		case "Three":
+			paymentMethod = "three_airtime"
+		case "qr":
+			paymentMethod = "qris"
 		default:
 			paymentMethod = inputReq.PaymentMethod
 

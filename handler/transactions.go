@@ -80,6 +80,12 @@ func CreateTransaction(c *fiber.Ctx) error {
 		paymentMethod = "indosat_airtime"
 	case "ovo_wallet":
 		paymentMethod = "ovo"
+	case "smartfren_airtime2":
+		paymentMethod = "smartfren_airtime"
+	case "Three":
+		paymentMethod = "three_airtime"
+	case "qr":
+		paymentMethod = "qris"
 	default:
 		paymentMethod = transaction.PaymentMethod
 
@@ -471,6 +477,12 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		paymentMethod = "indosat_airtime"
 	case "ovo_wallet":
 		paymentMethod = "ovo"
+	case "smartfren_airtime2":
+		paymentMethod = "smartfren_airtime"
+	case "Three":
+		paymentMethod = "three_airtime"
+	case "qr":
+		paymentMethod = "qris"
 	default:
 		paymentMethod = transaction.PaymentMethod
 
@@ -769,6 +781,8 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 	switch transaction.PaymentMethod {
 	case "ovo_wallet":
 		paymentMethod = "ovo"
+	case "qr":
+		paymentMethod = "qris"
 	default:
 		paymentMethod = transaction.PaymentMethod
 
