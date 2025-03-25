@@ -23,14 +23,21 @@ type GopayChargeRequest struct {
 	} `json:"gopay"`
 }
 
-func RequestChargingGopay(transactionID string, chargingPrice uint) (*MidtransResponse, error) {
+func RequestChargingGopay(transactionID string, chargingPrice uint, redirectUrl string) (*MidtransResponse, error) {
 	chargeRequest := GopayChargeRequest{
 		PaymentType: "gopay",
 	}
 	chargeRequest.TransactionDetails.OrderID = transactionID
 
 	chargeRequest.TransactionDetails.GrossAmount = chargingPrice
-	chargeRequest.Gopay.CallbackURL = "https://new-payment.redision.com/api/callback/midtrans"
+	var backUrl string
+
+	if redirectUrl != "" {
+		backUrl = redirectUrl
+	} else {
+		backUrl = "https://new-payment.redision.com/api/callback/midtrans"
+	}
+	chargeRequest.Gopay.CallbackURL = backUrl
 
 	// Marshal struct menjadi JSON
 	jsonBody, err := json.Marshal(chargeRequest)
@@ -61,6 +68,7 @@ func RequestChargingGopay(transactionID string, chargingPrice uint) (*MidtransRe
 
 	var midtransResp MidtransResponse
 	if err := json.Unmarshal(body, &midtransResp); err != nil {
+		log.Printf("error unmarshal for transaction id :%s", transactionID)
 		log.Println("res", string(body))
 		return nil, fmt.Errorf("error decoding response: %v", err)
 	}
@@ -75,6 +83,7 @@ func RequestChargingGopay(transactionID string, chargingPrice uint) (*MidtransRe
 	}
 
 	if midtransResp.StatusCode != "201" {
+		log.Printf("error charging for transaction id :%s message : %s", transactionID, midtransResp.StatusMessage)
 		return &midtransResp, fmt.Errorf("error response from Midtrans: %s", midtransResp.StatusMessage)
 	}
 

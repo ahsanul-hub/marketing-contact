@@ -359,7 +359,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	case "shopeepay":
 
-		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice)
+		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request shopee failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -377,13 +377,12 @@ func CreateTransaction(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"redirect": res.Actions[0].URL,
-			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
 
 	case "gopay":
-		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice)
+		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request gopay failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -831,13 +830,13 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 	createdTransId, chargingPrice, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
 	if err != nil {
 		log.Println("err", err)
-		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Internal Server Error", "response": "error create transaction", "data": err})
 	}
 
 	switch paymentMethod {
 	case "shopeepay":
 
-		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice)
+		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request shopee failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -851,7 +850,6 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			log.Println("Updated Midtrans ID error:", err)
 		}
 
-		// log.Println("redirect: ", res.Actions[0].URL)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"redirect": res.Actions[0].URL,
@@ -860,7 +858,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			"message":  "Successful Created Transaction",
 		})
 	case "gopay":
-		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice)
+		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request gopay failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

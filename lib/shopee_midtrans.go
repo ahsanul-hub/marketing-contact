@@ -47,14 +47,22 @@ type MidtransResponse struct {
 	ID                     string `json:"id,omitempty"`
 }
 
-func RequestChargingShopeePay(transactionID string, chargingPrice uint) (*MidtransResponse, error) {
+func RequestChargingShopeePay(transactionID string, chargingPrice uint, redirectUrl string) (*MidtransResponse, error) {
 	chargeRequest := ShopeePayChargeRequest{
 		PaymentType: "shopeepay",
 	}
 	chargeRequest.TransactionDetails.OrderID = transactionID
 
 	chargeRequest.TransactionDetails.GrossAmount = chargingPrice
-	chargeRequest.ShopeePay.CallbackURL = "https://new-payment.redision.com/api/callback/midtrans"
+
+	var backUrl string
+
+	if redirectUrl != "" {
+		backUrl = redirectUrl
+	} else {
+		backUrl = "https://new-payment.redision.com/api/callback/midtrans"
+	}
+	chargeRequest.ShopeePay.CallbackURL = backUrl
 
 	// Marshal struct menjadi JSON
 	jsonBody, err := json.Marshal(chargeRequest)
@@ -85,6 +93,7 @@ func RequestChargingShopeePay(transactionID string, chargingPrice uint) (*Midtra
 
 	var midtransResp MidtransResponse
 	if err := json.Unmarshal(body, &midtransResp); err != nil {
+		log.Printf("error unmarshal for transaction id :%s", transactionID)
 		log.Println("res", string(body))
 		return nil, fmt.Errorf("error decoding response: %v", err)
 	}
@@ -99,6 +108,7 @@ func RequestChargingShopeePay(transactionID string, chargingPrice uint) (*Midtra
 	}
 
 	if midtransResp.StatusCode != "201" {
+		log.Printf("error charging for transaction id :%s message : %s", transactionID, midtransResp.StatusMessage)
 		return &midtransResp, fmt.Errorf("error response from Midtrans: %s", midtransResp.StatusMessage)
 	}
 
