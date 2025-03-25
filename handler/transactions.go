@@ -84,6 +84,8 @@ func CreateTransaction(c *fiber.Ctx) error {
 		paymentMethod = "smartfren_airtime"
 	case "Three":
 		paymentMethod = "three_airtime"
+	case "Telkomsel":
+		paymentMethod = "telkomsel_airtime"
 	case "qr":
 		paymentMethod = "qris"
 	default:
@@ -481,6 +483,8 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		paymentMethod = "smartfren_airtime"
 	case "Three":
 		paymentMethod = "three_airtime"
+	case "Telkomsel":
+		paymentMethod = "telkomsel_airtime"
 	case "qr":
 		paymentMethod = "qris"
 	default:
