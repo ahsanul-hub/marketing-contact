@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -120,6 +121,7 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 	// keyword := denomConfig["keyword"]
 	price := denomConfig["price"]
 	sid := denomConfig["sid"]
+	tid := denomConfig["tid"]
 
 	var otp int
 	for {
@@ -136,6 +138,7 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 	params.Add("pwd", "R3dision!")
 	params.Add("msisdn", msisdn)
 	params.Add("sid", sid)
+	params.Add("tid", tid)
 	params.Add("sms", sms)
 	params.Add("trx_id", transactionId)
 
@@ -150,8 +153,6 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 
 	req.Header.Add("api_key", apiKey)
 	req.Header.Add("x-signature", signature)
-
-	// log.Println("api-key signature", apiKey, signature)
 
 	client := &http.Client{
 		Timeout: 30 * time.Second,
@@ -168,9 +169,9 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 		return MOResponseTsel{}, fmt.Errorf("error reading response body: %v", err)
 	}
 
-	// log.Println("res mt Tsel", string(body))
+	log.Println("res mt Tsel", string(body))
 
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if resp.StatusCode != 202 {
 		return MOResponseTsel{}, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)
 	}
 
