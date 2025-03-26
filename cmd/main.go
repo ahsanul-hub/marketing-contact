@@ -3,6 +3,7 @@ package main
 import (
 	"app/config"
 	"app/database"
+	"app/handler"
 	"app/lib"
 	"app/middleware"
 	"app/repository"
@@ -55,6 +56,7 @@ func main() {
 	go lib.ProcessPendingTransactions()
 	// go repository.ProcessTransactions()
 	go repository.ProcessCallbackQueue()
+	go handler.ProcessUpdateTransactionPending()
 
 	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
 	router.SetupRoutes(app, db)

@@ -210,3 +210,34 @@ func DanaCallback(c *fiber.Ctx) error {
 
 	return nil
 }
+
+func ProcessUpdateTransactionPending() {
+
+	for {
+		transactions, err := repository.GetPendingTransactions(context.Background(), "telkomsel_airtime")
+
+		if err != nil {
+			log.Printf("Error retrieving pending transactions: %s", err)
+		}
+
+		for _, transaction := range transactions {
+			if err != nil {
+				log.Println("Error parsing CreatedAt for transaction:", transaction.ID, err)
+				continue
+			}
+
+			createdAt := transaction.CreatedAt
+			timeLimit := time.Now().Add(-15 * time.Minute)
+
+			expired := createdAt.Before(timeLimit)
+
+			if expired {
+				if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Transaction Expired"); err != nil {
+					log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
+				}
+			}
+		}
+
+		time.Sleep(15 * time.Minute)
+	}
+}
