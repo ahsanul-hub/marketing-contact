@@ -173,7 +173,7 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 
 	resBody := string(body)
 
-	if resBody != "1:Success" && resp.StatusCode != 202 {
+	if resBody != "1" && resp.StatusCode != 202 {
 		return MOResponseTsel{}, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)
 	}
 
