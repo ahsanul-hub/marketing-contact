@@ -134,10 +134,12 @@ func MoTelkomsel(c *fiber.Ctx) error {
 	}
 
 	denom := fmt.Sprintf("%d", transaction.Amount)
-	_, err = lib.RequestMtTsel(transaction.UserMDN, trxId, denom)
+	res, err := lib.RequestMtTsel(transaction.UserMDN, trxId, denom)
 	if err != nil {
 		log.Println("Mt request failed:", err)
+		return fmt.Errorf("Mt request failed:", err)
 	}
+	log.Println("res", res)
 
 	if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &trxId, nil, "", nil); err != nil {
 		log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
