@@ -220,7 +220,7 @@ func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, t
 	return transactions, totalItems, nil
 }
 
-func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endDate *time.Time, clientName, appName string) ([]model.Transactions, error) {
+func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endDate *time.Time, clientName, appName, paymentMethod string) ([]model.Transactions, error) {
 	span, _ := apm.StartSpan(ctx, "GetTransactionsByDateRange", "repository")
 	defer span.End()
 
@@ -237,6 +237,10 @@ func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endD
 
 	if appName != "" {
 		query = query.Where("app_name = ?", appName)
+	}
+
+	if paymentMethod != "" {
+		query = query.Where("payment_method = ?", paymentMethod)
 	}
 
 	if startDate != nil && endDate != nil {
@@ -492,7 +496,7 @@ func GetPendingTransactions(ctx context.Context, paymentMethod string) ([]model.
 	// 	return nil, fmt.Errorf("error fetching transactions: %w", err)
 	// }
 
-	query := database.DB.Select("id, merchant_name, status_code").Where("status_code = ?", 1001)
+	query := database.DB.Select("id, merchant_name, status_code, created_at").Where("status_code = ?", 1001)
 
 	if paymentMethod != "" {
 		query = query.Where("payment_method = ?", paymentMethod)

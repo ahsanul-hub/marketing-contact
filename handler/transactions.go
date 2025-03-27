@@ -1026,6 +1026,9 @@ func ExportTransactions(c *fiber.Ctx) error {
 	endDateStr := c.Query("end_date")
 
 	statusStr := c.Query("status")
+	paymentMethod := c.Query("payment_method")
+	appName := c.Query("app_name")
+	merchantName := c.Query("merchant_name")
 
 	status, err := strconv.Atoi(statusStr)
 	if err != nil {
@@ -1046,7 +1049,7 @@ func ExportTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, "", "")
+	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, merchantName, appName, paymentMethod)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -1070,6 +1073,7 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
+	paymentMethod := c.Query("paymentMethod")
 
 	statusStr := c.Query("status")
 	appKey := c.Get("appkey")
@@ -1105,7 +1109,7 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 		fmt.Println("Error fetching client:", err)
 	}
 
-	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, arrClient.ClientName, arrClient.AppName)
+	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, arrClient.ClientName, arrClient.AppName, paymentMethod)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
