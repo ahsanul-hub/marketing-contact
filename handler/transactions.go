@@ -1483,11 +1483,18 @@ func ManualCallback(c *fiber.Ctx) error {
 		referenceID = transaction.ReferenceID
 	}
 
+	var paymentMethod string
+
+	paymentMethod = transaction.PaymentMethod
+	if transaction.MerchantName == "HIGO GAME PTE LTD" && transaction.PaymentMethod == "qris" {
+		paymentMethod = "qr"
+	}
+
 	callbackData := repository.CallbackData{
 		UserID:                transaction.UserId,
 		MerchantTransactionID: transaction.MtTid,
 		StatusCode:            statusCode,
-		PaymentMethod:         transaction.PaymentMethod,
+		PaymentMethod:         paymentMethod,
 		Amount:                fmt.Sprintf("%d", transaction.Amount),
 		Status:                "success",
 		Currency:              transaction.Currency,

@@ -651,11 +651,18 @@ func ProcessTransactions() {
 				referenceID = transaction.ReferenceID
 			}
 
+			var paymentMethod string
+
+			paymentMethod = transaction.PaymentMethod
+			if transaction.MerchantName == "HIGO GAME PTE LTD" && transaction.PaymentMethod == "qris" {
+				paymentMethod = "qr"
+			}
+
 			callbackData := CallbackData{
 				UserID:                transaction.UserId,
 				MerchantTransactionID: transaction.MtTid,
 				StatusCode:            1000, // Misalnya, status sukses
-				PaymentMethod:         transaction.PaymentMethod,
+				PaymentMethod:         paymentMethod,
 				Amount:                fmt.Sprintf("%d", transaction.Amount),
 				Status:                "success",
 				Currency:              transaction.Currency,
