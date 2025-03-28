@@ -23,6 +23,7 @@ var NumberCache = cache.New(2*time.Minute, 3*time.Minute)
 type TokenRequest struct {
 	ClientID     string `json:"client_id"`
 	ClientSecret string `json:"client_secret"`
+	GrantType    string `json:"grant_type"`
 }
 
 type TokenResponse struct {
@@ -110,6 +111,7 @@ func RequestToken(clientID, clientSecret string) (*TokenResponse, error) {
 	requestBody := TokenRequest{
 		ClientID:     arrayOptions["clientid"].(string),
 		ClientSecret: arrayOptions["clientsecret"].(string),
+		GrantType:    "client_credentials",
 	}
 	url := arrayOptions["tokenurl"].(string)
 	body, err := json.Marshal(requestBody)
@@ -149,7 +151,7 @@ func CheckNumberXl(msisdn string, token string) (bool, error) {
 
 	baseURL := arrayOptions["inquiryurl"].(string)
 
-	url := fmt.Sprintf("%s?MSISDN=%s", baseURL, msisdn)
+	url := fmt.Sprintf("%s?msisdn=%s&partnerId=RDSN", baseURL, msisdn)
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
@@ -157,7 +159,9 @@ func CheckNumberXl(msisdn string, token string) (bool, error) {
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("access-token", token)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("cache-control", "no-cache")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -226,6 +230,7 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 		}
 		return ChargingResponse{}, fmt.Errorf("invalid phone number or not found")
 	}
+
 	chargingRequest := ChargingRequest{
 		CustomerInfo: RequestChargingInfo{
 			UserIdentifier:     beautifyMsisdn,
@@ -256,7 +261,9 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 	// Set the HTTP headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("access-token", token)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("cache-control", "no-cache")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -310,7 +317,9 @@ func CheckTransactions(transactionID, partnerID, token string) (TransactionInqui
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("access-token", token)
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Connection", "keep-alive")
+	req.Header.Set("cache-control", "no-cache")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -388,6 +397,7 @@ func CheckTransactionStatus(transaction model.Transactions) {
 }
 
 func ProcessPendingTransactions() {
+
 	for {
 		go repository.ProcessTransactions()
 		transactions, err := repository.GetPendingTransactions(context.Background(), "xl_airtime")
@@ -397,7 +407,6 @@ func ProcessPendingTransactions() {
 			time.Sleep(1 * time.Minute)
 			continue
 		}
-
 		for _, transaction := range transactions {
 			go CheckTransactionStatus(transaction)
 		}
