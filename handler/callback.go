@@ -159,9 +159,6 @@ func MidtransCallback(c *fiber.Ctx) error {
 		})
 	}
 
-	// log.Println("transactionId: ", *req.OrderID)
-	// log.Println("transaction status: ", *req.TransactionStatus)
-
 	if req.OrderID == nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
@@ -211,6 +208,81 @@ func MidtransCallback(c *fiber.Ctx) error {
 func DanaCallback(c *fiber.Ctx) error {
 
 	return nil
+}
+
+func CallbackHarsya(c *fiber.Ctx) error {
+	apiKey := c.Get("X-API-Key")
+	if apiKey == "" {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Missing X-API-Key header",
+		})
+	}
+
+	type Amount struct {
+		Value    int    `json:"value"`
+		Currency string `json:"currency"`
+	}
+
+	type HarsyaCallbackData struct {
+		ID                string `json:"id"`
+		ClientReferenceID string `json:"clientReferenceId"`
+		Status            string `json:"status"`
+		Amount            Amount `json:"amount"`
+	}
+
+	type HarsyaCallbackRequest struct {
+		Event string             `json:"event"`
+		Data  HarsyaCallbackData `json:"data"`
+	}
+
+	var req HarsyaCallbackRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	log.Println("reqCallbackHarsya", req)
+	transactionID := req.Data.ClientReferenceID
+
+	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
+	if err != nil || transaction == nil {
+		log.Printf("Transaction not found: %s", transactionID)
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Transaction not found",
+		})
+	}
+
+	now := time.Now()
+	receiveCallbackDate := &now
+
+	switch req.Data.Status {
+	case "PROCESSING":
+		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1001, nil, nil, "Processing payment", receiveCallbackDate)
+		if err != nil {
+			log.Printf("Error updating transaction %s to PROCESSING: %s", transactionID, err)
+		}
+
+	case "PAID":
+		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "Payment completed", receiveCallbackDate)
+		if err != nil {
+			log.Printf("Error updating transaction %s to PAID: %s", transactionID, err)
+		}
+
+	case "CANCELLED":
+		err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction cancelled")
+		if err != nil {
+			log.Printf("Error updating transaction %s to CANCELLED: %s", transactionID, err)
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Callback processed successfully",
+	})
 }
 
 func ProcessUpdateTransactionPending() {
