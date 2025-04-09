@@ -9,3 +9,11 @@ type CreatePaymentRequest struct {
 	ItemName              string  `json:"item_name" validate:"required,max=60"`
 	Custom                string  `json:"custom,omitempty"`
 }
+
+type VaPayment struct {
+	RedirectURL   string `json:"redirect_url,omitempty"`
+	VaNumber      string `json:"va_number,omitempty"`
+	TransactionID string `json:"transaction_id,omitempty"`
+	Bank          string `json:"bank,omitempty"`
+	ExpiredDate   string `json:"expired_date,omitempty"`
+}
