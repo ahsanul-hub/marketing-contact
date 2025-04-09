@@ -24,6 +24,11 @@ var TransactionCache = cache.New(10*time.Minute, 11*time.Minute)
 var VaTransactionCache = cache.New(60*time.Minute, 65*time.Minute)
 var QrCache = cache.New(5*time.Minute, 10*time.Minute)
 
+type CachedTransaction struct {
+	Data      model.InputPaymentRequest
+	IsClicked bool
+}
+
 func TestPayment(c *fiber.Ctx) error {
 	// Mendapatkan data dari request body
 	var requestData model.InputPaymentRequest
@@ -473,7 +478,7 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 
 	var transactionID string
 
-	transactionID, _, err = repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid, nil)
+	transactionID, _, err = repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
 	if err != nil {
 		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
