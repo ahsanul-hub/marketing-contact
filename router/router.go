@@ -26,7 +26,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/payment/notelco", handler.CreateTransactionNonTelco)
 	api.Post("/transaction", handler.CreateTransaction)
 	api.Get("/transactions", middleware.Protected(), middleware.AdminOnly(true), handler.GetTransactions)
-	api.Get("/export", middleware.Protected(), middleware.AdminOnly(false), handler.ExportTransactions)
+	api.Get("/export", middleware.Protected(), middleware.AdminOnly(true), handler.ExportTransactions)
 	api.Get("/export/transactions-merchant", handler.ExportTransactionsMerchant)
 	api.Get("/transaction/:id", middleware.Protected(), middleware.AdminOnly(true), handler.GetTransactionByID)
 	api.Post("/manual-callback/:id", middleware.Protected(), middleware.AdminOnly(true), handler.ManualCallback)
