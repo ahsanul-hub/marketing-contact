@@ -74,25 +74,26 @@ type TransactionMerchantResponse struct {
 }
 
 type InputPaymentRequest struct {
-	RedirectURL   string `json:"redirect_url,omitempty"`
-	UserId        string `json:"user_id,omitempty"`
-	UserMDN       string `json:"user_mdn,omitempty"`
-	MtTid         string `json:"merchant_transaction_id,omitempty"`
-	PaymentMethod string `json:"payment_method,omitempty"`
-	Currency      string `json:"currency,omitempty"`
-	Amount        uint   `json:"amount,omitempty"`
-	ItemId        string `json:"item_id,omitempty"`
-	ItemName      string `json:"item_name,omitempty"`
-	ClientAppKey  string `json:"client_appkey,omitempty"`
-	AppName       string `json:"app_name,omitempty"`
-	AppID         string `json:"app_id,omitempty"`
-	Status        string `json:"status,omitempty"`
-	BodySign      string `json:"bodysign,omitempty"`
-	Mobile        string `json:"mobile,omitempty"`
-	Testing       bool   `json:"testing,omitempty"`
-	Route         string `json:"route,omitempty"`
-	Price         uint   `json:"price,omitempty"`
-	Otp           string `json:"otp,omitempty"`
-	ReffId        string `json:"reff_id,omitempty"`
-	CustomerName  string `json:"customer_name,omitempty"`
+	RedirectURL    string `json:"redirect_url,omitempty"`
+	RedirectTarget string `json:"redirect_target,omitempty"`
+	UserId         string `json:"user_id,omitempty"`
+	UserMDN        string `json:"user_mdn,omitempty"`
+	MtTid          string `json:"merchant_transaction_id,omitempty"`
+	PaymentMethod  string `json:"payment_method,omitempty"`
+	Currency       string `json:"currency,omitempty"`
+	Amount         uint   `json:"amount,omitempty"`
+	ItemId         string `json:"item_id,omitempty"`
+	ItemName       string `json:"item_name,omitempty"`
+	ClientAppKey   string `json:"client_appkey,omitempty"`
+	AppName        string `json:"app_name,omitempty"`
+	AppID          string `json:"app_id,omitempty"`
+	Status         string `json:"status,omitempty"`
+	BodySign       string `json:"bodysign,omitempty"`
+	Mobile         string `json:"mobile,omitempty"`
+	Testing        bool   `json:"testing,omitempty"`
+	Route          string `json:"route,omitempty"`
+	Price          uint   `json:"price,omitempty"`
+	Otp            string `json:"otp,omitempty"`
+	ReffId         string `json:"reff_id,omitempty"`
+	CustomerName   string `json:"customer_name,omitempty"`
 }
