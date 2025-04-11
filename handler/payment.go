@@ -319,7 +319,7 @@ func PaymentPage(c *fiber.Ctx) error {
 
 	}
 
-	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "Transaction not found"})
+	return c.Render("notfound", fiber.Map{})
 }
 
 func QrisPage(c *fiber.Ctx) error {
@@ -532,7 +532,7 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 		})
 
 	case "va_bri":
-		res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BCA", transaction.Amount)
+		res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BRI", transaction.Amount)
 		if err != nil {
 			log.Println("Generate va failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

@@ -240,11 +240,13 @@
             });
         });
 
-      //   document
-      //     .getElementById("userMdn")
-      //     .addEventListener("input", function (event) {
-      //       this.value = this.value.replace(/[^0-9]/g, "");
-      //     });
+      // Saat kembali ke halaman (misal: user tekan back)
+      window.addEventListener("pageshow", function (event) {
+        if (event.persisted) {
+          // Halaman dibuka dari cache (misalnya user tekan tombol back)
+          location.reload();
+        }
+      });
     </script>
     <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
