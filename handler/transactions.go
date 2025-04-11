@@ -770,6 +770,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 	bodysign := c.Get("bodysign")
 	appkey := c.Get("appkey")
 	appid := c.Get("appid")
+	token := c.Get("token")
 
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
@@ -867,7 +868,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		if err != nil {
 			log.Println("Updated Midtrans ID error:", err)
 		}
-
+		TransactionCache.Delete(token)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"redirect": res.Actions[0].URL,
@@ -890,7 +891,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			log.Println("Updated Midtrans ID error:", err)
 		}
 
-		// log.Println("redirect: ", res.Actions[0].URL)
+		TransactionCache.Delete(token)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"redirect": res.Actions[1].URL,
@@ -914,7 +915,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			log.Println("Updated Midtrans ID error:", err)
 		}
 
-		// log.Println("redirect: ", res.Actions[0].URL)
+		TransactionCache.Delete(token)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"qrisUrl":  res.Actions[0].URL,
