@@ -51,7 +51,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/mt-smartfren/:token", handler.MTSmartfren)
 	api.Post("/block-mdn", middleware.Protected(), middleware.AdminOnly(true), handler.BlockMDNHandler)
 	api.Post("/unblock-mdn", middleware.Protected(), middleware.AdminOnly(true), handler.UnblockMDNHandler)
-	// api.Post("/bca/inquiry", handler.InquiryBca)
+	api.Post("/bca/inquiry", handler.InquiryBca)
 
 	merchant := api.Group("/merchant")
 	merchant.Get("/transactions", handler.GetTransactionsMerchant)
