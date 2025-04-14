@@ -1508,6 +1508,10 @@ func ManualCallback(c *fiber.Ctx) error {
 		ReferenceID:           referenceID,
 	}
 
+	if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+		callbackData.AppID = transaction.AppID
+		callbackData.ClientAppKey = transaction.ClientAppKey
+	}
 	err = repository.SendCallback(callbackURL, arrClient.ClientSecret, transaction.ID, callbackData)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())

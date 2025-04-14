@@ -674,6 +674,10 @@ func ProcessTransactions() {
 				ItemID:                transaction.ItemId,
 				ReferenceID:           referenceID,
 			}
+			if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+				callbackData.AppID = transaction.AppID
+				callbackData.ClientAppKey = transaction.ClientAppKey
+			}
 
 			// Kirim ke CallbackQueue
 			CallbackQueue <- CallbackQueueStruct{
@@ -705,6 +709,8 @@ type CallbackData struct {
 	ItemName              string `json:"item_name"`
 	ItemID                string `json:"item_id"`
 	ReferenceID           string `json:"reference_id"`
+	AppID                 string `json:"app_id,omitempty"`
+	ClientAppKey          string `json:"client_appkey,omitempty"`
 }
 type CallbackQueueStruct struct {
 	Data          CallbackData
