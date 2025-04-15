@@ -139,7 +139,29 @@ func MoTelkomsel(c *fiber.Ctx) error {
 		log.Println("Mt request failed:", err)
 		return fmt.Errorf("Mt request failed:", err)
 	}
-	log.Println("res", res)
+
+	switch res.Status {
+	case "3:3:21":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Not enough credit"); err != nil {
+			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
+		}
+	case "5:997":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Invalid trx_id"); err != nil {
+			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
+		}
+	case "3:101":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Charging timeout"); err != nil {
+			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
+		}
+	case "2":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Authentication Failed"); err != nil {
+			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
+		}
+	case "4:4:2":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "The provided “tid” by CP is not allowed"); err != nil {
+			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
+		}
+	}
 
 	if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &trxId, nil, "", nil); err != nil {
 		log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
@@ -267,7 +289,7 @@ func CallbackHarsya(c *fiber.Ctx) error {
 		}
 
 	case "PAID":
-		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "Payment completed", receiveCallbackDate)
+		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate)
 		if err != nil {
 			log.Printf("Error updating transaction %s to PAID: %s", transactionID, err)
 		}

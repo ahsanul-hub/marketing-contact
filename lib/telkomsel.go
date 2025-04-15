@@ -5,7 +5,6 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -119,6 +118,9 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 	}
 
 	// keyword := denomConfig["keyword"]
+
+	var response MOResponseTsel
+
 	price := denomConfig["price"]
 	sid := denomConfig["sid"]
 	tid := denomConfig["tid"]
@@ -169,7 +171,7 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 		return MOResponseTsel{}, fmt.Errorf("error reading response body: %v", err)
 	}
 
-	log.Println("res mt Tsel", string(body))
+	// log.Println("res mt Tsel", string(body))
 
 	resBody := string(body)
 
@@ -177,7 +179,10 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 		return MOResponseTsel{}, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)
 	}
 
-	var response MOResponseTsel
+	response = MOResponseTsel{
+		Status:  resBody,
+		Message: "success",
+	}
 
 	return response, nil
 
