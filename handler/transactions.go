@@ -438,6 +438,85 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
+	case "ovo":
+		res, err := lib.ChargingOVO(createdTransId, chargingPrice, transaction.UserMDN)
+		if err != nil {
+			log.Println("Charging request ovo failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		referenceId := fmt.Sprintf("%s-%s", res.ApprovalCode, res.TransactionRequestData.MerchantInvoice)
+
+		now := time.Now()
+
+		receiveCallbackDate := &now
+
+		switch res.ResponseCode {
+		case "00":
+			log.Println("res charge ovo:", res)
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1003, &referenceId, nil, "", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "13":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Invalid amount", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "14":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Invalid Mobile Number / OVO ID", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "17":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Decline", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "25":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Not Found", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "26":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Failed", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "40":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Failed", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "68":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Pending / Timeout", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "94":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Duplicate Request Params", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "ER":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "System Failure", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "EB":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Terminal Blocked", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		case "BR":
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Bad Request", receiveCallbackDate); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+		}
+
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"back_url": transaction.RedirectURL,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+			"guide": fiber.Map{
+				"en": "Please open the OVO application to continue payment.",
+				"id": "Silahkan buka aplikasi OVO untuk melanjutkan pembayaran.",
+			},
+		})
+
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
