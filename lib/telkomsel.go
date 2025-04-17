@@ -2,9 +2,12 @@ package lib
 
 import (
 	"app/config"
+	"app/repository"
+	"context"
 	"crypto/md5"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -94,7 +97,14 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	if resp.StatusCode != http.StatusOK {
 		return MOResponseTsel{}, "", 0, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)
 	}
+	now := time.Now()
 
+	requestDate := &now
+
+	err = repository.UpdateTransactionTimestamps(context.Background(), transactionId, requestDate, nil, nil)
+	if err != nil {
+		log.Printf("Error updating request timestamp for transaction %s: %s", transactionId, err)
+	}
 	// Decode response body
 	var response MOResponseTsel
 

@@ -140,6 +140,10 @@ func MoTelkomsel(c *fiber.Ctx) error {
 		return fmt.Errorf("Mt request failed:", err)
 	}
 
+	now := time.Now()
+
+	receiveCallbackDate := &now
+
 	switch res.Status {
 	case "3:3:21":
 		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Not enough credit"); err != nil {
@@ -163,7 +167,7 @@ func MoTelkomsel(c *fiber.Ctx) error {
 		}
 	}
 
-	if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &trxId, nil, "", nil); err != nil {
+	if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &trxId, nil, "", receiveCallbackDate); err != nil {
 		log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 	}
 
@@ -289,7 +293,7 @@ func CallbackHarsya(c *fiber.Ctx) error {
 		}
 
 	case "PAID":
-		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate)
+		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "Payment completed", receiveCallbackDate)
 		if err != nil {
 			log.Printf("Error updating transaction %s to PAID: %s", transactionID, err)
 		}
