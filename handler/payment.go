@@ -394,6 +394,23 @@ func SuccessPage(c *fiber.Ctx) error {
 			}
 		case "telkomsel_airtime":
 			StrPaymentMethod = "Telkomsel"
+		case "ovo":
+			StrPaymentMethod = "OVO"
+			steps = []string{
+				"Pastikan sudah login ke aplikasi OVO",
+				`Pembayaran akan kadaluarsa dalam 55 detik.`,
+				"Buka notifikasi OVO untuk melakukan pembayaran",
+				`Pilih metode pembayaran "OVO Cash" atau "OVO Point" atau kombinasi keduanya, lalu klik "Bayar".`,
+			}
+		}
+
+		if inputReq.PaymentMethod == "ovo" {
+			return c.Render("success_ovo", fiber.Map{
+				"PaymentMethodStr": StrPaymentMethod,
+				"Msisdn":           msisdn,
+				"RedirectURL":      inputReq.RedirectURL,
+				"Steps":            steps,
+			})
 		}
 
 		return c.Render("success_payment", fiber.Map{
@@ -404,7 +421,7 @@ func SuccessPage(c *fiber.Ctx) error {
 		})
 	}
 
-	return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"success": false, "error": "Error"})
+	return c.Render("notfound", fiber.Map{})
 }
 
 func SuccessPageOTP(c *fiber.Ctx) error {
