@@ -1368,7 +1368,9 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 		switch transaction.StatusCode {
 		case 1005:
 			status = "Failed"
-		case 1001 | 1003:
+		case 1001:
+			status = "Pending"
+		case 1003:
 			status = "Pending"
 		case 1000:
 			status = "Success"
