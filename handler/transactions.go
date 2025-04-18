@@ -115,7 +115,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	}
 
-	if !isMidtrans && !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) {
+	if !isMidtrans && !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) && paymentMethod != "ovo" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error":   "Invalid prefix, please use valid phone number.",
