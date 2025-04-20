@@ -1292,7 +1292,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 	defer writer.Flush()
 
 	// Tulis header CSV
-	header := []string{"ID", "Date", "Merchant Transaction ID", "MDN", "Payment Method", "Amount", "Price", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status Code"}
+	header := []string{"ID", "Date", "Merchant Transaction ID", "MDN", "Payment Method", "Amount", "Price", "Fee", "Net Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status Code"}
 	if err := writer.Write(header); err != nil {
 		return err
 	}
@@ -1302,6 +1302,8 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 	for _, transaction := range transactions {
 		var status string
 		var price uint
+		var fee uint
+		var netAmount uint
 		switch transaction.StatusCode {
 		case 1005:
 			status = "Failed"
@@ -1315,7 +1317,9 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 
 		switch transaction.PaymentMethod {
 		case "qris":
+			fee = uint(float64(transaction.Amount) * 0.8)
 			price = transaction.Amount
+			netAmount = price - fee
 		case "dana":
 			price = transaction.Amount
 		default:
@@ -1332,6 +1336,8 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			transaction.PaymentMethod,
 			strconv.Itoa(int(transaction.Amount)),
 			strconv.Itoa(int(price)),
+			strconv.Itoa(int(fee)),
+			strconv.Itoa(int(netAmount)),
 			transaction.UserId,
 			transaction.AppName,
 			transaction.Currency,
@@ -1354,7 +1360,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 	index, _ := f.NewSheet(sheetName)
 
 	// Tulis header
-	headers := []string{"ID", "Date", "Merchant Transaction ID", "MDN", "Payment Method", "Amount", "Price", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status"}
+	headers := []string{"ID", "Date", "Merchant Transaction ID", "MDN", "Payment Method", "Amount", "Price", "Fee", "Net Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status"}
 	for i, header := range headers {
 		cell := getColumnName(i+1) + "1"
 		f.SetCellValue(sheetName, cell, header)
@@ -1365,6 +1371,9 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 	// Tulis data transaksi
 	for rowIndex, transaction := range transactions {
 		var status string
+		var price uint
+		var fee uint
+		var netAmount uint
 		switch transaction.StatusCode {
 		case 1005:
 			status = "Failed"
@@ -1376,10 +1385,11 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 			status = "Success"
 		}
 
-		var price uint
 		switch transaction.PaymentMethod {
 		case "qris":
 			price = transaction.Amount
+			fee = uint(float64(transaction.Amount) * 0.8)
+			netAmount = price - fee
 		case "dana":
 			price = transaction.Amount
 		default:
@@ -1396,12 +1406,14 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 		f.SetCellValue(sheetName, "E"+strconv.Itoa(row), transaction.PaymentMethod)
 		f.SetCellValue(sheetName, "F"+strconv.Itoa(row), transaction.Amount)
 		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), price)
-		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), transaction.UserId)
-		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), transaction.AppName)
-		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.Currency)
-		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), transaction.ItemName)
-		f.SetCellValue(sheetName, "L"+strconv.Itoa(row), transaction.ItemId)
-		f.SetCellValue(sheetName, "M"+strconv.Itoa(row), status)
+		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), fee)
+		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), netAmount)
+		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.UserId)
+		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), transaction.AppName)
+		f.SetCellValue(sheetName, "L"+strconv.Itoa(row), transaction.Currency)
+		f.SetCellValue(sheetName, "M"+strconv.Itoa(row), transaction.ItemName)
+		f.SetCellValue(sheetName, "N"+strconv.Itoa(row), transaction.ItemId)
+		f.SetCellValue(sheetName, "O"+strconv.Itoa(row), status)
 	}
 
 	// Set border untuk header
