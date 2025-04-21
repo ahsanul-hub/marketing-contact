@@ -93,13 +93,13 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	}
 
-	var isMidtrans bool
+	var isEwallet bool
 
-	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" {
-		isMidtrans = true
+	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" {
+		isEwallet = true
 	}
 
-	if !isMidtrans && (transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "") {
+	if !isEwallet && (transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "") {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amount must not be empty",
 		})
@@ -115,7 +115,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	}
 
-	if !isMidtrans && !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) && paymentMethod != "ovo" {
+	if !isEwallet && !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) && paymentMethod != "ovo" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error":   "Invalid prefix, please use valid phone number.",
