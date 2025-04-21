@@ -516,7 +516,31 @@ func CreateTransaction(c *fiber.Ctx) error {
 				"id": "Silahkan buka aplikasi OVO untuk melanjutkan pembayaran.",
 			},
 		})
+	case "dana":
 
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice)
+		if err != nil {
+			log.Println("Charging request dana failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		// err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
+		// if err != nil {
+		// 	log.Println("Updated Midtrans ID error:", err)
+		// }
+
+		// log.Println("redirect: ", res.Actions[0].URL)
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"back_url": transaction.RedirectURL,
+			"checkout": checkoutUrl,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+		})
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{

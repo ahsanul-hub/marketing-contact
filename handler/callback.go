@@ -5,6 +5,7 @@ import (
 	"app/lib"
 	"app/repository"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"strconv"
@@ -28,6 +29,27 @@ type MidtransCallbackRequest struct {
 	MerchantID        *string `json:"merchant_id"`
 	TransactionTime   *string `json:"transaction_time"`
 	ExpiryTime        *string `json:"expiry_time"`
+}
+
+type DanaCallbackRequest struct {
+	Response struct {
+		Head struct {
+			Version  string `json:"version"`
+			Function string `json:"function"`
+			ClientID string `json:"clientId"`
+			RespTime string `json:"respTime"`
+			ReqMsgId string `json:"reqMsgId"`
+		} `json:"head"`
+		Body struct {
+			ResultInfo struct {
+				ResultStatus string `json:"resultStatus"`
+				ResultCodeId string `json:"resultCodeId"`
+				ResultCode   string `json:"resultCode"`
+				ResultMsg    string `json:"resultMsg"`
+			} `json:"resultInfo"`
+		} `json:"body"`
+	} `json:"response"`
+	Signature string `json:"signature"`
 }
 
 func CallbackTriyakom(c *fiber.Ctx) error {
@@ -232,8 +254,60 @@ func MidtransCallback(c *fiber.Ctx) error {
 }
 
 func DanaCallback(c *fiber.Ctx) error {
+	var req lib.CreateOrderPayload
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
 
-	return nil
+	// if req.OrderID == nil {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"status":  "error",
+	// 		"message": "Missing required fields",
+	// 	})
+	// }
+
+	var transactionID string
+
+	transactionID = req.Request.Body.Order.MerchantTransId
+
+	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
+	if err != nil || transaction == nil {
+		return nil
+	}
+
+	reqJSON, _ := json.MarshalIndent(req, "", "  ")
+	log.Println("Parsed Request JSON:\n", string(reqJSON))
+	// now := time.Now()
+
+	// receiveCallbackDate := &now
+
+	// switch *req.TransactionStatus {
+	// case "settlement":
+	// 	if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
+	// 		log.Printf("Error updating transaction status for %s: %s", *req.TransactionID, err)
+	// 	}
+	// case "expire":
+	// 	if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction expired"); err != nil {
+	// 		log.Printf("Error updating transaction status for %s to expired: %s", *req.TransactionID, err)
+	// 	}
+	// case "cancel", "deny", "failure":
+	// 	if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction failed"); err != nil {
+	// 		log.Printf("Error updating transaction status for %s to failed: %s", *req.TransactionID, err)
+	// 	}
+	// default:
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+	// 		"status":  "error",
+	// 		"message": "Invalid transaction status",
+	// 	})
+	// }
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Callback processed successfully",
+	})
 }
 
 func CallbackHarsya(c *fiber.Ctx) error {

@@ -43,7 +43,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/mo/telkomsel", handler.MoTelkomsel)
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)
 
-	// api.Post("/notify/dana", handler.MidtransCallback)
+	api.Post("/callback/dana", handler.DanaCallback)
 	api.Get("/success-payment/:msisdn/:token", handler.SuccessPage)
 	api.Get("/success-otp/:token", handler.SuccessPageOTP)
 	api.Get("/va-payment/:va", handler.VaPage)
