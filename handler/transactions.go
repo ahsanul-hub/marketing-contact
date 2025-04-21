@@ -439,72 +439,60 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"message":  "Successful Created Transaction",
 		})
 	case "ovo":
-		res, err := lib.ChargingOVO(createdTransId, chargingPrice, transaction.UserMDN)
-		if err != nil {
-			log.Println("Charging request ovo failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"success": false,
-				"message": "Charging request failed",
-			})
-		}
+		resultChan := make(chan *lib.OVOResponse)
+		errorChan := make(chan error)
 
-		referenceId := fmt.Sprintf("%s-%s", res.ApprovalCode, res.TransactionRequestData.MerchantInvoice)
+		// Jalankan ChargingOVO secara async
+		go func() {
+			res, err := lib.ChargingOVO(createdTransId, chargingPrice, transaction.UserMDN)
+			if err != nil {
+				errorChan <- err
+				return
+			}
+			resultChan <- res
+		}()
 
-		now := time.Now()
+		go func() {
+			select {
+			case err := <-errorChan:
+				log.Println("Charging request ovo failed:", err)
+				// Kamu bisa retry atau simpan log error ke DB jika perlu
+				_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, nil, nil, "Charging request failed", nil)
+			case res := <-resultChan:
+				log.Println("res charge ovo:", res)
 
-		receiveCallbackDate := &now
+				referenceId := fmt.Sprintf("%s-%s", res.ApprovalCode, res.TransactionRequestData.MerchantInvoice)
+				now := time.Now()
+				receiveCallbackDate := &now
 
-		switch res.ResponseCode {
-		case "00":
-			log.Println("res charge ovo:", res)
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1003, &referenceId, nil, "", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+				switch res.ResponseCode {
+				case "00":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1003, &referenceId, nil, "", receiveCallbackDate)
+				case "13":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Invalid amount", receiveCallbackDate)
+				case "14":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Invalid Mobile Number / OVO ID", receiveCallbackDate)
+				case "17":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Decline", receiveCallbackDate)
+				case "25":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Not Found", receiveCallbackDate)
+				case "26":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Failed", receiveCallbackDate)
+				case "40":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Failed", receiveCallbackDate)
+				case "68":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Pending / Timeout", receiveCallbackDate)
+				case "94":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Duplicate Request Params", receiveCallbackDate)
+				case "ER":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "System Failure", receiveCallbackDate)
+				case "EB":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Terminal Blocked", receiveCallbackDate)
+				case "BR":
+					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Bad Request", receiveCallbackDate)
+				}
 			}
-		case "13":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Invalid amount", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "14":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Invalid Mobile Number / OVO ID", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "17":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Decline", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "25":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Not Found", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "26":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Failed", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "40":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Failed", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "68":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Transaction Pending / Timeout", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "94":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Duplicate Request Params", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "ER":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "System Failure", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "EB":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Terminal Blocked", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		case "BR":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Bad Request", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-			}
-		}
+		}()
 
 		return c.JSON(fiber.Map{
 			"success":  true,
