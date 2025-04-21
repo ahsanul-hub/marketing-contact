@@ -25,8 +25,9 @@ var (
 )
 
 func getRandomTransactionID() int {
-	rand.Seed(time.Now().UnixNano())
-	return rand.Intn(999999) + 1
+	min := 500000
+	max := 999999
+	return rand.Intn(max-min+1) + min
 }
 
 func getIncrementedTransactionID() int {
@@ -40,7 +41,7 @@ func getIncrementedTransactionID() int {
 	}
 
 	if counter.(int) >= 999999 {
-		counter = 1
+		counter = 500000
 	} else {
 		counter = counter.(int) + 1
 	}
