@@ -31,25 +31,84 @@ type MidtransCallbackRequest struct {
 	ExpiryTime        *string `json:"expiry_time"`
 }
 
-type DanaCallbackRequest struct {
-	Response struct {
+type CallbackDanaPayload struct {
+	Request struct {
 		Head struct {
-			Version  string `json:"version"`
 			Function string `json:"function"`
 			ClientID string `json:"clientId"`
-			RespTime string `json:"respTime"`
-			ReqMsgId string `json:"reqMsgId"`
+			Version  string `json:"version"`
+			ReqTime  string `json:"reqTime"`
+			ReqMsgID string `json:"reqMsgId"`
 		} `json:"head"`
 		Body struct {
-			ResultInfo struct {
-				ResultStatus string `json:"resultStatus"`
-				ResultCodeId string `json:"resultCodeId"`
-				ResultCode   string `json:"resultCode"`
-				ResultMsg    string `json:"resultMsg"`
-			} `json:"resultInfo"`
+			AcquirementID     string `json:"acquirementId"`
+			OrderAmount       Amount `json:"orderAmount"`
+			MerchantID        string `json:"merchantId"`
+			MerchantTransId   string `json:"merchantTransId"`
+			FinishedTime      string `json:"finishedTime"`
+			CreatedTime       string `json:"createdTime"`
+			AcquirementStatus string `json:"acquirementStatus"`
+			PaymentView       struct {
+				PayOptionInfos []struct {
+					TransAmount struct {
+						Currency string `json:"currency"`
+						Value    string `json:"value"`
+					} `json:"transAmount"`
+					PayAmount struct {
+						Currency string `json:"currency"`
+						Value    string `json:"value"`
+					} `json:"payAmount"`
+					PayMethod    string `json:"payMethod"`
+					ChargeAmount struct {
+						Currency string `json:"currency"`
+						Value    string `json:"value"`
+					} `json:"chargeAmount"`
+					ExtendInfo              string `json:"extendInfo"`
+					PayOptionBillExtendInfo string `json:"payOptionBillExtendInfo"`
+				} `json:"payOptionInfos"`
+				CashierRequestID     string `json:"cashierRequestId"`
+				PaidTime             string `json:"paidTime"`
+				PayRequestExtendInfo string `json:"payRequestExtendInfo"`
+				ExtendInfo           string `json:"extendInfo"`
+			} `json:"paymentView"`
+			ExtendInfo string `json:"extendInfo"`
 		} `json:"body"`
-	} `json:"response"`
+	} `json:"request"`
 	Signature string `json:"signature"`
+}
+
+type Amount struct {
+	Currency string `json:"currency"`
+	Value    string `json:"value"`
+}
+
+type DanaCallbackResponse struct {
+	Response  DanaCallbackResponseBody `json:"response"`
+	Signature string                   `json:"signature"`
+}
+
+type DanaCallbackResponseBody struct {
+	Head DanaCallbackResponseHead        `json:"head"`
+	Body DanaCallbackResponseBodyContent `json:"body"`
+}
+
+type DanaCallbackResponseHead struct {
+	Version  string `json:"version"`
+	Function string `json:"function"`
+	ClientID string `json:"clientId"`
+	RespTime string `json:"respTime"`
+	ReqMsgId string `json:"reqMsgId"`
+}
+
+type DanaCallbackResponseBodyContent struct {
+	ResultInfo DanaCallbackResultInfo `json:"resultInfo"`
+}
+
+type DanaCallbackResultInfo struct {
+	ResultStatus string `json:"resultStatus"`
+	ResultCodeId string `json:"resultCodeId"`
+	ResultCode   string `json:"resultCode"`
+	ResultMsg    string `json:"resultMsg"`
 }
 
 func CallbackTriyakom(c *fiber.Ctx) error {
@@ -254,7 +313,11 @@ func MidtransCallback(c *fiber.Ctx) error {
 }
 
 func DanaCallback(c *fiber.Ctx) error {
-	var req lib.CreateOrderPayload
+	body := c.Body()
+	// log.Println("Raw Request Body:\n", string(body))
+	loc := time.FixedZone("IST", 5*60*60+30*60)
+
+	var req CallbackDanaPayload
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
@@ -262,52 +325,94 @@ func DanaCallback(c *fiber.Ctx) error {
 		})
 	}
 
-	// if req.OrderID == nil {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"status":  "error",
-	// 		"message": "Missing required fields",
-	// 	})
-	// }
+	resTime := time.Now().In(loc).Format("2006-01-02T15:04:05-07:00")
 
 	var transactionID string
 
-	transactionID = req.Request.Body.Order.MerchantTransId
+	transactionID = req.Request.Body.MerchantTransId
 
 	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
 	if err != nil || transaction == nil {
 		return nil
 	}
 
-	reqJSON, _ := json.MarshalIndent(req, "", "  ")
-	log.Println("Parsed Request JSON:\n", string(reqJSON))
-	// now := time.Now()
+	minifiedData, err := json.Marshal(req.Request)
+	if err != nil {
+		return fmt.Errorf("error marshalling requestData for sign: %v", err)
+	}
 
-	// receiveCallbackDate := &now
+	expectedSignature, err := helper.GenerateDanaSign(string(minifiedData))
+	if err != nil {
+		return fmt.Errorf("error generating signature: %v", err)
+	}
 
-	// switch *req.TransactionStatus {
-	// case "settlement":
-	// 	if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
-	// 		log.Printf("Error updating transaction status for %s: %s", *req.TransactionID, err)
-	// 	}
-	// case "expire":
-	// 	if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction expired"); err != nil {
-	// 		log.Printf("Error updating transaction status for %s to expired: %s", *req.TransactionID, err)
-	// 	}
-	// case "cancel", "deny", "failure":
-	// 	if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction failed"); err != nil {
-	// 		log.Printf("Error updating transaction status for %s to failed: %s", *req.TransactionID, err)
-	// 	}
-	// default:
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"status":  "error",
-	// 		"message": "Invalid transaction status",
-	// 	})
-	// }
+	if req.Signature != expectedSignature {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid bodysign",
+		})
+	}
 
-	return c.JSON(fiber.Map{
-		"status":  "success",
-		"message": "Callback processed successfully",
-	})
+	// reqJSON, _ := json.MarshalIndent(req, "", "  ")
+	// log.Println("Parsed Request JSON:\n", string(reqJSON))
+
+	status := req.Request.Body.AcquirementStatus
+	now := time.Now()
+
+	receiveCallbackDate := &now
+
+	switch status {
+	case "SUCCESS":
+		log.Println("Success Request Body:\n", string(body))
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	case "CLOSED":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "order is closed"); err != nil {
+			log.Printf("Error updating transaction status for %s to expired: %s", transactionID, err)
+		}
+	case "CANCELLED":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "order is cancelled"); err != nil {
+			log.Printf("Error updating transaction status for %s to failed: %s", transactionID, err)
+		}
+	}
+
+	var resp DanaCallbackResponse
+
+	respBody := DanaCallbackResponseBody{
+		Head: DanaCallbackResponseHead{
+			Version:  req.Request.Head.Version,
+			Function: req.Request.Head.Function,
+			ClientID: req.Request.Head.ClientID,
+			RespTime: resTime,
+			ReqMsgId: req.Request.Head.ReqMsgID,
+		},
+		Body: DanaCallbackResponseBodyContent{
+			ResultInfo: DanaCallbackResultInfo{
+				ResultStatus: "S",
+				ResultCodeId: "00000000",
+				ResultCode:   "SUCCESS",
+				ResultMsg:    "success",
+			},
+		},
+	}
+
+	minifiedDataResp, err := json.Marshal(respBody)
+	if err != nil {
+		return fmt.Errorf("error marshalling requestData for sign: %v", err)
+	}
+
+	respSignature, err := helper.GenerateDanaSign(string(minifiedDataResp))
+	if err != nil {
+		return fmt.Errorf("error generating signature: %v", err)
+	}
+
+	resp = DanaCallbackResponse{
+		Response:  respBody,
+		Signature: respSignature,
+	}
+
+	return c.JSON(resp)
 }
 
 func CallbackHarsya(c *fiber.Ctx) error {
