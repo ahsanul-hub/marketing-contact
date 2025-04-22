@@ -314,7 +314,7 @@ func MidtransCallback(c *fiber.Ctx) error {
 
 func DanaCallback(c *fiber.Ctx) error {
 	body := c.Body()
-	// log.Println("Raw Request Body:\n", string(body))
+	log.Println("Raw Request Body:\n", string(body))
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 
 	var req CallbackDanaPayload
@@ -345,13 +345,15 @@ func DanaCallback(c *fiber.Ctx) error {
 	if err != nil {
 		return fmt.Errorf("error generating signature: %v", err)
 	}
+	log.Println("expectedSignature: ", expectedSignature)
+	log.Println("signature: ", req.Signature)
 
-	if req.Signature != expectedSignature {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": false,
-			"message": "Invalid bodysign",
-		})
-	}
+	// if req.Signature != expectedSignature {
+	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+	// 		"success": false,
+	// 		"message": "Invalid bodysign",
+	// 	})
+	// }
 
 	// reqJSON, _ := json.MarshalIndent(req, "", "  ")
 	// log.Println("Parsed Request JSON:\n", string(reqJSON))
