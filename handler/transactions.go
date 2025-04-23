@@ -525,7 +525,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"back_url": transaction.RedirectURL,
-			"checkout": checkoutUrl,
+			"redirect": checkoutUrl,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
@@ -1087,6 +1087,30 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			"success": true,
 			// "qrisUrl":  res.Actions[0].URL,
 			"back_url": transaction.RedirectURL,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+		})
+	case "dana":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice)
+		if err != nil {
+			log.Println("Charging request dana failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		// err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
+		// if err != nil {
+		// 	log.Println("Updated Midtrans ID error:", err)
+		// }
+
+		TransactionCache.Delete(token)
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"back_url": transaction.RedirectURL,
+			"redirect": checkoutUrl,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})

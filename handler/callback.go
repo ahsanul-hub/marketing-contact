@@ -359,6 +359,7 @@ func DanaCallback(c *fiber.Ctx) error {
 	// log.Println("Parsed Request JSON:\n", string(reqJSON))
 
 	status := req.Request.Body.AcquirementStatus
+	referenceId := req.Request.Body.AcquirementID
 	now := time.Now()
 
 	receiveCallbackDate := &now
@@ -366,16 +367,16 @@ func DanaCallback(c *fiber.Ctx) error {
 	switch status {
 	case "SUCCESS":
 		log.Println("Success Request Body:\n", string(body))
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, &referenceId, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
 		}
 	case "CLOSED":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "order is closed"); err != nil {
-			log.Printf("Error updating transaction status for %s to expired: %s", transactionID, err)
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, &referenceId, nil, "order is closed", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
 		}
 	case "CANCELLED":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "order is cancelled"); err != nil {
-			log.Printf("Error updating transaction status for %s to failed: %s", transactionID, err)
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, &referenceId, nil, "order is cancelled", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
 		}
 	}
 
