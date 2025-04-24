@@ -110,7 +110,8 @@ type DanaResponse struct {
 	Signature string `json:"signature"`
 }
 
-func RequestChargingDana(transactionId, itemName, price string) (string, error) {
+func RequestChargingDana(transactionId, itemName, price, redirectUrl string) (string, error) {
+	var returnUrl string
 
 	loc := time.FixedZone("IST", 5*60*60+30*60) // GMT+5:30
 	reqTime := time.Now().In(loc).Format("2006-01-02T15:04:05-07:00")
@@ -119,11 +120,16 @@ func RequestChargingDana(transactionId, itemName, price string) (string, error) 
 	formattedTomorrow := tomorrow.Format("2006-01-02T15:04:05-07:00")
 
 	notifyUrl := fmt.Sprintf("%s/callback/dana", config.Config("APIURL", ""))
-	returnUrl := fmt.Sprintf("%s/return/dana", config.Config("APIURL", ""))
 	clientId := "2023060711065517686870"
 	clientSecret := "dd4592b541c0c1e2530c044efdf1eb412d94ea6071e9ccead1cfbf1616269d17"
 	merchantId := "216620060007007966853"
 	// log.Println("price", price)
+
+	if redirectUrl != "" {
+		returnUrl = redirectUrl
+	} else {
+		returnUrl = fmt.Sprintf("%s/return/dana", config.Config("APIURL", ""))
+	}
 
 	requestData := RequestData{
 		Head: HeadData{
@@ -213,8 +219,8 @@ func RequestChargingDana(transactionId, itemName, price string) (string, error) 
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(req)
-	log.Println("Error sending request")
 	if err != nil {
+		log.Println("Error sending request")
 		return "", fmt.Errorf("error charging dana: %v", err)
 	}
 	defer resp.Body.Close()

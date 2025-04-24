@@ -507,7 +507,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 	case "dana":
 
 		strPrice := fmt.Sprintf("%d00", chargingPrice)
-		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice)
+		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request dana failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -1092,7 +1092,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		})
 	case "dana":
 		strPrice := fmt.Sprintf("%d00", chargingPrice)
-		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice)
+		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request dana failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
