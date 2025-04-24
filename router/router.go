@@ -41,6 +41,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/callback/harsya", handler.CallbackHarsya)
 	api.Post("/callback/midtrans", handler.MidtransCallback)
 	api.Get("/mo/telkomsel", handler.MoTelkomsel)
+	api.Get("/return/dana", handler.PayReturnSuccess)
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)
 
 	api.Post("/callback/dana", handler.DanaCallback)

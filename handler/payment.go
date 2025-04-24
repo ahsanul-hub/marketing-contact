@@ -322,6 +322,10 @@ func PaymentPage(c *fiber.Ctx) error {
 	return c.Render("notfound", fiber.Map{})
 }
 
+func PayReturnSuccess(c *fiber.Ctx) error {
+	return c.Render("payreturn_success", fiber.Map{})
+}
+
 func QrisPage(c *fiber.Ctx) error {
 	transactionID := c.Params("id")
 
