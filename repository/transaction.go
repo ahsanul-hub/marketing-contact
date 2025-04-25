@@ -634,26 +634,26 @@ func ProcessTransactions() {
 				return
 			}
 
-			var referenceID string
+			// var referenceID string
 
-			switch transaction.PaymentMethod {
-			case "xl_airtime":
-				referenceID = transaction.ReferenceID
-			case "three_airtime":
-				referenceID = transaction.XimpayID
-			case "smartfren_airtime":
-				referenceID = transaction.XimpayID
-			case "indosat_airtime":
-				referenceID = transaction.XimpayID
-			case "gopay":
-				referenceID = transaction.MidtransTransactionId
-			case "shopeepay":
-				referenceID = transaction.MidtransTransactionId
-			case "qris":
-				referenceID = transaction.MidtransTransactionId
-			default:
-				referenceID = transaction.ReferenceID
-			}
+			// switch transaction.PaymentMethod {
+			// case "xl_airtime":
+			// 	referenceID = transaction.ReferenceID
+			// case "three_airtime":
+			// 	referenceID = transaction.XimpayID
+			// case "smartfren_airtime":
+			// 	referenceID = transaction.XimpayID
+			// case "indosat_airtime":
+			// 	referenceID = transaction.XimpayID
+			// case "gopay":
+			// 	referenceID = transaction.MidtransTransactionId
+			// case "shopeepay":
+			// 	referenceID = transaction.MidtransTransactionId
+			// case "qris":
+			// 	referenceID = transaction.MidtransTransactionId
+			// default:
+			// 	referenceID = transaction.ReferenceID
+			// }
 
 			var paymentMethod string
 
@@ -672,7 +672,7 @@ func ProcessTransactions() {
 				Currency:              transaction.Currency,
 				ItemName:              transaction.ItemName,
 				ItemID:                transaction.ItemId,
-				ReferenceID:           referenceID,
+				ReferenceID:           transaction.ID,
 			}
 			if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
 				callbackData.AppID = transaction.AppID
