@@ -314,7 +314,7 @@ func MidtransCallback(c *fiber.Ctx) error {
 
 func DanaCallback(c *fiber.Ctx) error {
 	body := c.Body()
-	log.Println("Raw Request Body:\n", string(body))
+	// log.Println("Raw Request Body:\n", string(body))
 	loc := time.FixedZone("IST", 5*60*60+30*60)
 
 	var req CallbackDanaPayload
@@ -336,17 +336,17 @@ func DanaCallback(c *fiber.Ctx) error {
 		return nil
 	}
 
-	minifiedData, err := json.Marshal(req.Request)
-	if err != nil {
-		return fmt.Errorf("error marshalling requestData for sign: %v", err)
-	}
+	// minifiedData, err := json.Marshal(req.Request)
+	// if err != nil {
+	// 	return fmt.Errorf("error marshalling requestData for sign: %v", err)
+	// }
 
-	expectedSignature, err := helper.GenerateDanaSign(string(minifiedData))
-	if err != nil {
-		return fmt.Errorf("error generating signature: %v", err)
-	}
-	log.Println("expectedSignature: ", expectedSignature)
-	log.Println("signature: ", req.Signature)
+	// expectedSignature, err := helper.GenerateDanaSign(string(minifiedData))
+	// if err != nil {
+	// 	return fmt.Errorf("error generating signature: %v", err)
+	// }
+	// log.Println("expectedSignature: ", expectedSignature)
+	// log.Println("signature: ", req.Signature)
 
 	// if req.Signature != expectedSignature {
 	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -371,10 +371,12 @@ func DanaCallback(c *fiber.Ctx) error {
 			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
 		}
 	case "CLOSED":
+		log.Println("CLOSED Request Body:\n", string(body))
 		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, &referenceId, nil, "order is closed", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
 		}
 	case "CANCELLED":
+		log.Println("CANCELLED Request Body:\n", string(body))
 		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, &referenceId, nil, "order is cancelled", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
 		}
