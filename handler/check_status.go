@@ -63,6 +63,7 @@ func CheckTransactionStatus(c *fiber.Ctx) error {
 		UserID:                transaction.UserId,
 		CreatedDate:           transaction.CreatedAt,
 		MerchantTransactionID: transaction.MtTid,
+		StatusCode:            transaction.StatusCode,
 		PaymentMethod:         transaction.PaymentMethod,
 		Amount:                fmt.Sprintf("%d", transaction.Amount),
 		Status:                status,
