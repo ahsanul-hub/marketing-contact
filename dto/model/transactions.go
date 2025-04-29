@@ -42,6 +42,8 @@ type Transactions struct {
 	RedirectURL             string     `gorm:"type:TEXT" json:"redirect_url"`
 	RedirectTarget          string     `gorm:"type:TEXT" json:"redirect_target"`
 	ReferenceID             string     `gorm:"type:VARCHAR(255)" json:"reference_id"`
+	OvoBatchNo              string     `gorm:"type:VARCHAR(255)" json:"ovo_batch_no"`
+	OvoReferenceNumber      string     `gorm:"type:VARCHAR(255)" json:"ovo_reference_number"`
 	XimpayID                string     `gorm:"type:VARCHAR(100)" json:"ximpay_id"`
 	MidtransTransactionId   string     `gorm:"type:VARCHAR(100)" json:"midtrans_transaction_id"`
 	FailReason              string     `gorm:"type:VARCHAR(255)" json:"fail_reason"`
