@@ -190,10 +190,10 @@ func ChargingOVO(transactionID string, amount uint, usermsisdn string) (*OVOResp
 		log.Printf("Error updating request timestamp for transaction %s: %s", transactionID, err)
 	}
 
-	// err = repository.UpdateOvoRefBatch(context.Background(), transactionID, batchd, batch)
-	// if err != nil {
-	// 	log.Printf("Error updating ref number and batch number for transaction %s: %s", transactionID, err)
-	// }
+	err = repository.UpdateOvoRefBatch(context.Background(), transactionID, batchd, batch)
+	if err != nil {
+		log.Printf("Error updating ref number and batch number for transaction %s: %s", transactionID, err)
+	}
 
 	return &ovoResp, nil
 }
@@ -211,18 +211,18 @@ func CheckStatusOVO(transactionID string, amount uint, usermsisdn, batchNo, refe
 	now := time.Now().Format("2006-01-02 15:04:05.000")
 
 	requestBody := OVOTransactionRequest{
-		Type:           "0100",
-		ProcessingCode: "040000",
-		Amount:         amount,
-		Date:           now,
-		// ReferenceNumber: batch,
-		Tid:        "00020216",
-		Mid:        "210638121215323",
-		MerchantId: "1810638",
-		StoreCode:  "OLH2HPTPREDISIO",
-		AppSource:  "POS",
+		Type:            "0100",
+		ProcessingCode:  "040000",
+		Amount:          amount,
+		Date:            now,
+		ReferenceNumber: referenceNumber,
+		Tid:             "00020216",
+		Mid:             "210638121215323",
+		MerchantId:      "1810638",
+		StoreCode:       "OLH2HPTPREDISIO",
+		AppSource:       "POS",
 		TransactionRequestData: TransactionRequestData{
-			// BatchNo:         batchd,
+			BatchNo:         batchNo,
 			MerchantInvoice: transactionID,
 			Phone:           usermsisdn,
 		},
