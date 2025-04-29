@@ -190,10 +190,10 @@ func ChargingOVO(transactionID string, amount uint, usermsisdn string) (*OVOResp
 		log.Printf("Error updating request timestamp for transaction %s: %s", transactionID, err)
 	}
 
-	err = repository.UpdateOvoRefBatch(context.Background(), transactionID, batchd, batch)
-	if err != nil {
-		log.Printf("Error updating ref number and batch number for transaction %s: %s", transactionID, err)
-	}
+	// err = repository.UpdateOvoRefBatch(context.Background(), transactionID, batchd, batch)
+	// if err != nil {
+	// 	log.Printf("Error updating ref number and batch number for transaction %s: %s", transactionID, err)
+	// }
 
 	return &ovoResp, nil
 }

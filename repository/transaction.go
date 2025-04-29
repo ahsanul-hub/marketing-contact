@@ -406,26 +406,26 @@ func UpdateTransactionStatusExpired(ctx context.Context, transactionID string, n
 	return nil
 }
 
-func UpdateOvoRefBatch(ctx context.Context, transactionID string, ovoBatch, ovoReference string) error {
-	db := database.DB
+// func UpdateOvoRefBatch(ctx context.Context, transactionID string, ovoBatch, ovoReference string) error {
+// 	db := database.DB
 
-	var transaction model.Transactions
-	if err := db.WithContext(ctx).Where("id = ?", transactionID).First(&transaction).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return fmt.Errorf("transaction not found: %s", transactionID)
-		}
-		return fmt.Errorf("error fetching transaction: %w", err)
-	}
+// 	var transaction model.Transactions
+// 	if err := db.WithContext(ctx).Where("id = ?", transactionID).First(&transaction).Error; err != nil {
+// 		if err == gorm.ErrRecordNotFound {
+// 			return fmt.Errorf("transaction not found: %s", transactionID)
+// 		}
+// 		return fmt.Errorf("error fetching transaction: %w", err)
+// 	}
 
-	transaction.OvoBatchNo = ovoBatch
-	transaction.OvoReferenceNumber = ovoReference
+// 	transaction.OvoBatchNo = ovoBatch
+// 	transaction.OvoReferenceNumber = ovoReference
 
-	if err := db.WithContext(ctx).Save(&transaction).Error; err != nil {
-		return fmt.Errorf("failed to update ovo batch and ref number: %w", err)
-	}
+// 	if err := db.WithContext(ctx).Save(&transaction).Error; err != nil {
+// 		return fmt.Errorf("failed to update ovo batch and ref number: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 func GetTransactionVa(ctx context.Context, vaNumber string) (*model.Transactions, error) {
 	var transaction model.Transactions
