@@ -52,6 +52,7 @@ func main() {
 	middleware.PrometheusInit()
 
 	db := database.ConnectDB()
+	handler.StartBlockedUserIDCacheRefresher()
 	go lib.ProcessPendingTransactions()
 	// go repository.ProcessTransactions()
 	go repository.ProcessCallbackQueue()
