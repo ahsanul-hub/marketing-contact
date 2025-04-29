@@ -5,6 +5,7 @@ import (
 	"app/lib"
 	"app/pkg/response"
 	"app/repository"
+	"context"
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
@@ -74,4 +75,23 @@ func CheckTransactionStatus(c *fiber.Ctx) error {
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, resp)
+}
+
+func CheckStatusOvo(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	transaction, err := repository.GetTransactionByID(context.Background(), id)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	res, err := lib.CheckStatusOVO(transaction.ID, transaction.Amount, transaction.UserMDN, transaction.OvoBatchNo, transaction.OvoReferenceNumber)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    res,
+	})
 }
