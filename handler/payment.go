@@ -115,6 +115,16 @@ func CreateOrder(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
+	isBlocked, _ := repository.IsUserIDBlocked(input.UserId, arrClient.ClientName)
+	if isBlocked {
+		log.Println("userID is blocked")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "userID is blocked",
+		})
+
+	}
+
 	// bodyJSON, err := json.Marshal(input)
 	// if err != nil {
 	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{

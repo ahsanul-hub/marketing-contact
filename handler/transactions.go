@@ -127,6 +127,15 @@ func CreateTransaction(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
+	isBlocked, _ := repository.IsUserIDBlocked(transaction.UserId, arrClient.ClientName)
+	if isBlocked {
+		log.Println("userID is blocked")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "userID is blocked",
+		})
+	}
+
 	appName := repository.GetAppNameFromClient(arrClient, appid)
 
 	expectedBodysign := helper.GenerateBodySign(transaction, arrClient.ClientSecret)
@@ -621,6 +630,20 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	}
 
 	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
+	if err != nil {
+		log.Println("Error get client")
+
+	}
+
+	isBlocked, _ = repository.IsUserIDBlocked(transaction.UserId, arrClient.ClientName)
+	if isBlocked {
+		log.Println("userID is blocked")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "userID is blocked",
+		})
+
+	}
 
 	appName := repository.GetAppNameFromClient(arrClient, appid)
 
@@ -1357,7 +1380,10 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			price = transaction.Amount
 			netAmount = price - fee
 		case "dana":
+			feeFloat := float64(transaction.Amount) * 0.018
+			fee = uint(math.Ceil(feeFloat))
 			price = transaction.Amount
+			netAmount = price - fee
 		default:
 			price = transaction.Price
 		}
@@ -1427,7 +1453,10 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 			fee = uint(float64(transaction.Amount) * 0.008)
 			netAmount = price - fee
 		case "dana":
+			feeFloat := float64(transaction.Amount) * 0.018
+			fee = uint(math.Ceil(feeFloat))
 			price = transaction.Amount
+			netAmount = price - fee
 		default:
 			price = transaction.Price
 		}
