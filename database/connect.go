@@ -59,7 +59,7 @@ func ConnectDB() *gorm.DB {
 
 	sqlDB.SetMaxIdleConns(20)
 
-	err = DB.AutoMigrate(&model.User{}, &model.Client{}, &model.ClientApp{}, &model.Transactions{}, &model.PaymentMethodClient{}, &model.PaymentMethod{}, &model.SettlementClient{}, &model.BlockedMDN{})
+	err = DB.AutoMigrate(&model.User{}, &model.Client{}, &model.ClientApp{}, &model.Transactions{}, &model.PaymentMethodClient{}, &model.PaymentMethod{}, &model.SettlementClient{}, &model.BlockedMDN{}, &model.BlockedUserId{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
