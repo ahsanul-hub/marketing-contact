@@ -707,7 +707,7 @@ func ProcessFailedTransactions() {
 
 	var transactions []model.Transactions
 
-	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code FROM transactions WHERE status_code = ? AND (timestamp_callback_result IS NULL OR timestamp_callback_result = '')  AND created_at >= NOW() - INTERVAL '7 days'", 1005).Scan(&transactions).Error
+	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code FROM transactions WHERE status_code = ? AND (timestamp_callback_result IS NULL OR timestamp_callback_result = '')  AND created_at >= NOW() - INTERVAL '3 days'", 1005).Scan(&transactions).Error
 	if err != nil {
 		fmt.Println("Error fetching transactions:", err)
 		return
@@ -730,6 +730,10 @@ func ProcessFailedTransactions() {
 				return
 			}
 
+			if arrClient.FailCallback == "0" {
+				return
+			}
+
 			var callbackURL string
 			for _, app := range arrClient.ClientApps {
 				if app.AppID == transaction.AppID {
@@ -740,11 +744,6 @@ func ProcessFailedTransactions() {
 
 			if callbackURL == "" {
 				log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
-				return
-			}
-
-			if err != nil {
-				log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
 				return
 			}
 
