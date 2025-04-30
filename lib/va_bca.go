@@ -22,7 +22,7 @@ type VaRedpayTokenRequest struct {
 type RedpayVaTokenResp struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
-	ExpireIn    int    `json:"expire_in"`
+	ExpiresIn   int    `json:"expires_in"`
 	Scope       string `json:"scope"`
 }
 

@@ -88,17 +88,31 @@ type ErrorMessage struct {
 }
 
 func InquiryBca(c *fiber.Ctx) error {
+	var resError VaBCAErrorResponse
 
 	authorization := c.Get("Authorization")
 	x_bca_key := c.Get("X-BCA-Key")
 	x_bca_signature := c.Get("X-BCA-Signature")
 	x_bca_timestamp := c.Get("X-BCA-Timestamp")
+	expectedAuthorization := "Basic UjNkMXMxMG46YXRkc1Vxcml3MTQxQVQzTDlQNFo="
 
 	log.Println("authorization", authorization)
 	log.Println("x_bca_key", x_bca_key)
 	log.Println("x_bca_signature", x_bca_signature)
 	log.Println("x_bca_timestamp", x_bca_timestamp)
 
+	if authorization != expectedAuthorization {
+		resError = VaBCAErrorResponse{
+			ErrorCode: "ERROR-INVALID-AUTHORIZATION",
+			ErrorMessage: ErrorMessage{
+				Indonesian: "client_id/client_secret tidak valid",
+				English:    "Invalid client_id/client_secret",
+			},
+		}
+		return c.Status(fiber.StatusOK).JSON(resError)
+	}
+
+	log.Println("token pass")
 	var request BillRequest
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
