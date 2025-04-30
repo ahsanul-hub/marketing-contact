@@ -894,7 +894,7 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data C
 		return err
 	}
 
-	log.Println("callback failed data send:", bodyJSONString)
+	// log.Println("callback failed data send:", bodyJSONString)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("bodysign", bodySign)
 
@@ -957,7 +957,6 @@ func sendCallbackFailedRetry(merchantURL string, transactionID string, secret st
 		err := SendCallbackFailed(merchantURL, secret, transactionID, data)
 		if err == nil {
 			fmt.Println("Callback failed sent successfully")
-			log.Println("Callback failed sent successfully")
 			return nil
 		}
 
