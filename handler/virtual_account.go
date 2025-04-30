@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"app/lib"
 	"app/repository"
 	"context"
 	"fmt"
@@ -74,6 +75,16 @@ type PaymentResponse struct {
 	PaidAmount      string `json:"PaidAmount,omitempty"`
 	TotalAmount     string `json:"TotalAmount,omitempty"`
 	TransactionDate string `json:"TransactionDate,omitempty"`
+}
+
+type VaBCAErrorResponse struct {
+	ErrorCode    string       `json:"ErrorCode"`
+	ErrorMessage ErrorMessage `json:"ErrorMessage"`
+}
+
+type ErrorMessage struct {
+	Indonesian string `json:"Indonesian"`
+	English    string `json:"English"`
 }
 
 func InquiryBca(c *fiber.Ctx) error {
@@ -150,6 +161,32 @@ func InquiryBca(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
+}
+
+func TokenBca(c *fiber.Ctx) error {
+
+	authorization := c.Get("Authorization")
+	expectedAuthorization := "Basic UjNkMXMxMG46YXRkc1Vxcml3MTQxQVQzTDlQNFo="
+
+	var resError VaBCAErrorResponse
+
+	if authorization != expectedAuthorization {
+		resError = VaBCAErrorResponse{
+			ErrorCode: "ERROR-INVALID-AUTHORIZATION",
+			ErrorMessage: ErrorMessage{
+				Indonesian: "client_id/client_secret tidak valid",
+				English:    "Invalid client_id/client_secret",
+			},
+		}
+		return c.Status(fiber.StatusOK).JSON(resError)
+	}
+
+	tokenRedpay, err := lib.RequestTokenVaBCARedpay()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error request token"})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(tokenRedpay)
 }
 
 func PaymentBca(c *fiber.Ctx) error {

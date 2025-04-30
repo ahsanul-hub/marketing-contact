@@ -30,6 +30,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/export/transactions-merchant", handler.ExportTransactionsMerchant)
 	api.Get("/transaction/:id", middleware.Protected(), middleware.AdminOnly(true), handler.GetTransactionByID)
 	api.Post("/manual-callback/:id", middleware.Protected(), middleware.AdminOnly(true), handler.ManualCallback)
+	// api.Get("/mark-paid/:id", middleware.Protected(), middleware.AdminOnly(false), handler.MakePaid)
 	api.Get("/check/:id", handler.CheckTrans)
 	api.Post("/test-payment", handler.TestPayment)
 	api.Post("/receive-callback1", handler.ReceiveCallback)
@@ -45,6 +46,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/check-status/dana/:id", handler.CheckStatusDana)
 	api.Get("/check-status/ovo/:id", handler.CheckStatusOvo)
 	api.Get("/checkstatus/:id", handler.CheckTransactionStatus)
+
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)
 
 	api.Post("/callback/dana", handler.DanaCallback)
@@ -58,6 +60,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/unblock-mdn", middleware.Protected(), middleware.AdminOnly(true), handler.UnblockMDNHandler)
 	api.Post("/unblock-userId", middleware.Protected(), middleware.AdminOnly(true), handler.UnblockUserIDHandler)
 	api.Post("/bca/inquiry", handler.InquiryBca)
+	api.Post("/bca/token", handler.TokenBca)
 
 	merchant := api.Group("/merchant")
 	merchant.Get("/transactions", handler.GetTransactionsMerchant)
