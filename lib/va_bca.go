@@ -5,8 +5,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"time"
@@ -90,13 +88,6 @@ func RequestTokenVaBCARedpay() (*RedpayVaTokenResp, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("request failed with status: %s", resp.Status)
 	}
-
-	body, err = io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response body: %v", err)
-	}
-
-	log.Println("Res", string(body))
 
 	var tokenResp RedpayVaTokenResp
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {

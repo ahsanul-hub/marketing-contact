@@ -183,6 +183,7 @@ func TokenBca(c *fiber.Ctx) error {
 
 	tokenRedpay, err := lib.RequestTokenVaBCARedpay()
 	if err != nil {
+		log.Println(tokenRedpay)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error request token"})
 	}
 
