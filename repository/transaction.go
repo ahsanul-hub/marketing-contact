@@ -5,6 +5,7 @@ import (
 	"app/dto/model"
 	"crypto/hmac"
 	"crypto/sha256"
+	"errors"
 	"math"
 	"strings"
 	"sync"
@@ -14,7 +15,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -508,14 +508,6 @@ func UpdateTransactionKeyword(ctx context.Context, transactionID string, keyword
 
 func GetPendingTransactions(ctx context.Context, paymentMethod string) ([]model.Transactions, error) {
 	var transactions []model.Transactions
-	// timeLimit := time.Now().Add(-8 * time.Minute)
-
-	// if err := database.DB.Select("id, merchant_name", "status_code").Where("status_code = ?", 1001).Find(&transactions).Error; err != nil {
-	// 	if errors.Is(err, gorm.ErrRecordNotFound) {
-	// 		return transactions, nil
-	// 	}
-	// 	return nil, fmt.Errorf("error fetching transactions: %w", err)
-	// }
 
 	query := database.DB.Select("id, merchant_name, status_code, created_at").Where("status_code = ?", 1001)
 
@@ -701,7 +693,95 @@ func ProcessTransactions() {
 			}
 
 			// Kirim ke CallbackQueue
-			CallbackQueue <- CallbackQueueStruct{
+			SuccessCallbackQueue <- CallbackQueueStruct{
+				Data:          callbackData,
+				TransactionId: transaction.ID,
+				Secret:        arrClient.ClientSecret,
+				MerchantURL:   callbackURL,
+			}
+		}(transaction)
+	}
+}
+
+func ProcessFailedTransactions() {
+
+	var transactions []model.Transactions
+
+	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code FROM transactions WHERE status_code = ? AND (timestamp_callback_result IS NULL OR timestamp_callback_result = '')  AND created_at >= NOW() - INTERVAL '7 days'", 1005).Scan(&transactions).Error
+	if err != nil {
+		fmt.Println("Error fetching transactions:", err)
+		return
+	}
+
+	for _, transaction := range transactions {
+		if _, loaded := processedTransactions.LoadOrStore(transaction.ID, true); loaded {
+			continue
+		}
+
+		go func(transaction model.Transactions) {
+			arrClient, err := FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
+			if err != nil {
+				log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
+				return
+			}
+
+			if arrClient == nil || len(arrClient.ClientApps) == 0 {
+				log.Printf("No client data found for transaction %s (AppKey: %s, AppID: %s)", transaction.ID, transaction.ClientAppKey, transaction.AppID)
+				return
+			}
+
+			var callbackURL string
+			for _, app := range arrClient.ClientApps {
+				if app.AppID == transaction.AppID {
+					callbackURL = app.CallbackURL
+					break
+				}
+			}
+
+			if callbackURL == "" {
+				log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
+				return
+			}
+
+			if err != nil {
+				log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
+				return
+			}
+
+			var paymentMethod string
+			var status string
+
+			paymentMethod = transaction.PaymentMethod
+			if transaction.MerchantName == "HIGO GAME PTE LTD" && transaction.PaymentMethod == "qris" {
+				paymentMethod = "qr"
+			}
+
+			switch transaction.StatusCode {
+			case 1005:
+				status = "failed"
+			case 1001:
+				status = "pending"
+			}
+
+			callbackData := CallbackData{
+				UserID:                transaction.UserId,
+				MerchantTransactionID: transaction.MtTid,
+				StatusCode:            transaction.StatusCode,
+				PaymentMethod:         paymentMethod,
+				Amount:                fmt.Sprintf("%d", transaction.Amount),
+				Status:                status,
+				Currency:              transaction.Currency,
+				ItemName:              transaction.ItemName,
+				ItemID:                transaction.ItemId,
+				ReferenceID:           transaction.ID,
+			}
+			if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+				callbackData.AppID = transaction.AppID
+				callbackData.ClientAppKey = transaction.ClientAppKey
+			}
+
+			// Kirim ke CallbackQueue
+			FailedCallbackQueue <- CallbackQueueStruct{
 				Data:          callbackData,
 				TransactionId: transaction.ID,
 				Secret:        arrClient.ClientSecret,
@@ -740,7 +820,8 @@ type CallbackQueueStruct struct {
 	MerchantURL   string
 }
 
-var CallbackQueue = make(chan CallbackQueueStruct, 100)
+var SuccessCallbackQueue = make(chan CallbackQueueStruct, 100)
+var FailedCallbackQueue = make(chan CallbackQueueStruct, 100)
 
 func SendCallback(merchantURL, secret string, transactionID string, data CallbackData) error {
 	jsonData, err := json.Marshal(data)
@@ -797,6 +878,60 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 	return nil
 }
 
+func SendCallbackFailed(merchantURL, secret string, transactionID string, data CallbackData) error {
+	jsonData, err := json.Marshal(data)
+	if err != nil {
+		log.Printf("failed to marshal callback data: %v", err)
+	}
+
+	bodyJSONString := string(jsonData)
+
+	bodySign, _ := GenerateBodySign(bodyJSONString, secret)
+
+	req, err := http.NewRequest(http.MethodPost, merchantURL, bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Printf("failed to create request: %v", err)
+		return err
+	}
+
+	log.Println("callback failed data send:", bodyJSONString)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("bodysign", bodySign)
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Printf("failed to send callback: %v", err)
+		return err
+	}
+	defer resp.Body.Close()
+
+	var responseBody map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
+		log.Printf("failed to decode response body: %v", err)
+	}
+
+	var callbackResult string
+	if result, ok := responseBody["result"]; ok && result != nil {
+		callbackResult = fmt.Sprintf("%v", result)
+	} else {
+		callbackResult = "ok"
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("callback failed with status: %s , bodySign: %s, transactionId: %s", resp.Status, bodySign, transactionID)
+	}
+
+	ctx := context.Background()
+	callbackDate := time.Now()
+
+	if err := UpdateTransactionCallbackTimestamps(ctx, transactionID, data.StatusCode, &callbackDate, callbackResult); err != nil {
+		return fmt.Errorf("failed to update transaction callback timestamps: %v", err)
+	}
+
+	return nil
+}
+
 func sendCallbackWithRetry(merchantURL string, transactionID string, secret string, retries int, data CallbackData) error {
 	for i := 0; i < retries; i++ {
 
@@ -816,15 +951,30 @@ func sendCallbackWithRetry(merchantURL string, transactionID string, secret stri
 	return fmt.Errorf("all retry attempts failed for transactionId: %s", transactionID) // Kembalikan error jika semua percobaan gagal
 }
 
-// func ProcessCallbackQueue() {
-// 	for job := range CallbackQueue {
-// 		log.Printf("Processing callback for transactionId: %s", job.TransactionId)
-// 		sendCallbackWithRetry(job.MerchantURL, job.TransactionId, job.Secret, 5, job.Data)
-// 	}
-// }
+func sendCallbackFailedRetry(merchantURL string, transactionID string, secret string, retries int, data CallbackData) error {
+	for i := 0; i < retries; i++ {
+
+		err := SendCallbackFailed(merchantURL, secret, transactionID, data)
+		if err == nil {
+			fmt.Println("Callback failed sent successfully")
+			log.Println("Callback failed sent successfully")
+			return nil
+		}
+
+		// log.Println("data: ", data)
+
+		time.Sleep(5 * time.Minute)
+	}
+
+	if err := UpdateTransactionCallbackTimestamps(context.Background(), transactionID, data.StatusCode, nil, "failed"); err != nil {
+		return fmt.Errorf("failed to update transaction callback timestamps: %v", err)
+	}
+
+	return fmt.Errorf("all retry attempts failed for transactionId: %s", transactionID) // Kembalikan error jika semua percobaan gagal
+}
 
 func ProcessCallbackQueue() {
-	for job := range CallbackQueue {
+	for job := range SuccessCallbackQueue {
 		// Jalankan pengiriman callback dalam goroutine
 		go func(job CallbackQueueStruct) {
 			// log.Printf("Processing callback for transactionId: %s", job.TransactionId)
@@ -834,6 +984,17 @@ func ProcessCallbackQueue() {
 			}
 		}(job)
 	}
+}
+
+func ProccessFailedCallbackWorker() {
+	go func() {
+		for job := range FailedCallbackQueue {
+			err := sendCallbackFailedRetry(job.MerchantURL, job.TransactionId, job.Secret, 5, job.Data)
+			if err != nil {
+				log.Println("Callback failed, failed to send:", err)
+			}
+		}
+	}()
 }
 
 func GenerateBodySign(bodyJson string, appSecret string) (string, error) {
