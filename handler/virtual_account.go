@@ -87,6 +87,21 @@ type ErrorMessage struct {
 	English    string `json:"English"`
 }
 
+func GetRedpayBCAToken() (string, error) {
+	if cached, found := lib.RedpayTokenCache.Get("redpay_token"); found {
+		tokenData := cached.(lib.CachedToken)
+		if time.Now().Before(tokenData.ExpiredAt) {
+			return tokenData.Token, nil
+		}
+	}
+
+	tokenResp, err := lib.RequestTokenVaBCARedpay()
+	if err != nil {
+		return "", err
+	}
+	return tokenResp.AccessToken, nil
+}
+
 func InquiryBca(c *fiber.Ctx) error {
 	var resError VaBCAErrorResponse
 
@@ -94,7 +109,12 @@ func InquiryBca(c *fiber.Ctx) error {
 	x_bca_key := c.Get("X-BCA-Key")
 	x_bca_signature := c.Get("X-BCA-Signature")
 	x_bca_timestamp := c.Get("X-BCA-Timestamp")
-	expectedAuthorization := "Basic UjNkMXMxMG46YXRkc1Vxcml3MTQxQVQzTDlQNFo="
+
+	token, err := GetRedpayBCAToken()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error get token redpay bca"})
+	}
+	expectedAuthorization := fmt.Sprintf("Bearer %s", token)
 
 	log.Println("authorization", authorization)
 	log.Println("x_bca_key", x_bca_key)

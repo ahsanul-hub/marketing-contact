@@ -8,6 +8,8 @@ import (
 	"math/rand"
 	"net/http"
 	"time"
+
+	"github.com/patrickmn/go-cache"
 )
 
 type ResGenerateVa struct {
@@ -25,6 +27,13 @@ type RedpayVaTokenResp struct {
 	ExpiresIn   int    `json:"expires_in"`
 	Scope       string `json:"scope"`
 }
+
+type CachedToken struct {
+	Token     string
+	ExpiredAt time.Time
+}
+
+var RedpayTokenCache = cache.New(5*time.Minute, 10*time.Minute)
 
 func GenerateVA() (ResGenerateVa, error) {
 
@@ -93,6 +102,16 @@ func RequestTokenVaBCARedpay() (*RedpayVaTokenResp, error) {
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
+
+	expiredAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+
+	// Simpan ke cache
+	cached := CachedToken{
+		Token:     tokenResp.AccessToken,
+		ExpiredAt: expiredAt,
+	}
+
+	RedpayTokenCache.Set("redpay_token", cached, time.Duration(tokenResp.ExpiresIn)*time.Second)
 
 	return &tokenResp, nil
 }
