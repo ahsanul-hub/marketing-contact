@@ -3,10 +3,13 @@ package handler
 import (
 	"app/lib"
 	"app/repository"
+	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"log"
-	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -97,9 +100,38 @@ func GetRedpayBCAToken() (string, error) {
 
 	tokenResp, err := lib.RequestTokenVaBCARedpay()
 	if err != nil {
+		log.Println("error request token lib BCA")
 		return "", err
 	}
 	return tokenResp.AccessToken, nil
+}
+
+func validateBCASignature(c *fiber.Ctx, token, secret, path string) bool {
+	// Ambil raw body dan normalisasi
+	body := c.Body()
+	normalized := bytes.ReplaceAll(body, []byte(" "), []byte(""))
+	normalized = bytes.ReplaceAll(normalized, []byte("\n"), []byte(""))
+	normalized = bytes.ReplaceAll(normalized, []byte("\r"), []byte(""))
+	normalized = bytes.ReplaceAll(normalized, []byte("\t"), []byte(""))
+
+	// SHA256 hash
+	hash := sha256.Sum256(normalized)
+	bodyHash := hex.EncodeToString(hash[:])
+
+	// Ambil header
+	timestamp := c.Get("X-BCA-Timestamp")
+	signatureFromHeader := c.Get("X-BCA-Signature")
+
+	// Bangun string to sign
+	stringToSign := fmt.Sprintf("POST:/bca/%s:%s:%s:%s", path, token, bodyHash, timestamp)
+
+	// Generate HMAC SHA256
+	h := hmac.New(sha256.New, []byte(secret))
+	h.Write([]byte(stringToSign))
+	expectedSignature := hex.EncodeToString(h.Sum(nil))
+
+	// Bandingkan
+	return hmac.Equal([]byte(signatureFromHeader), []byte(expectedSignature))
 }
 
 func InquiryBca(c *fiber.Ctx) error {
@@ -107,21 +139,23 @@ func InquiryBca(c *fiber.Ctx) error {
 
 	authorization := c.Get("Authorization")
 	x_bca_key := c.Get("X-BCA-Key")
-	x_bca_signature := c.Get("X-BCA-Signature")
-	x_bca_timestamp := c.Get("X-BCA-Timestamp")
+	// x_bca_signature := c.Get("X-BCA-Signature")
+	// x_bca_timestamp := c.Get("X-BCA-Timestamp")
+	secret := "jokwFlBC80WNVCJ"
 
 	token, err := GetRedpayBCAToken()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error get token redpay bca"})
 	}
 	expectedAuthorization := fmt.Sprintf("Bearer %s", token)
+	expectedXBCAKEy := "XrPd1pztIr"
 
-	log.Println("authorization", authorization)
-	log.Println("x_bca_key", x_bca_key)
-	log.Println("x_bca_signature", x_bca_signature)
-	log.Println("x_bca_timestamp", x_bca_timestamp)
+	// log.Println("authorization", authorization)
+	// log.Println("x_bca_key", x_bca_key)
+	// log.Println("x_bca_signature", x_bca_signature)
+	// log.Println("x_bca_timestamp", x_bca_timestamp)
 
-	if authorization != expectedAuthorization {
+	if authorization != expectedAuthorization || x_bca_key != expectedXBCAKEy {
 		resError = VaBCAErrorResponse{
 			ErrorCode: "ERROR-INVALID-AUTHORIZATION",
 			ErrorMessage: ErrorMessage{
@@ -129,10 +163,21 @@ func InquiryBca(c *fiber.Ctx) error {
 				English:    "Invalid client_id/client_secret",
 			},
 		}
-		return c.Status(fiber.StatusOK).JSON(resError)
+		return c.Status(fiber.StatusUnauthorized).JSON(resError)
 	}
 
-	log.Println("token pass")
+	if !validateBCASignature(c, token, secret, "inquiry") {
+		resError = VaBCAErrorResponse{
+			ErrorCode: "INVALID_SIGNATURE",
+			ErrorMessage: ErrorMessage{
+				Indonesian: "Signature tidak valid",
+				English:    "Invalid signature",
+			},
+		}
+		return c.Status(fiber.StatusUnauthorized).JSON(resError)
+	}
+
+	// log.Println("token pass")
 	var request BillRequest
 	if err := c.BodyParser(&request); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
@@ -142,17 +187,18 @@ func InquiryBca(c *fiber.Ctx) error {
 
 	vaNumber := fmt.Sprintf("11131%s", request.CustomerNumber)
 
-	data, found := VaTransactionCache.Get(vaNumber)
-	if !found {
-		return c.Status(fiber.StatusNotFound).SendString("Transaction not found or expired")
-	}
+	// data, found := VaTransactionCache.Get(vaNumber)
+	// if !found {
+	// 	return c.Status(fiber.StatusNotFound).SendString("Transaction not found or expired")
+	// }
+	// log.Println("dataVa", data)
 
 	// Pecah qrisUrl dan acquirer
-	dataStr := data.(string)
-	parts := strings.Split(dataStr, "|")
-	if len(parts) != 3 {
-		return c.Status(fiber.StatusInternalServerError).SendString("Invalid data format")
-	}
+	// dataStr := data.(string)
+	// parts := strings.Split(dataStr, "|")
+	// if len(parts) != 3 {
+	// 	return c.Status(fiber.StatusInternalServerError).SendString("Invalid data format")
+	// }
 	// transactionID := parts[0]
 
 	transaction, err := repository.GetTransactionVa(context.Background(), vaNumber)

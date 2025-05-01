@@ -97,7 +97,7 @@ func CreateOrder(ctx context.Context, input *model.InputPaymentRequest, client *
 // 	return intVal
 // }
 
-func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, client *model.Client, appkey, appid string) (string, uint, error) {
+func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, client *model.Client, appkey, appid string, vaBca *string) (string, uint, error) {
 	span, _ := apm.StartSpan(ctx, "CreateTransaction", "repository")
 	defer span.End()
 
@@ -159,6 +159,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	transaction.MerchantName = client.ClientName
 	transaction.AppName = client.AppName
 	transaction.ClientAppKey = appkey
+	transaction.VaBca = *vaBca
 
 	if err := database.DB.Create(&transaction).Error; err != nil {
 		log.Println("Failed to create transaction:", err)

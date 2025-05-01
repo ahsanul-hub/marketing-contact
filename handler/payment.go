@@ -498,18 +498,18 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	// res, err := lib.GenerateVA()
-	// if err != nil {
-	// 	log.Println("Generate va failed:", err)
-	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-	// 		"success": false,
-	// 		"message": "Generate Va failed",
-	// 	})
-	// }
+	res, err := lib.GenerateVA()
+	if err != nil {
+		log.Println("Generate va failed:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Generate Va failed",
+		})
+	}
 
 	var transactionID string
 
-	transactionID, _, err = repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
+	transactionID, _, err = repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid, &res.VaNumber)
 	if err != nil {
 		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
@@ -517,14 +517,14 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 
 	switch transaction.PaymentMethod {
 	case "va_bca":
-		res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BCA", transaction.Amount)
-		if err != nil {
-			log.Println("Generate va failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"success": false,
-				"message": "Generate Va failed",
-			})
-		}
+		// res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BCA", transaction.Amount)
+		// if err != nil {
+		// 	log.Println("Generate va failed:", err)
+		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// 		"success": false,
+		// 		"message": "Generate Va failed",
+		// 	})
+		// }
 
 		// var vaPayment http.VaPayment
 
@@ -545,11 +545,17 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 		// 	bankName = "CIMB"
 		// }
 
+		// vaPayment := http.VaPayment{
+		// 	VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
+		// 	TransactionID: transactionID,
+		// 	Bank:          "BCA",
+		// 	ExpiredDate:   res.Data.ExpiryAt,
+		// }
 		vaPayment := http.VaPayment{
-			VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
+			VaNumber:      res.VaNumber,
 			TransactionID: transactionID,
 			Bank:          "BCA",
-			ExpiredDate:   res.Data.ExpiryAt,
+			ExpiredDate:   res.ExpiredTime,
 		}
 
 		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)

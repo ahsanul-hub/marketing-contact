@@ -60,6 +60,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/unblock-mdn", middleware.Protected(), middleware.AdminOnly(true), handler.UnblockMDNHandler)
 	api.Post("/unblock-userId", middleware.Protected(), middleware.AdminOnly(true), handler.UnblockUserIDHandler)
 	api.Post("/bca/inquiry", handler.InquiryBca)
+	api.Post("/bca/payment", handler.PaymentBca)
 	api.Post("/bca/token", handler.TokenBca)
 
 	merchant := api.Group("/merchant")

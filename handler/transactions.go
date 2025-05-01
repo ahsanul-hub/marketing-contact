@@ -173,7 +173,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 	arrClient.AppName = appName
 	transaction.PaymentMethod = paymentMethod
 
-	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, appkey, appid)
+	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, appkey, appid, nil)
 	if err != nil {
 		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
@@ -656,7 +656,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	createdTransId, chargingPrice, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
+	createdTransId, chargingPrice, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid, nil)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -956,11 +956,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 	transaction.BodySign = bodysign
 	arrClient.AppName = appName
 
-	if err != nil {
-		return response.Response(c, fiber.StatusBadRequest, "E0001")
-	}
-
-	createdTransId, chargingPrice, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid)
+	createdTransId, chargingPrice, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid, nil)
 	if err != nil {
 		log.Println("err", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Internal Server Error", "response": "error create transaction", "data": err})
