@@ -33,24 +33,13 @@ type BillResponse struct {
 		Indonesian string `json:"Indonesian,omitempty"`
 		English    string `json:"English,omitempty"`
 	} `json:"InquiryReason,omitempty"`
-	CustomerName string `json:"CustomerName,omitempty"`
-	CurrencyCode string `json:"CurrencyCode,omitempty"`
-	TotalAmount  string `json:"TotalAmount,omitempty"`
-	SubCompany   string `json:"SubCompany,omitempty"`
-	DetailBills  *[]struct {
-		BillDescription *struct {
-			Indonesian string `json:"Indonesian,omitempty"`
-			English    string `json:"English,omitempty"`
-		} `json:"BillDescription,omitempty"`
-		BillAmount     string `json:"BillAmount,omitempty"`
-		BillNumber     string `json:"BillNumber,omitempty"`
-		BillSubCompany string `json:"BillSubCompany,omitempty"`
-	} `json:"DetailBills,omitempty"`
-	FreeTexts *[]struct {
-		Indonesian string `json:"Indonesian,omitempty"`
-		English    string `json:"English,omitempty"`
-	} `json:"FreeTexts,omitempty"`
-	AdditionalData string `json:"AdditionalData,omitempty"`
+	CustomerName   string   `json:"CustomerName,omitempty"`
+	CurrencyCode   string   `json:"CurrencyCode,omitempty"`
+	TotalAmount    string   `json:"TotalAmount,omitempty"`
+	SubCompany     string   `json:"SubCompany,omitempty"`
+	DetailBills    []string `json:"DetailBills,omitempty"`
+	FreeText       []string `json:"FreeText,omitempty"`
+	AdditionalData string   `json:"AdditionalData"`
 }
 
 type PaymentRequest struct {
@@ -104,7 +93,7 @@ type PaymentResponse struct {
 	TransactionDate string   `json:"TransactionDate,omitempty"`
 	DetailBills     []string `json:"DetailBills,omitempty"`
 	FreeText        []string `json:"FreeText,omitempty"`
-	AdditionalData  string   `json:"AdditionalData,omitempty"`
+	AdditionalData  string   `json:"AdditionalData"`
 }
 
 type VaBCAErrorResponse struct {
@@ -243,8 +232,8 @@ func InquiryBca(c *fiber.Ctx) error {
 				English:    "Invalid VA number or expired",
 			},
 			CurrencyCode: "IDR",
-			// TotalAmount:  "150000.00",
-			SubCompany: "00000",
+			TotalAmount:  fmt.Sprintf("%d.00", transaction.Amount),
+			SubCompany:   "00000",
 		}
 		return c.Status(fiber.StatusOK).JSON(response)
 	}
@@ -262,9 +251,12 @@ func InquiryBca(c *fiber.Ctx) error {
 			Indonesian: "Sukses",
 			English:    "Success",
 		},
-		CurrencyCode: "IDR",
-		TotalAmount:  totalAmount,
-		SubCompany:   "00000",
+		CurrencyCode:   "IDR",
+		TotalAmount:    totalAmount,
+		SubCompany:     "00000",
+		DetailBills:    []string{},
+		FreeText:       []string{},
+		AdditionalData: "",
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
