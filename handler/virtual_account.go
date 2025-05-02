@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"gorm.io/gorm"
 )
 
 type BillRequest struct {
@@ -59,8 +58,15 @@ type PaymentRequest struct {
 	CustomerNumber  string `json:"CustomerNumber"`
 	RequestID       string `json:"RequestID"`
 	ChannelType     string `json:"ChannelType"`
+	CustomerName    string `json:"CustomerName"`
+	CurrencyCode    string `json:"CurrencyCode"`
+	PaidAmount      uint   `json:"PaidAmount"`
+	TotalAmount     uint   `json:"TotalAmount"`
+	SubCompany      string `json:"SubCompany"`
 	TransactionDate string `json:"TransactionDate"`
-	AmountPaid      uint   `json:"PaidAmount"`
+	Reference       uint   `json:"Reference"`
+	DetailBills     uint   `json:"DetailBills,omitempty"`
+	FlagAdvice      uint   `json:"FlagAdvice"`
 	AdditionalData  string `json:"AdditionalData,omitempty"`
 }
 
@@ -74,10 +80,14 @@ type PaymentResponse struct {
 		Indonesian string `json:"Indonesian,omitempty"`
 		English    string `json:"English,omitempty"`
 	} `json:"PaymentFlagReason,omitempty"`
-	CurrencyCode    string `json:"CurrencyCode,omitempty"`
-	PaidAmount      string `json:"PaidAmount,omitempty"`
-	TotalAmount     string `json:"TotalAmount,omitempty"`
-	TransactionDate string `json:"TransactionDate,omitempty"`
+	CustomerName    string   `json:"CustomerName"`
+	CurrencyCode    string   `json:"CurrencyCode,omitempty"`
+	PaidAmount      string   `json:"PaidAmount,omitempty"`
+	TotalAmount     string   `json:"TotalAmount,omitempty"`
+	TransactionDate string   `json:"TransactionDate,omitempty"`
+	DetailBills     []string `json:"DetailBills,omitempty"`
+	FreeText        []string `json:"FreeText,omitempty"`
+	AdditionalData  string   `json:"AdditionalData,omitempty"`
 }
 
 type VaBCAErrorResponse struct {
@@ -276,23 +286,119 @@ func PaymentBca(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
+	var response PaymentResponse
+
+	authorization := c.Get("Authorization")
+	x_bca_key := c.Get("X-BCA-Key")
+	secret := "jokwFlBC80WNVCJ"
+
+	var resError VaBCAErrorResponse
+
+	token, err := GetRedpayBCAToken()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error get token redpay bca"})
+	}
+	expectedAuthorization := fmt.Sprintf("Bearer %s", token)
+	expectedXBCAKEy := "XrPd1pztIr"
+
+	if authorization != expectedAuthorization || x_bca_key != expectedXBCAKEy {
+		resError = VaBCAErrorResponse{
+			ErrorCode: "ERROR-INVALID-AUTHORIZATION",
+			ErrorMessage: ErrorMessage{
+				Indonesian: "client_id/client_secret tidak valid",
+				English:    "Invalid client_id/client_secret",
+			},
+		}
+		return c.Status(fiber.StatusUnauthorized).JSON(resError)
+	}
+
+	if !validateBCASignature(c, token, secret, "payment") {
+		resError = VaBCAErrorResponse{
+			ErrorCode: "INVALID_SIGNATURE",
+			ErrorMessage: ErrorMessage{
+				Indonesian: "Signature tidak valid",
+				English:    "Invalid signature",
+			},
+		}
+		return c.Status(fiber.StatusUnauthorized).JSON(resError)
+	}
+
 	vaNumber := fmt.Sprintf("11131%s", request.CustomerNumber)
 
 	transaction, err := repository.GetTransactionVa(context.Background(), vaNumber)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Transaction not found or expired"})
+		response = PaymentResponse{
+			CompanyCode:       request.CompanyCode,
+			CustomerNumber:    request.CustomerNumber,
+			RequestID:         request.RequestID,
+			PaymentFlagStatus: "01",
+			PaymentFlagReason: &struct {
+				Indonesian string `json:"Indonesian,omitempty"`
+				English    string `json:"English,omitempty"`
+			}{
+				Indonesian: "Nomor VA tidak valid",
+				English:    "Invalid VA number",
+			},
+			CurrencyCode:    "IDR",
+			PaidAmount:      fmt.Sprintf("%d.00", request.PaidAmount),
+			TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
+			TransactionDate: time.Now().Format("2006-01-02 15:04:05"),
+			DetailBills:     []string{},
+			FreeText:        []string{},
+			AdditionalData:  "",
 		}
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Database error"})
+
+		return c.Status(fiber.StatusOK).JSON(response)
 	}
 
 	timeLimit := time.Now().Add(-70 * time.Minute)
 	if transaction.CreatedAt.Before(timeLimit) {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Transaction expired"})
+		response = PaymentResponse{
+			CompanyCode:       request.CompanyCode,
+			CustomerNumber:    request.CustomerNumber,
+			RequestID:         request.RequestID,
+			PaymentFlagStatus: "01",
+			PaymentFlagReason: &struct {
+				Indonesian string `json:"Indonesian,omitempty"`
+				English    string `json:"English,omitempty"`
+			}{
+				Indonesian: "Payment tidak valid",
+				English:    "Invalid payment",
+			},
+			CurrencyCode:    "IDR",
+			PaidAmount:      fmt.Sprintf("%d.00", request.PaidAmount),
+			TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
+			TransactionDate: time.Now().Format("2006-01-02 15:04:05"),
+			DetailBills:     []string{},
+			FreeText:        []string{},
+			AdditionalData:  "",
+		}
+
+		return c.Status(fiber.StatusOK).JSON(response)
 	}
 
-	if request.AmountPaid != transaction.Amount {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid payment amount"})
+	if request.PaidAmount != transaction.Amount {
+		response = PaymentResponse{
+			CompanyCode:       request.CompanyCode,
+			CustomerNumber:    request.CustomerNumber,
+			RequestID:         request.RequestID,
+			PaymentFlagStatus: "01",
+			PaymentFlagReason: &struct {
+				Indonesian string `json:"Indonesian,omitempty"`
+				English    string `json:"English,omitempty"`
+			}{
+				Indonesian: "Payment tidak valid",
+				English:    "Invalid payment",
+			},
+			CurrencyCode:    "IDR",
+			PaidAmount:      fmt.Sprintf("%d.00", request.PaidAmount),
+			TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
+			TransactionDate: time.Now().Format("2006-01-02 15:04:05"),
+			DetailBills:     []string{},
+			FreeText:        []string{},
+			AdditionalData:  "",
+		}
+		return c.Status(fiber.StatusOK).JSON(response)
 	}
 
 	now := time.Now()
@@ -304,8 +410,7 @@ func PaymentBca(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update transaction status"})
 	}
 
-	// Format response
-	response := PaymentResponse{
+	response = PaymentResponse{
 		CompanyCode:       request.CompanyCode,
 		CustomerNumber:    request.CustomerNumber,
 		RequestID:         request.RequestID,
@@ -314,13 +419,17 @@ func PaymentBca(c *fiber.Ctx) error {
 			Indonesian string `json:"Indonesian,omitempty"`
 			English    string `json:"English,omitempty"`
 		}{
-			Indonesian: "Pembayaran sukses",
-			English:    "Payment successful",
+			Indonesian: "Sukses",
+			English:    "Success",
 		},
+		CustomerName:    request.CustomerName,
 		CurrencyCode:    "IDR",
-		PaidAmount:      fmt.Sprintf("%d.00", request.AmountPaid),
+		PaidAmount:      fmt.Sprintf("%d.00", request.PaidAmount),
 		TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
 		TransactionDate: time.Now().Format("2006-01-02 15:04:05"),
+		DetailBills:     []string{},
+		FreeText:        []string{},
+		AdditionalData:  "",
 	}
 
 	return c.Status(fiber.StatusOK).JSON(response)
