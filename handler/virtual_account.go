@@ -99,8 +99,8 @@ type PaymentResponse struct {
 	} `json:"PaymentFlagReason,omitempty"`
 	CustomerName    string   `json:"CustomerName"`
 	CurrencyCode    string   `json:"CurrencyCode,omitempty"`
-	PaidAmount      string   `json:"PaidAmount,omitempty"`
-	TotalAmount     string   `json:"TotalAmount,omitempty"`
+	PaidAmount      uint     `json:"PaidAmount,omitempty"`
+	TotalAmount     uint     `json:"TotalAmount,omitempty"`
 	TransactionDate string   `json:"TransactionDate,omitempty"`
 	DetailBills     []string `json:"DetailBills,omitempty"`
 	FreeText        []string `json:"FreeText,omitempty"`
@@ -357,8 +357,8 @@ func PaymentBca(c *fiber.Ctx) error {
 				English:    "Invalid VA number",
 			},
 			CurrencyCode:    "IDR",
-			PaidAmount:      fmt.Sprintf("%d.00", request.PaidAmount),
-			TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
+			PaidAmount:      request.PaidAmount,
+			TotalAmount:     transaction.Amount,
 			TransactionDate: time.Now().Format("2006-01-02 15:04:05"),
 			DetailBills:     []string{},
 			FreeText:        []string{},
@@ -383,8 +383,8 @@ func PaymentBca(c *fiber.Ctx) error {
 				English:    "Invalid payment",
 			},
 			CurrencyCode:    "IDR",
-			PaidAmount:      fmt.Sprintf("%d.00", request.PaidAmount),
-			TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
+			PaidAmount:      request.PaidAmount,
+			TotalAmount:     transaction.Amount,
 			TransactionDate: time.Now().Format("2006-01-02 15:04:05"),
 			DetailBills:     []string{},
 			FreeText:        []string{},
@@ -410,8 +410,8 @@ func PaymentBca(c *fiber.Ctx) error {
 				English:    "Invalid payment",
 			},
 			CurrencyCode:    "IDR",
-			PaidAmount:      fmt.Sprintf("%d.00", request.PaidAmount),
-			TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
+			PaidAmount:      request.PaidAmount,
+			TotalAmount:     transaction.Amount,
 			TransactionDate: time.Now().Format("2006-01-02 15:04:05"),
 			DetailBills:     []string{},
 			FreeText:        []string{},
@@ -444,8 +444,8 @@ func PaymentBca(c *fiber.Ctx) error {
 		},
 		CustomerName:    request.CustomerName,
 		CurrencyCode:    "IDR",
-		PaidAmount:      fmt.Sprintf("%d.00", request.PaidAmount),
-		TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
+		PaidAmount:      request.PaidAmount,
+		TotalAmount:     transaction.Amount,
 		TransactionDate: time.Now().Format("2006-01-02 15:04:05"),
 		DetailBills:     []string{},
 		FreeText:        []string{},
