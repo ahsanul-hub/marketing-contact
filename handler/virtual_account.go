@@ -64,11 +64,28 @@ type PaymentRequest struct {
 	TotalAmount     uint   `json:"TotalAmount"`
 	SubCompany      string `json:"SubCompany"`
 	TransactionDate string `json:"TransactionDate"`
-	Reference       uint   `json:"Reference"`
-	DetailBills     uint   `json:"DetailBills,omitempty"`
-	FlagAdvice      uint   `json:"FlagAdvice"`
+	Reference       string `json:"Reference"`
+	DetailBills     string `json:"DetailBills,omitempty"`
+	FlagAdvice      string `json:"FlagAdvice"`
 	AdditionalData  string `json:"AdditionalData,omitempty"`
 }
+
+// {
+// 	"CompanyCode": "11131",
+//    "CustomerNumber": "1592314503",
+//    "RequestID": "202503270016541113100898856378",
+//    "ChannelType": "6017",
+//    "CustomerName":"Ahsanul Waladi",
+//    "CurrencyCode":"IDR",
+//    "PaidAmount":"10000",
+//    "TotalAmount":"10000",
+//    "SubCompany":"Redision",
+//    "TransactionDate": "22/04/2025 14:10:29",
+//    "Reference": "frgtw453564523u",
+//    "DetailBills": "",
+//    "FlagAdvice": "Y",
+//    "AdditionalData": ""
+// }
 
 // Struktur response untuk pembayaran
 type PaymentResponse struct {
@@ -405,6 +422,7 @@ func PaymentBca(c *fiber.Ctx) error {
 
 	receiveCallbackDate := &now
 
+	// log.Println("token pass")
 	err = repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, nil, nil, "", receiveCallbackDate)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update transaction status"})
