@@ -393,6 +393,8 @@ func PaymentBca(c *fiber.Ctx) error {
 
 		return c.Status(fiber.StatusOK).JSON(response)
 	}
+	log.Println("request.PaidAmount", request.PaidAmount)
+	log.Println("amount", transaction.Amount)
 
 	if request.PaidAmount != transaction.Amount {
 		response = PaymentResponse{
