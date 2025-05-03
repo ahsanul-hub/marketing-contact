@@ -1346,8 +1346,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 	writer := csv.NewWriter(c)
 	defer writer.Flush()
 
-	// Tulis header CSV
-	header := []string{"ID", "Date", "Merchant Transaction ID", "MDN", "Payment Method", "Amount", "Price", "Fee", "Net Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status Code"}
+	header := []string{"ID", "Merchant Transaction ID", "Date", "MDN", "Merchant", "App", "Amount", "Price", "Fee", "Item", "Method", "Net Amount", "User ID", "Currency", "Item ID", "Status"}
 	if err := writer.Write(header); err != nil {
 		return err
 	}
@@ -1384,22 +1383,28 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			price = transaction.Price
 		}
 
-		createdAt := transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
+		var createdAt string
+		if transaction.AppName == "Zingplay games" {
+			createdAt = fmt.Sprintf("\"%s\"", transaction.CreatedAt.In(loc).Format("01/02/2006 15:04:05"))
+		} else {
+			createdAt = transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
+		}
 
 		record := []string{
 			transaction.ID,
-			createdAt,
 			transaction.MtTid,
+			createdAt,
 			transaction.UserMDN,
-			transaction.PaymentMethod,
+			transaction.MerchantName,
+			transaction.AppName,
 			strconv.Itoa(int(transaction.Amount)),
 			strconv.Itoa(int(price)),
 			strconv.Itoa(int(fee)),
+			transaction.ItemName,
+			transaction.PaymentMethod,
 			strconv.Itoa(int(netAmount)),
 			transaction.UserId,
-			transaction.AppName,
 			transaction.Currency,
-			transaction.ItemName,
 			transaction.ItemId,
 			status,
 		}
@@ -1418,7 +1423,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 	index, _ := f.NewSheet(sheetName)
 
 	// Tulis header
-	headers := []string{"ID", "Date", "Merchant Transaction ID", "MDN", "Payment Method", "Amount", "Price", "Fee", "Net Amount", "User ID", "App Name", "Currency", "Item Name", "Item ID", "Status"}
+	headers := []string{"ID", "Merchant Transaction ID", "Date", "MDN", "Merchant", "App", "Amount", "Price", "Fee", "Item", "Method", "Net Amount", "User ID", "Currency", "Item ID", "Status"}
 	for i, header := range headers {
 		cell := getColumnName(i+1) + "1"
 		f.SetCellValue(sheetName, cell, header)
@@ -1457,31 +1462,32 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 			price = transaction.Price
 		}
 
-		createdAt := transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
+		var createdAt string
+		if transaction.AppName == "Zingplay games" {
+			createdAt = fmt.Sprintf("\"%s\"", transaction.CreatedAt.In(loc).Format("01/02/2006 15:04:05"))
+		} else {
+			createdAt = transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
+		}
 
-		row := rowIndex + 2 // Mulai dari baris kedua setelah header
+		row := rowIndex + 2
 		f.SetCellValue(sheetName, "A"+strconv.Itoa(row), transaction.ID)
-		f.SetCellValue(sheetName, "B"+strconv.Itoa(row), createdAt)
-		f.SetCellValue(sheetName, "C"+strconv.Itoa(row), transaction.MtTid)
+		f.SetCellValue(sheetName, "B"+strconv.Itoa(row), transaction.MtTid)
+		f.SetCellValue(sheetName, "C"+strconv.Itoa(row), createdAt)
 		f.SetCellValue(sheetName, "D"+strconv.Itoa(row), transaction.UserMDN)
-		f.SetCellValue(sheetName, "E"+strconv.Itoa(row), transaction.PaymentMethod)
-		f.SetCellValue(sheetName, "F"+strconv.Itoa(row), transaction.Amount)
-		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), price)
-		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), fee)
-		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), netAmount)
-		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.UserId)
-		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), transaction.AppName)
-		f.SetCellValue(sheetName, "L"+strconv.Itoa(row), transaction.Currency)
-		f.SetCellValue(sheetName, "M"+strconv.Itoa(row), transaction.ItemName)
-		f.SetCellValue(sheetName, "N"+strconv.Itoa(row), transaction.ItemId)
-		f.SetCellValue(sheetName, "O"+strconv.Itoa(row), status)
+		f.SetCellValue(sheetName, "E"+strconv.Itoa(row), transaction.MerchantName)
+		f.SetCellValue(sheetName, "F"+strconv.Itoa(row), transaction.AppName)
+		f.SetCellValue(sheetName, "G"+strconv.Itoa(row), transaction.Amount)
+		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), price)
+		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), fee)
+		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.ItemName)
+		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), transaction.PaymentMethod)
+		f.SetCellValue(sheetName, "L"+strconv.Itoa(row), netAmount)
+		f.SetCellValue(sheetName, "M"+strconv.Itoa(row), transaction.UserId)
+		f.SetCellValue(sheetName, "N"+strconv.Itoa(row), transaction.Currency)
+		f.SetCellValue(sheetName, "O"+strconv.Itoa(row), transaction.ItemId)
+		f.SetCellValue(sheetName, "P"+strconv.Itoa(row), status)
 	}
 
-	// Set border untuk header
-	// style, err := f.NewStyle(`{"border":[{"type":"thin","color":"#000000","size":1}]}`)
-	// if err != nil {
-	// 	return err
-	// }
 	for i := 0; i < len(headers); i++ {
 		// cell := getColumnName(i+1) + "1"
 		// f.SetCellStyle(sheetName, cell, cell,)
