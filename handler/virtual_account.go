@@ -251,6 +251,7 @@ func InquiryBca(c *fiber.Ctx) error {
 			Indonesian: "Sukses",
 			English:    "Success",
 		},
+		CustomerName:   transaction.CustomerName,
 		CurrencyCode:   "IDR",
 		TotalAmount:    totalAmount,
 		SubCompany:     "00000",

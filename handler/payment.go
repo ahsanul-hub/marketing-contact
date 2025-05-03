@@ -493,6 +493,7 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	transaction.BodySign = bodysign
 	arrClient.AppName = appName
+	transaction.CustomerName = transaction.CustomerName
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
@@ -956,3 +957,20 @@ func GetAllCachedTransactions(c *fiber.Ctx) error {
 
 	return c.JSON(transactions)
 }
+
+// func MakePaid(c *fiber.Ctx) error {
+// 	id := c.Params("id")
+
+// 	err := repository.UpdateTransactionStatus(context.Background(), id, 1003, nil, nil, "", nil)
+// 	if err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"message": "failed to update transaction",
+// 			"error":   err.Error(),
+// 		})
+// 	}
+
+// 	return c.JSON(fiber.Map{
+// 		"message":       "transaction updated to paid",
+// 		"transactionId": id,
+// 	})
+// }
