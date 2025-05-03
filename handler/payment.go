@@ -493,7 +493,6 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	transaction.BodySign = bodysign
 	arrClient.AppName = appName
-	transaction.CustomerName = transaction.CustomerName
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")

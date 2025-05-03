@@ -153,6 +153,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		Amount:        input.Amount,
 		ItemId:        input.ItemId,
 		BodySign:      input.BodySign,
+		CustomerName:  input.CustomerName,
 	}
 
 	transaction.AppID = appid
