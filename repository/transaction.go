@@ -709,7 +709,22 @@ func ProcessFailedTransactions() {
 
 	var transactions []model.Transactions
 
-	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code FROM transactions WHERE status_code = ? AND (timestamp_callback_result IS NULL OR timestamp_callback_result = '')  AND created_at >= NOW() - INTERVAL '3 days'", 1005).Scan(&transactions).Error
+	err := database.DB.Raw(`
+	SELECT 
+		t.id, t.mt_tid, t.payment_method, t.amount, t.client_app_key, t.app_id, 
+		t.currency, t.item_name, t.item_id, t.user_id, t.reference_id, 
+		t.ximpay_id, t.midtrans_transaction_id, t.status_code 
+	FROM 
+		transactions t
+	INNER JOIN 
+		client_apps ca 
+		ON t.client_app_key = ca.app_key AND t.app_id = ca.app_id
+	WHERE 
+		t.status_code = ? 
+		AND (t.timestamp_callback_result IS NULL OR t.timestamp_callback_result = '')  
+		AND t.created_at >= NOW() - INTERVAL '2 days'
+		AND ca.fail_callback = '1'
+`, 1005).Scan(&transactions).Error
 	if err != nil {
 		fmt.Println("Error fetching transactions:", err)
 		return
