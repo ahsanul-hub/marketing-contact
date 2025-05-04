@@ -1422,6 +1422,10 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 	sheetName := "Transactions"
 	index, _ := f.NewSheet(sheetName)
 
+	if len(transactions) > 150000 {
+		return response.Response(c, fiber.StatusBadRequest, "Data terlalu besar untuk diekspor ke Excel. Silakan gunakan CSV.")
+	}
+
 	// Tulis header
 	headers := []string{"ID", "Merchant Transaction ID", "Date", "MDN", "Merchant", "App", "Amount", "Price", "Fee", "Item", "Method", "Net Amount", "User ID", "Currency", "Item ID", "Status"}
 	for i, header := range headers {
