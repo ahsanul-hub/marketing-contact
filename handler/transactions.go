@@ -1360,13 +1360,13 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 		var netAmount uint
 		switch transaction.StatusCode {
 		case 1005:
-			status = "Failed"
+			status = "failed"
 		case 1001:
-			status = "Pending"
+			status = "pending"
 		case 1003:
-			status = "Pending"
+			status = "pending"
 		case 1000:
-			status = "Success"
+			status = "success"
 		}
 
 		switch transaction.PaymentMethod {
@@ -1385,7 +1385,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 
 		var createdAt string
 		if transaction.AppName == "Zingplay games" {
-			createdAt = fmt.Sprintf("\"%s\"", transaction.CreatedAt.In(loc).Format("01/02/2006 15:04:05"))
+			createdAt = transaction.CreatedAt.In(loc).Format("01/02/2006 15:04:05")
 		} else {
 			createdAt = transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
 		}
@@ -1443,13 +1443,13 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 		var netAmount uint
 		switch transaction.StatusCode {
 		case 1005:
-			status = "Failed"
+			status = "failed"
 		case 1001:
-			status = "Pending"
+			status = "pending"
 		case 1003:
-			status = "Pending"
+			status = "pending"
 		case 1000:
-			status = "Success"
+			status = "success"
 		}
 
 		switch transaction.PaymentMethod {
@@ -1467,8 +1467,9 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 		}
 
 		var createdAt string
+
 		if transaction.AppName == "Zingplay games" {
-			createdAt = fmt.Sprintf("\"%s\"", transaction.CreatedAt.In(loc).Format("01/02/2006 15:04:05"))
+			createdAt = transaction.CreatedAt.In(loc).Format("01/02/2006 15:04:05")
 		} else {
 			createdAt = transaction.CreatedAt.In(loc).Format("2006-01-02 15:04:05")
 		}
