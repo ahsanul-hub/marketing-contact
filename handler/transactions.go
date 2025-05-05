@@ -369,7 +369,12 @@ func CreateTransaction(c *fiber.Ctx) error {
 		}
 
 		return c.JSON(fiber.Map{
-			"success": true,
+			"success":      true,
+			"reference_id": ximpayId,
+			"guide": fiber.Map{
+				"en": "Please enter the OTP received via SMS",
+				"id": "Mohon masukan otp yang diterima di sms",
+			},
 			"retcode": "0000",
 			"message": "Successful Created Transaction",
 		})
@@ -1807,6 +1812,6 @@ func MTSmartfren(c *fiber.Ctx) error {
 
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
 		"success": true,
-		"message": "Successful MT Transaction",
+		"message": "Successful Transaction",
 	})
 }

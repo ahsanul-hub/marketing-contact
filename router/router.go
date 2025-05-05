@@ -55,6 +55,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/va-payment/:va", handler.VaPage)
 	api.Get("/input-otp/:ximpayid/:token", handler.InputOTPSF)
 	api.Post("/mt-smartfren/:token", handler.MTSmartfren)
+	api.Post("/smartfren/otp", handler.MTSmartfren)
 	api.Post("/block-mdn", middleware.Protected(), middleware.AdminOnly(true), handler.BlockMDNHandler)
 	api.Post("/block-userId", middleware.Protected(), middleware.AdminOnly(true), handler.BlockUserIdHandler)
 	api.Post("/unblock-mdn", middleware.Protected(), middleware.AdminOnly(true), handler.UnblockMDNHandler)
