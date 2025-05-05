@@ -160,7 +160,9 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	transaction.MerchantName = client.ClientName
 	transaction.AppName = client.AppName
 	transaction.ClientAppKey = appkey
-	transaction.VaBca = *vaBca
+	if vaBca != nil {
+		transaction.VaBca = *vaBca
+	}
 
 	if err := database.DB.Create(&transaction).Error; err != nil {
 		log.Println("Failed to create transaction:", err)
