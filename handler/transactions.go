@@ -1258,13 +1258,13 @@ func GetTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	excludeMerchantStr := c.Query("exclude_merchant")
-	var excludeMerchants []string
-	if excludeMerchantStr != "" {
-		excludeMerchants = strings.Split(excludeMerchantStr, ",")
-	}
+	// excludeMerchantStr := c.Query("exclude_merchant")
+	// var excludeMerchants []string
+	// if excludeMerchantStr != "" {
+	// 	excludeMerchants = strings.Split(excludeMerchantStr, ",")
+	// }
 
-	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, appID, userMDN, userId, appName, merchants, paymentMethods, startDate, endDate, excludeMerchants)
+	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, appID, userMDN, userId, appName, merchants, paymentMethods, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
