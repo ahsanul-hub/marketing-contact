@@ -471,6 +471,7 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 	bodysign := c.Get("bodysign")
 	appkey := c.Get("appkey")
 	appid := c.Get("appid")
+	token := c.Get("token")
 
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
@@ -526,6 +527,7 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 		}
 
 		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+		TransactionCache.Delete(token)
 
 		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
 			"success":        true,
