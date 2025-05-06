@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pembayaran VA {{ .BankName}}</title>
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f8f9fa;
+        padding: 20px;
+      }
+      .container {
+        max-width: 600px;
+        margin: auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      h4 {
+        text-align: center;
+      }
+      .va-number {
+        font-weight: bold;
+        font-size: 18px;
+      }
+      .btn-back {
+        display: block;
+        width: 100%;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h4>VA {{ .BankName}}</h4>
+      <div class="divider">
+        <hr class="custom-hr" />
+      </div>
+      <p>
+        Selesaikan pembayaran Anda. Anda dapat melakukan pembayaran melalui
+        Internet Banking, Mobile Banking (SMS), dan ATM.
+      </p>
+
+      {{ range $method, $steps := .Steps }}
+      <h5>Cara bayar dengan {{ $method }}:</h5>
+      <ul>
+        {{ range $steps }}
+        <li>{{ . }}</li>
+        {{ end }}
+      </ul>
+      {{ end }}
+
+      <button
+        class="btn btn-primary btn-back"
+        onclick="window.location.href='{{ .RedirectURL }}'"
+      >
+        Kembali
+      </button>
+    </div>
+  </body>
+</html>

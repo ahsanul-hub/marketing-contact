@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Payment Page</title>
     <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
       rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.5.2/css/bootstrap.min.css"
     />
     <link
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
@@ -42,20 +42,26 @@
         height: 1px;
         background-color: #e5dddd;
       }
-      .btn-custom {
+      /* .btn-custom {
         width: 100%;
         background-color: white;
         border: 1px solid #5e5e5e;
         padding: 6px;
         font-size: 12px;
         transition: background-color 0.3s;
-      }
+      } */
       .btn-back {
         border-radius: 4px;
       }
       .btn-custom:hover {
-        background-color: #0552bf;
+        background: #007bff;
         color: white;
+      }
+      .btn-custom {
+        background: #007bff;
+        border: none;
+        color: white;
+        transition: all 0.3s;
       }
 
       li {
@@ -75,10 +81,10 @@
         <hr class="custom-hr" />
       </div>
       <div style="margin-bottom: 20px">
-        <p class="text-center" style="font-size: 14px">
+        <p style="font-size: 14px">
           Mohon ikuti petunjuk sesuai SMS yang dikirim ke Anda.
         </p>
-        <p class="text-center" style="font-size: 14px">
+        <p style="font-size: 14px">
           Hanya berlaku untuk nomor : <strong>{{ .Msisdn}}</strong>
         </p>
       </div>
@@ -92,8 +98,8 @@
           border-radius: 6px;
         "
       >
-        <h5 style="margin-top: 8px">Langkah selanjutnya:</h5>
-        <div style="font-size: 14px; margin-top: -12px">
+        <h5 style="margin-top: 8px; font-size: 16px">Langkah selanjutnya:</h5>
+        <div style="font-size: 14px; margin-top: -8px">
           <ol style="margin-left: -12px">
             {{ range .Steps }}
             <li>{{ . }}</li>
