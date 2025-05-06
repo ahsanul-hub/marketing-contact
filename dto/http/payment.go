@@ -13,6 +13,7 @@ type CreatePaymentRequest struct {
 type VaPayment struct {
 	RedirectURL   string `json:"redirect_url,omitempty"`
 	VaNumber      string `json:"va_number,omitempty"`
+	CustomerName  string `json:"customer_name,omitempty"`
 	TransactionID string `json:"transaction_id,omitempty"`
 	Bank          string `json:"bank,omitempty"`
 	ExpiredDate   string `json:"expired_date,omitempty"`

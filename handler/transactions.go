@@ -570,6 +570,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 	case "va_bca":
 		vaPayment := http.VaPayment{
 			VaNumber:      vaNumber,
+			CustomerName:  transaction.CustomerName,
 			TransactionID: createdTransId,
 			Bank:          "BCA",
 			ExpiredDate:   expiredTime,
@@ -1257,7 +1258,13 @@ func GetTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, appID, userMDN, userId, appName, merchants, paymentMethods, startDate, endDate)
+	excludeMerchantStr := c.Query("exclude_merchant")
+	var excludeMerchants []string
+	if excludeMerchantStr != "" {
+		excludeMerchants = strings.Split(excludeMerchantStr, ",")
+	}
+
+	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, appID, userMDN, userId, appName, merchants, paymentMethods, startDate, endDate, excludeMerchants)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

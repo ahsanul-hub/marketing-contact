@@ -517,43 +517,10 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 
 	switch transaction.PaymentMethod {
 	case "va_bca":
-		// res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BCA", transaction.Amount)
-		// if err != nil {
-		// 	log.Println("Generate va failed:", err)
-		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-		// 		"success": false,
-		// 		"message": "Generate Va failed",
-		// 	})
-		// }
-
-		// var vaPayment http.VaPayment
-
-		// var bankName string
-
-		// switch transaction.PaymentMethod {
-		// case "va_bca":
-		// 	bankName = "BCA"
-		// case "va_bni":
-		// 	bankName = "BNI"
-		// case "va_bri":
-		// 	bankName = "BRI"
-		// case "va_mandiri":
-		// 	bankName = "MANDIRI"
-		// case "va_permata":
-		// 	bankName = "PERMATA"
-		// case "va_cimb":
-		// 	bankName = "CIMB"
-		// }
-
-		// vaPayment := http.VaPayment{
-		// 	VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
-		// 	TransactionID: transactionID,
-		// 	Bank:          "BCA",
-		// 	ExpiredDate:   res.Data.ExpiryAt,
-		// }
 		vaPayment := http.VaPayment{
 			VaNumber:      res.VaNumber,
 			TransactionID: transactionID,
+			CustomerName:  transaction.CustomerName,
 			Bank:          "BCA",
 			ExpiredDate:   res.ExpiredTime,
 		}
@@ -734,6 +701,7 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 		vaPayment := http.VaPayment{
 			VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
 			TransactionID: transactionID,
+			CustomerName:  transaction.CustomerName,
 			Bank:          "BCA",
 			ExpiredDate:   res.Data.ExpiryAt,
 		}
@@ -936,10 +904,11 @@ func VaPage(c *fiber.Ctx) error {
 	// }
 
 	return c.Render("va_page", fiber.Map{
-		"VaNumber":    inputReq.VaNumber,
-		"RedirectURL": inputReq.RedirectURL,
-		"BankName":    inputReq.Bank,
-		"Steps":       steps[inputReq.Bank],
+		"VaNumber":     inputReq.VaNumber,
+		"RedirectURL":  inputReq.RedirectURL,
+		"CustomerName": inputReq.CustomerName,
+		"BankName":     inputReq.Bank,
+		"Steps":        steps[inputReq.Bank],
 	})
 
 }
