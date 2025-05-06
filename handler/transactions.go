@@ -2,6 +2,7 @@ package handler
 
 import (
 	"app/config"
+	"app/dto/http"
 	"app/dto/model"
 	"app/helper"
 	"app/lib"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/patrickmn/go-cache"
 	"github.com/xuri/excelize/v2"
 	"go.elastic.co/apm"
 )
@@ -95,8 +97,14 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	var isEwallet bool
 
-	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" {
+	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "va_bca" {
 		isEwallet = true
+	}
+
+	if paymentMethod == "va_bca" && (transaction.CustomerName == "") {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Missing mandatory fields: customer name must not be empty",
+		})
 	}
 
 	if !isEwallet && (transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "") {
@@ -173,7 +181,23 @@ func CreateTransaction(c *fiber.Ctx) error {
 	arrClient.AppName = appName
 	transaction.PaymentMethod = paymentMethod
 
-	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, appkey, appid, nil)
+	var vaNumber, expiredTime string
+
+	if paymentMethod == "va_bca" {
+		res, err := lib.GenerateVA()
+		if err != nil {
+			log.Println("Generate va failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Generate Va failed",
+			})
+		}
+
+		vaNumber = res.VaNumber
+		expiredTime = res.ExpiredTime
+	}
+
+	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, appkey, appid, &vaNumber)
 	if err != nil {
 		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
@@ -542,6 +566,25 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"redirect": checkoutUrl,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
+		})
+	case "va_bca":
+		vaPayment := http.VaPayment{
+			VaNumber:      vaNumber,
+			TransactionID: createdTransId,
+			Bank:          "BCA",
+			ExpiredDate:   expiredTime,
+		}
+
+		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             vaPayment.VaNumber,
+			"expired_date":   expiredTime,
+			"customer_name":  transaction.CustomerName,
+			"transaction_id": createdTransId,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
 		})
 	}
 
