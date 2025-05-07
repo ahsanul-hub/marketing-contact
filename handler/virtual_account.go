@@ -8,6 +8,7 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
@@ -298,6 +299,25 @@ func PaymentBca(c *fiber.Ctx) error {
 
 	var response PaymentResponse
 
+	log.Println("===== [BCA Payment] Incoming Request =====")
+
+	// Log Header
+	log.Println("Headers:")
+	c.Request().Header.VisitAll(func(key, value []byte) {
+		fmt.Printf("%s: %s\n", key, value)
+	})
+
+	// Log Body
+	body := c.Body()
+	var prettyJSON bytes.Buffer
+	err := json.Indent(&prettyJSON, body, "", "  ")
+	if err != nil {
+		log.Println("Body (raw):", string(body))
+	} else {
+		log.Println("Body (formatted):")
+		fmt.Println(prettyJSON.String())
+	}
+
 	authorization := c.Get("Authorization")
 	x_bca_key := c.Get("X-BCA-Key")
 	secret := "jokwFlBC80WNVCJ"
@@ -386,8 +406,8 @@ func PaymentBca(c *fiber.Ctx) error {
 
 		return c.Status(fiber.StatusOK).JSON(response)
 	}
-	log.Println("request.PaidAmount", request.PaidAmount)
-	log.Println("amount", transaction.Amount)
+	// log.Println("request.PaidAmount", request.PaidAmount)
+	// log.Println("amount", transaction.Amount)
 
 	if request.PaidAmount != transaction.Amount {
 		response = PaymentResponse{
@@ -420,8 +440,11 @@ func PaymentBca(c *fiber.Ctx) error {
 	// log.Println("token pass")
 	err = repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, nil, nil, "", receiveCallbackDate)
 	if err != nil {
+		log.Println("failed update status success va_bca")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update transaction status"})
 	}
+
+	log.Println("success update status")
 
 	response = PaymentResponse{
 		CompanyCode:       request.CompanyCode,
