@@ -292,14 +292,6 @@ func TokenBca(c *fiber.Ctx) error {
 }
 
 func PaymentBca(c *fiber.Ctx) error {
-	var request PaymentRequest
-	if err := c.BodyParser(&request); err != nil {
-		log.Println("Invalid request payment va_bca")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
-	}
-
-	var response PaymentResponse
-
 	log.Println("===== [BCA Payment] Incoming Request =====")
 
 	// Log Header
@@ -318,6 +310,13 @@ func PaymentBca(c *fiber.Ctx) error {
 		log.Println("Body (formatted):")
 		fmt.Println(prettyJSON.String())
 	}
+	var request PaymentRequest
+	if err := c.BodyParser(&request); err != nil {
+		log.Println("Invalid request payment va_bca")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
+	}
+
+	var response PaymentResponse
 
 	authorization := c.Get("Authorization")
 	x_bca_key := c.Get("X-BCA-Key")
