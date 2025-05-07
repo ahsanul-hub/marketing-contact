@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -44,20 +45,20 @@ type BillResponse struct {
 }
 
 type PaymentRequest struct {
-	CompanyCode     string `json:"CompanyCode"`
-	CustomerNumber  string `json:"CustomerNumber"`
-	RequestID       string `json:"RequestID"`
-	ChannelType     string `json:"ChannelType"`
-	CustomerName    string `json:"CustomerName"`
-	CurrencyCode    string `json:"CurrencyCode"`
-	PaidAmount      uint   `json:"PaidAmount"`
-	TotalAmount     uint   `json:"TotalAmount"`
-	SubCompany      string `json:"SubCompany"`
-	TransactionDate string `json:"TransactionDate"`
-	Reference       string `json:"Reference"`
-	DetailBills     string `json:"DetailBills,omitempty"`
-	FlagAdvice      string `json:"FlagAdvice"`
-	AdditionalData  string `json:"AdditionalData,omitempty"`
+	CompanyCode     string   `json:"CompanyCode"`
+	CustomerNumber  string   `json:"CustomerNumber"`
+	RequestID       string   `json:"RequestID"`
+	ChannelType     string   `json:"ChannelType"`
+	CustomerName    string   `json:"CustomerName"`
+	CurrencyCode    string   `json:"CurrencyCode"`
+	PaidAmount      string   `json:"PaidAmount"`
+	TotalAmount     string   `json:"TotalAmount"`
+	SubCompany      string   `json:"SubCompany"`
+	TransactionDate string   `json:"TransactionDate"`
+	Reference       string   `json:"Reference"`
+	DetailBills     []string `json:"DetailBills,omitempty"`
+	FlagAdvice      string   `json:"FlagAdvice"`
+	AdditionalData  string   `json:"AdditionalData,omitempty"`
 }
 
 // {
@@ -89,8 +90,8 @@ type PaymentResponse struct {
 	} `json:"PaymentFlagReason,omitempty"`
 	CustomerName    string   `json:"CustomerName"`
 	CurrencyCode    string   `json:"CurrencyCode,omitempty"`
-	PaidAmount      uint     `json:"PaidAmount,omitempty"`
-	TotalAmount     uint     `json:"TotalAmount,omitempty"`
+	PaidAmount      string   `json:"PaidAmount,omitempty"`
+	TotalAmount     string   `json:"TotalAmount,omitempty"`
 	TransactionDate string   `json:"TransactionDate,omitempty"`
 	DetailBills     []string `json:"DetailBills,omitempty"`
 	FreeText        []string `json:"FreeText,omitempty"`
@@ -292,13 +293,11 @@ func TokenBca(c *fiber.Ctx) error {
 }
 
 func PaymentBca(c *fiber.Ctx) error {
-	log.Println("===== [BCA Payment] Incoming Request =====")
 
-	// Log Header
-	log.Println("Headers:")
-	c.Request().Header.VisitAll(func(key, value []byte) {
-		fmt.Printf("%s: %s\n", key, value)
-	})
+	// log.Println("Headers:")
+	// c.Request().Header.VisitAll(func(key, value []byte) {
+	// 	fmt.Printf("%s: %s\n", key, value)
+	// })
 
 	// Log Body
 	body := c.Body()
@@ -307,7 +306,7 @@ func PaymentBca(c *fiber.Ctx) error {
 	if err != nil {
 		log.Println("Body (raw):", string(body))
 	} else {
-		log.Println("Body (formatted):")
+		log.Println("va bca payment Body  (formatted):")
 		fmt.Println(prettyJSON.String())
 	}
 	var request PaymentRequest
@@ -355,6 +354,18 @@ func PaymentBca(c *fiber.Ctx) error {
 
 	vaNumber := fmt.Sprintf("11131%s", request.CustomerNumber)
 
+	paidFloat, err := strconv.ParseFloat(request.PaidAmount, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid PaidAmount"})
+	}
+	paidAmount := uint(paidFloat)
+
+	// totalFloat, err := strconv.ParseFloat(request.PaidAmount, 64)
+	// if err != nil {
+	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Total"})
+	// }
+	// totalAmount := uint(totalFloat)
+
 	transaction, err := repository.GetTransactionVa(context.Background(), vaNumber)
 	if err != nil {
 		response = PaymentResponse{
@@ -371,7 +382,7 @@ func PaymentBca(c *fiber.Ctx) error {
 			},
 			CurrencyCode:    "IDR",
 			PaidAmount:      request.PaidAmount,
-			TotalAmount:     transaction.Amount,
+			TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
 			TransactionDate: time.Now().Format("02/01/2006 15:04:05"),
 			DetailBills:     []string{},
 			FreeText:        []string{},
@@ -397,7 +408,7 @@ func PaymentBca(c *fiber.Ctx) error {
 			},
 			CurrencyCode:    "IDR",
 			PaidAmount:      request.PaidAmount,
-			TotalAmount:     transaction.Amount,
+			TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
 			TransactionDate: time.Now().Format("02/01/2006 15:04:05"),
 			DetailBills:     []string{},
 			FreeText:        []string{},
@@ -406,10 +417,8 @@ func PaymentBca(c *fiber.Ctx) error {
 
 		return c.Status(fiber.StatusOK).JSON(response)
 	}
-	// log.Println("request.PaidAmount", request.PaidAmount)
-	// log.Println("amount", transaction.Amount)
 
-	if request.PaidAmount != transaction.Amount {
+	if paidAmount != transaction.Amount {
 		response = PaymentResponse{
 			CompanyCode:       request.CompanyCode,
 			CustomerNumber:    request.CustomerNumber,
@@ -424,7 +433,7 @@ func PaymentBca(c *fiber.Ctx) error {
 			},
 			CurrencyCode:    "IDR",
 			PaidAmount:      request.PaidAmount,
-			TotalAmount:     transaction.Amount,
+			TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
 			TransactionDate: time.Now().Format("02/01/2006 15:04:05"),
 			DetailBills:     []string{},
 			FreeText:        []string{},
@@ -438,13 +447,11 @@ func PaymentBca(c *fiber.Ctx) error {
 	receiveCallbackDate := &now
 
 	// log.Println("token pass")
-	err = repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, nil, nil, "", receiveCallbackDate)
+	err = repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &request.RequestID, nil, "", receiveCallbackDate)
 	if err != nil {
 		log.Println("failed update status success va_bca")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update transaction status"})
 	}
-
-	log.Println("success update status")
 
 	response = PaymentResponse{
 		CompanyCode:       request.CompanyCode,
@@ -461,7 +468,7 @@ func PaymentBca(c *fiber.Ctx) error {
 		CustomerName:    request.CustomerName,
 		CurrencyCode:    "IDR",
 		PaidAmount:      request.PaidAmount,
-		TotalAmount:     transaction.Amount,
+		TotalAmount:     fmt.Sprintf("%d.00", transaction.Amount),
 		TransactionDate: time.Now().Format("02/01/2006 15:04:05"),
 		DetailBills:     []string{},
 		FreeText:        []string{},

@@ -439,7 +439,7 @@ func GetTransactionVa(ctx context.Context, vaNumber string) (*model.Transactions
 
 	// Query berdasarkan va_bca dan CreatedAt dalam 70 menit terakhir
 	if err := database.DB.WithContext(ctx).
-		Where("va_bca = ? AND created_at >= ?", vaNumber, timeLimit).
+		Where("va_bca = ? AND created_at >= ? AND status_code NOT IN ?", vaNumber, timeLimit, []int{1000, 1003}).
 		First(&transaction).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("transaction not found: %w", err)
