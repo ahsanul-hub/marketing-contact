@@ -294,7 +294,7 @@ func TokenBca(c *fiber.Ctx) error {
 func PaymentBca(c *fiber.Ctx) error {
 	var request PaymentRequest
 	if err := c.BodyParser(&request); err != nil {
-		log.Println("Invalid request")
+		log.Println("Invalid request payment va_bca")
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request"})
 	}
 
