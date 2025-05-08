@@ -675,7 +675,7 @@ func ProcessTransactions() {
 			var paymentMethod string
 
 			paymentMethod = transaction.PaymentMethod
-			if transaction.MerchantName == "HIGO GAME PTE LTD" && transaction.PaymentMethod == "qris" {
+			if arrClient.ClientName == "HIGO GAME PTE LTD" && transaction.PaymentMethod == "qris" {
 				paymentMethod = "qr"
 			}
 
