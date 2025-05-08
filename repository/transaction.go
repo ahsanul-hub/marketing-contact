@@ -454,7 +454,7 @@ func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp 
 	var transaction model.Transactions
 
 	err := database.DB.WithContext(ctx).
-		Where("user_mdn = ? AND keyword = ? AND otp = ?", msisdn, keyword, otp).
+		Where("user_mdn = ? AND keyword = ? AND otp = ? AND status_code = ?", msisdn, keyword, otp, 1001).
 		First(&transaction).Error
 
 	if err != nil {
