@@ -882,7 +882,12 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 		callbackResult = "ok"
 	}
 
+	if data.PaymentMethod == "qris" {
+		log.Println("responseBody", responseBody)
+	}
+
 	if resp.StatusCode != http.StatusOK {
+		log.Printf("send callback id : %s failed with status: %s , bodySign: %s", transactionID, resp.Status, bodySign)
 		return fmt.Errorf("callback failed with status: %s , bodySign: %s", resp.Status, bodySign)
 	}
 
