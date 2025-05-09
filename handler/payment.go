@@ -942,9 +942,42 @@ func GetAllCachedTransactions(c *fiber.Ctx) error {
 }
 
 // func MakePaid(c *fiber.Ctx) error {
+// 	env := config.Config("ENV", "")
 // 	id := c.Params("id")
 
+// 	if env != "development" {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"success": false,
+// 			"message": "This feature only for development",
+// 		})
+// 	}
+
 // 	err := repository.UpdateTransactionStatus(context.Background(), id, 1003, nil, nil, "", nil)
+// 	if err != nil {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"message": "failed to update transaction",
+// 			"error":   err.Error(),
+// 		})
+// 	}
+
+// 	return c.JSON(fiber.Map{
+// 		"message":       "transaction updated to paid",
+// 		"transactionId": id,
+// 	})
+// }
+
+// func MakeFailed(c *fiber.Ctx) error {
+// 	env := config.Config("ENV", "")
+// 	id := c.Params("id")
+
+// 	if env != "development" {
+// 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+// 			"success": false,
+// 			"message": "This feature only for development",
+// 		})
+// 	}
+
+// 	err := repository.UpdateTransactionStatus(context.Background(), id, 1005, nil, nil, "", nil)
 // 	if err != nil {
 // 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 // 			"message": "failed to update transaction",
