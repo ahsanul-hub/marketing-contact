@@ -96,7 +96,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	}
 
 	var limit uint
-	if input.PaymentMethod != "qris" {
+	if input.PaymentMethod == "qris" {
 		limit = 10000000
 	} else {
 		limit = 500000
