@@ -95,17 +95,23 @@ func CreateOrder(c *fiber.Ctx) error {
 		})
 	}
 
-	var limit uint
-	if input.PaymentMethod == "qris" {
-		limit = 10000000
-	} else {
+	paymentLimits := map[string]uint{
+		"qris":      10000000,
+		"shopeepay": 10000000,
+		"gopay":     10000000,
+		"ovo":       10000000,
+		"dana":      10000000,
+	}
+
+	limit, ok := paymentLimits[input.PaymentMethod]
+	if !ok {
 		limit = 500000
 	}
 
 	if input.Amount > limit {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"message": "Amount exceeds the maximum allowed limit of 500000",
+			"message": fmt.Sprintf("Amount exceeds the maximum allowed limit of %d", limit),
 		})
 	}
 
