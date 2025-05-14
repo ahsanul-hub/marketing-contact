@@ -160,6 +160,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	transaction.MerchantName = client.ClientName
 	transaction.AppName = client.AppName
 	transaction.ClientAppKey = appkey
+	transaction.NotificationUrl = input.NotificationUrl
 	if vaBca != nil {
 		transaction.VaBca = *vaBca
 	}
@@ -618,7 +619,7 @@ func ProcessTransactions() {
 
 	var transactions []model.Transactions
 
-	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
+	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code, notification_url FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
 	if err != nil {
 		fmt.Println("Error fetching transactions:", err)
 		return
@@ -644,6 +645,10 @@ func ProcessTransactions() {
 			if callbackURL == "" {
 				log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
 				return
+			}
+
+			if transaction.NotificationUrl != "" {
+				callbackURL = transaction.NotificationUrl
 			}
 
 			if err != nil {

@@ -1760,8 +1760,12 @@ func ManualCallback(c *fiber.Ctx) error {
 		}
 	}
 
+	if transaction.NotificationUrl != "" {
+		callbackURL = transaction.NotificationUrl
+	}
+
 	if callbackURL == "" {
-		log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
+		log.Printf("No matching ClientApp found for AppID callback Url: %s", transaction.AppID)
 	}
 
 	statusCode := 1000
