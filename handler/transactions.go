@@ -1397,6 +1397,10 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 	c.Set("Content-Type", "text/csv")
 	c.Set("Content-Disposition", "attachment; filename=transactions.csv")
 
+	if len(transactions) > 250000 {
+		return response.Response(c, fiber.StatusBadRequest, "Data terlalu besar untuk diekspor ke Excel. Silakan gunakan CSV.")
+	}
+
 	// Buat writer untuk CSV
 	writer := csv.NewWriter(c)
 	defer writer.Flush()
@@ -1477,7 +1481,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 	sheetName := "Transactions"
 	index, _ := f.NewSheet(sheetName)
 
-	if len(transactions) > 150000 {
+	if len(transactions) > 80000 {
 		return response.Response(c, fiber.StatusBadRequest, "Data terlalu besar untuk diekspor ke Excel. Silakan gunakan CSV.")
 	}
 
