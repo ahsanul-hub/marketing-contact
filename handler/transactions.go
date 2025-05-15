@@ -1393,11 +1393,12 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 }
 
 func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) error {
+	log.Println("export transaction csv hit")
 	// Set header untuk file CSV
 	c.Set("Content-Type", "text/csv")
 	c.Set("Content-Disposition", "attachment; filename=transactions.csv")
 
-	if len(transactions) > 250000 {
+	if len(transactions) > 200000 {
 		return response.Response(c, fiber.StatusBadRequest, "Data terlalu besar untuk diekspor ke Excel. Silakan gunakan CSV.")
 	}
 
@@ -1476,7 +1477,8 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 }
 
 func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) error {
-	// Buat file Excel baru
+
+	log.Println("export transaction excel hit")
 	f := excelize.NewFile()
 	sheetName := "Transactions"
 	index, _ := f.NewSheet(sheetName)
