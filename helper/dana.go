@@ -2,11 +2,14 @@ package helper
 
 import (
 	"crypto"
+	"crypto/md5"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha1"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -41,4 +44,16 @@ MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC78abeCHePJNdAB8pFdpyOxdj2FWpY
 	}
 
 	return base64.StdEncoding.EncodeToString(signature), nil
+}
+
+func GenerateFaspayDanaSign(userID, password, billNo string) (string, error) {
+	combined := userID + password + billNo
+
+	md5Hash := md5.Sum([]byte(combined))
+	md5String := hex.EncodeToString(md5Hash[:])
+
+	sha1Hash := sha1.Sum([]byte(md5String))
+	sha1String := hex.EncodeToString(sha1Hash[:])
+
+	return sha1String, nil
 }

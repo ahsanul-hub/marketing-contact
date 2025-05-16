@@ -514,7 +514,7 @@ func UpdateTransactionKeyword(ctx context.Context, transactionID string, keyword
 func GetPendingTransactions(ctx context.Context, paymentMethod string) ([]model.Transactions, error) {
 	var transactions []model.Transactions
 
-	query := database.DB.Select("id, merchant_name, status_code, created_at").Where("status_code = ?", 1001)
+	query := database.DB.Select("id, merchant_name, status_code, created_at,reference_id").Where("status_code = ?", 1001)
 
 	if paymentMethod != "" {
 		query = query.Where("payment_method = ?", paymentMethod)

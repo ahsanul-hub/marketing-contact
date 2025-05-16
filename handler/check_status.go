@@ -26,6 +26,24 @@ func CheckStatusDana(c *fiber.Ctx) error {
 	})
 }
 
+func CheckStatusDanaFaspay(c *fiber.Ctx) error {
+	id := c.Params("id")
+	transaction, err := repository.GetTransactionByID(context.Background(), id)
+	if err != nil || transaction == nil {
+		return nil
+	}
+
+	res, err := lib.CheckOrderDanaFaspay(id, transaction.ReferenceID)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    res,
+	})
+}
+
 func CheckTransactionStatus(c *fiber.Ctx) error {
 	span, spanCtx := apm.StartSpan(c.Context(), "CheckTransactionStatus", "handler")
 	defer span.End()

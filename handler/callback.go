@@ -77,6 +77,34 @@ type CallbackDanaPayload struct {
 	Signature string `json:"signature"`
 }
 
+type DanaFaspayPaymentNotification struct {
+	Request           string `json:"request"`
+	TrxID             string `json:"trx_id"`
+	MerchantID        string `json:"merchant_id"`
+	Merchant          string `json:"merchant"`
+	BillNo            string `json:"bill_no"`
+	PaymentReff       string `json:"payment_reff"`
+	PaymentDate       string `json:"payment_date"`
+	PaymentStatusCode string `json:"payment_status_code"`
+	PaymentStatusDesc string `json:"payment_status_desc"`
+	BillTotal         string `json:"bill_total"`
+	PaymentTotal      string `json:"payment_total"`
+	PaymentChannelUID string `json:"payment_channel_uid"`
+	PaymentChannel    string `json:"payment_channel"`
+	Signature         string `json:"signature"`
+}
+
+type DanaFaspayCallbackResponse struct {
+	Response     string `json:"response"`
+	TrxID        string `json:"trx_id"`
+	MerchantID   string `json:"merchant_id"`
+	Merchant     string `json:"merchant"`
+	BillNo       string `json:"bill_no"`
+	ResponseCode string `json:"response_code"`
+	ResponseDesc string `json:"response_desc"`
+	ResponseDate string `json:"response_date"`
+}
+
 type Amount struct {
 	Currency string `json:"currency"`
 	Value    string `json:"value"`
@@ -327,9 +355,7 @@ func DanaCallback(c *fiber.Ctx) error {
 
 	resTime := time.Now().In(loc).Format("2006-01-02T15:04:05-07:00")
 
-	var transactionID string
-
-	transactionID = req.Request.Body.MerchantTransId
+	transactionID := req.Request.Body.MerchantTransId
 
 	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
 	if err != nil || transaction == nil {
@@ -415,6 +441,86 @@ func DanaCallback(c *fiber.Ctx) error {
 	resp = DanaCallbackResponse{
 		Response:  respBody,
 		Signature: respSignature,
+	}
+
+	return c.JSON(resp)
+}
+
+func DanaFaspayCallback(c *fiber.Ctx) error {
+	body := c.Body()
+
+	var req DanaFaspayPaymentNotification
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	transactionID := req.BillNo
+
+	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
+	if err != nil || transaction == nil {
+		return nil
+	}
+
+	status := req.PaymentStatusCode
+	now := time.Now()
+
+	receiveCallbackDate := &now
+
+	switch status {
+	case "2":
+		log.Println("Success Request Body:\n", string(body))
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	case "0":
+		log.Println("CLOSED Request Body:\n", string(body))
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "Unprocessed", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	case "3":
+		log.Println("Failed Request Body:\n", string(body))
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "Payment Failed", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	case "4":
+		log.Println("Reversal Request Body:\n", string(body))
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "Payment Reversal", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	case "5":
+		log.Println("No Bills Found Request Body:\n", string(body))
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "No bills found", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	case "7":
+		log.Println("Payment Expired Request Body:\n", string(body))
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "Payment Expired", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	case "8":
+		log.Println("Payment Cancelled Request Body:\n", string(body))
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "Payment Cancelled", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	case "9":
+		log.Println("Unknown Request Body:\n", string(body))
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "Unknown", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	}
+
+	resp := DanaFaspayCallbackResponse{
+		Response:     req.Request,
+		TrxID:        req.TrxID,
+		MerchantID:   req.MerchantID,
+		Merchant:     req.Merchant,
+		BillNo:       req.BillNo,
+		ResponseCode: "00",
+		ResponseDesc: "Success",
+		ResponseDate: now.Format("2006-01-02 15:04:05"),
 	}
 
 	return c.JSON(resp)
