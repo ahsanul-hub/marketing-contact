@@ -50,10 +50,15 @@ type DoMTResponse struct {
 func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount uint) (string, error) {
 	config, _ := config.GetGatewayConfig("smartfren_triyakom")
 	arrayOptions := config.Options["production"].(map[string]interface{})
-	currentTime := time.Now()
 
 	partnerID := arrayOptions["partnerid"].(string)
 	cbParam := fmt.Sprintf("r%s", transactionId)
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		return "", fmt.Errorf("failed to load timezone: %v", err)
+	}
+	currentTime := time.Now().In(loc)
+
 	date := currentTime.Format("1/2/2006")
 	secretKey := arrayOptions["seckey"].(string)
 

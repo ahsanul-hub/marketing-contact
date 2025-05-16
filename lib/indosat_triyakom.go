@@ -18,10 +18,16 @@ import (
 func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargingPrice uint) (string, error) {
 	config, _ := config.GetGatewayConfig("indosat_triyakom")
 	arrayOptions := config.Options["production"].(map[string]interface{})
-	currentTime := time.Now()
 
 	partnerID := arrayOptions["partnerid"].(string)
 	cbParam := fmt.Sprintf("r%s", transactionId)
+
+	loc, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
+		return "", fmt.Errorf("failed to load timezone: %v", err)
+	}
+	currentTime := time.Now().In(loc)
+
 	date := currentTime.Format("1/2/2006")
 	secretKey := arrayOptions["seckey"].(string)
 	amount := chargingPrice
@@ -29,8 +35,6 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 	joinedString := fmt.Sprintf("%s%d%s%s%s", partnerID, amount, cbParam, date, secretKey)
 	lowerCaseString := strings.ToLower(joinedString)
 	token := fmt.Sprintf("%x", md5.Sum([]byte(lowerCaseString)))
-	log.Println("lowerCaseString: ", lowerCaseString)
-	log.Println("token: ", token)
 
 	arrBody := map[string]interface{}{
 		"partnerid":   strings.ToLower(partnerID),
