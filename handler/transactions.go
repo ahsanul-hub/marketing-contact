@@ -1433,7 +1433,8 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 
 		switch transaction.PaymentMethod {
 		case "qris":
-			fee = uint(float64(transaction.Amount) * 0.008)
+			feeFloat := float64(transaction.Amount) * 0.008
+			fee = uint(math.Ceil(feeFloat))
 			price = transaction.Amount
 			netAmount = price - fee
 		case "dana":
@@ -1518,7 +1519,8 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 		switch transaction.PaymentMethod {
 		case "qris":
 			price = transaction.Amount
-			fee = uint(float64(transaction.Amount) * 0.008)
+			feeFloat := float64(transaction.Amount) * 0.008
+			fee = uint(math.Ceil(feeFloat))
 			netAmount = price - fee
 		case "dana":
 			feeFloat := float64(transaction.Amount) * 0.018
