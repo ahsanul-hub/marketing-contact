@@ -684,12 +684,19 @@ func ProcessTransactions() {
 				paymentMethod = "qr"
 			}
 
+			var amount interface{}
+			if arrClient.ClientName == "WEIDIAN TECHNOLOGY CO" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
+				amount = transaction.Amount
+			} else {
+				amount = fmt.Sprintf("%d", transaction.Amount)
+			}
+
 			callbackData := CallbackData{
 				UserID:                transaction.UserId,
 				MerchantTransactionID: transaction.MtTid,
 				StatusCode:            1000, // Misalnya, status sukses
 				PaymentMethod:         paymentMethod,
-				Amount:                fmt.Sprintf("%d", transaction.Amount),
+				Amount:                amount,
 				Status:                "success",
 				Currency:              transaction.Currency,
 				ItemName:              transaction.ItemName,
@@ -786,12 +793,19 @@ func ProcessFailedTransactions() {
 				status = "pending"
 			}
 
+			var amount interface{}
+			if arrClient.ClientName == "WEIDIAN TECHNOLOGY CO" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
+				amount = transaction.Amount
+			} else {
+				amount = fmt.Sprintf("%d", transaction.Amount)
+			}
+
 			callbackData := CallbackData{
 				UserID:                transaction.UserId,
 				MerchantTransactionID: transaction.MtTid,
 				StatusCode:            transaction.StatusCode,
 				PaymentMethod:         paymentMethod,
-				Amount:                fmt.Sprintf("%d", transaction.Amount),
+				Amount:                amount,
 				Status:                status,
 				Currency:              transaction.Currency,
 				ItemName:              transaction.ItemName,
@@ -823,19 +837,20 @@ type CallbackJob struct {
 }
 
 type CallbackData struct {
-	UserID                string `json:"user_id"`
-	MerchantTransactionID string `json:"merchant_transaction_id"`
-	StatusCode            int    `json:"status_code"`
-	PaymentMethod         string `json:"payment_method"`
-	Amount                string `json:"amount"`
-	Status                string `json:"status"`
-	Currency              string `json:"currency"`
-	ItemName              string `json:"item_name"`
-	ItemID                string `json:"item_id"`
-	ReferenceID           string `json:"reference_id"`
-	AppID                 string `json:"app_id,omitempty"`
-	ClientAppKey          string `json:"client_appkey,omitempty"`
+	UserID                string      `json:"user_id"`
+	MerchantTransactionID string      `json:"merchant_transaction_id"`
+	StatusCode            int         `json:"status_code"`
+	PaymentMethod         string      `json:"payment_method"`
+	Amount                interface{} `json:"amount"`
+	Status                string      `json:"status"`
+	Currency              string      `json:"currency"`
+	ItemName              string      `json:"item_name"`
+	ItemID                string      `json:"item_id"`
+	ReferenceID           string      `json:"reference_id"`
+	AppID                 string      `json:"app_id,omitempty"`
+	ClientAppKey          string      `json:"client_appkey,omitempty"`
 }
+
 type CallbackQueueStruct struct {
 	Data          CallbackData
 	TransactionId string
@@ -885,10 +900,6 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 		callbackResult = fmt.Sprintf("%v", result)
 	} else {
 		callbackResult = "ok"
-	}
-
-	if data.PaymentMethod == "qris" {
-		log.Println("responseBody", responseBody)
 	}
 
 	if resp.StatusCode != http.StatusOK {

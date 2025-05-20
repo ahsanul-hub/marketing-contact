@@ -1776,27 +1776,6 @@ func ManualCallback(c *fiber.Ctx) error {
 
 	statusCode := 1000
 
-	// var referenceID string
-
-	// switch transaction.PaymentMethod {
-	// case "xl_airtime":
-	// 	referenceID = transaction.ReferenceID
-	// case "three_airtime":
-	// 	referenceID = transaction.XimpayID
-	// case "smartfren_airtime":
-	// 	referenceID = transaction.XimpayID
-	// case "indosat_airtime":
-	// 	referenceID = transaction.XimpayID
-	// case "gopay":
-	// 	referenceID = transaction.MidtransTransactionId
-	// case "shopeepay":
-	// 	referenceID = transaction.MidtransTransactionId
-	// case "qris":
-	// 	referenceID = transaction.MidtransTransactionId
-	// default:
-	// 	referenceID = transaction.ReferenceID
-	// }
-
 	var paymentMethod string
 
 	paymentMethod = transaction.PaymentMethod
@@ -1804,12 +1783,18 @@ func ManualCallback(c *fiber.Ctx) error {
 		paymentMethod = "qr"
 	}
 
+	var amount interface{}
+	if arrClient.ClientName == "WEIDIAN TECHNOLOGY CO" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
+		amount = transaction.Amount
+	} else {
+		amount = fmt.Sprintf("%d", transaction.Amount)
+	}
 	callbackData := repository.CallbackData{
 		UserID:                transaction.UserId,
 		MerchantTransactionID: transaction.MtTid,
 		StatusCode:            statusCode,
 		PaymentMethod:         paymentMethod,
-		Amount:                fmt.Sprintf("%d", transaction.Amount),
+		Amount:                amount,
 		Status:                "success",
 		Currency:              transaction.Currency,
 		ItemName:              transaction.ItemName,
