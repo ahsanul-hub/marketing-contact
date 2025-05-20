@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"log"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -153,7 +154,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	appSecret := arrClient.ClientSecret
 
 	expectedBodysign := helper.GenerateBodySign(input, appSecret)
-	// log.Println("expectedBodysign", expectedBodysign)
+	//log.Println("expectedBodysign", expectedBodysign)
 
 	if receivedBodysign != expectedBodysign {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -216,6 +217,188 @@ func CreateOrder(c *fiber.Ctx) error {
 	input.AppID = appid
 	input.ClientAppKey = appkey
 	input.AppName = arrClient.ClientName
+	input.BodySign = receivedBodysign
+
+	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
+
+	data := map[string]interface{}{
+		"token": transactionID,
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"retcode": "0000",
+		"message": "Successful",
+		"data":    data,
+	})
+}
+
+func CreateOrderLegacy(c *fiber.Ctx) error {
+	var input model.InputPaymentRequest
+	var amountUint uint
+
+	appid := c.Get("appid")
+	appkey := c.Get("appkey")
+
+	receivedBodysign := c.Get("bodysign")
+
+	if appid != "6078feb8764f1ba30a8b4569" && appkey != "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid Endpoint",
+		})
+	}
+
+	var oldInput model.InputPaymentRequestOld
+	if err := c.BodyParser(&oldInput); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid legacy input",
+		})
+	}
+
+	parsedAmount, err := strconv.ParseUint(oldInput.Amount, 10, 64)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid amount format",
+		})
+	}
+
+	amountUint = uint(parsedAmount)
+
+	input = model.InputPaymentRequest{
+		RedirectURL:     oldInput.RedirectURL,
+		RedirectTarget:  oldInput.RedirectTarget,
+		UserId:          oldInput.UserId,
+		UserMDN:         oldInput.UserMDN,
+		MtTid:           oldInput.MtTid,
+		PaymentMethod:   oldInput.PaymentMethod,
+		Currency:        oldInput.Currency,
+		Amount:          amountUint,
+		ItemId:          oldInput.ItemId,
+		ItemName:        oldInput.ItemName,
+		ClientAppKey:    appkey,
+		AppName:         oldInput.AppName,
+		Status:          oldInput.Status,
+		BodySign:        oldInput.BodySign,
+		Mobile:          oldInput.Mobile,
+		Testing:         oldInput.Testing,
+		Route:           oldInput.Route,
+		Price:           oldInput.Price,
+		Otp:             oldInput.Otp,
+		ReffId:          oldInput.ReffId,
+		CustomerName:    oldInput.CustomerName,
+		NotificationUrl: oldInput.NotificationUrl,
+	}
+
+	paymentLimits := map[string]uint{
+		"qris":      10000000,
+		"shopeepay": 10000000,
+		"gopay":     10000000,
+		"ovo":       10000000,
+		"dana":      10000000,
+	}
+
+	limit, ok := paymentLimits[input.PaymentMethod]
+	if !ok {
+		limit = 500000
+	}
+
+	if input.Amount > limit {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": fmt.Sprintf("Amount exceeds the maximum allowed limit of %d", limit),
+		})
+	}
+
+	if input.UserId == "" || input.MtTid == "" || input.PaymentMethod == "" || input.Amount == 0 || input.ItemName == "" || input.UserMDN == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "Missing required fields in request body",
+		})
+	}
+
+	arrClient, err := repository.FindClient(c.Context(), appkey, appid)
+
+	if err != nil {
+		return response.Response(c, fiber.StatusBadRequest, "E0001")
+	}
+
+	isBlocked, _ := repository.IsUserIDBlocked(input.UserId, arrClient.ClientName)
+	if isBlocked {
+		log.Println("userID is blocked")
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "userID is blocked",
+		})
+
+	}
+
+	appSecret := arrClient.ClientSecret
+
+	expectedBodysign := helper.GenerateBodySign(input, appSecret)
+
+	if appid != "6078feb8764f1ba30a8b4569" && appkey != "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4" {
+		if receivedBodysign != expectedBodysign {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"success": false,
+				"message": "Invalid bodysign",
+			})
+		}
+	}
+
+	transactionID := uuid.New().String()
+
+	amountFloat := float64(input.Amount)
+
+	var paymentMethod string
+	switch input.PaymentMethod {
+	case "telkomsel_airtime_sms":
+		paymentMethod = "telkomsel_airtime"
+	case "telkomsel_airtime_ussd":
+		paymentMethod = "telkomsel_airtime"
+	case "xl_gcpay":
+		paymentMethod = "xl_airtime"
+	case "smartfren":
+		paymentMethod = "smartfren_airtime"
+	case "three":
+		paymentMethod = "three_airtime"
+	case "indosat_airtime2":
+		paymentMethod = "indosat_airtime"
+	case "ovo_wallet":
+		paymentMethod = "ovo"
+	case "smartfren_airtime2":
+		paymentMethod = "smartfren_airtime"
+	case "Three":
+		paymentMethod = "three_airtime"
+	case "Telkomsel":
+		paymentMethod = "telkomsel_airtime"
+	case "qr":
+		paymentMethod = "qris"
+	default:
+		paymentMethod = input.PaymentMethod
+
+	}
+
+	settlementConfig, err := repository.GetSettlementConfig(arrClient.UID)
+	if err != nil {
+		log.Println("Error GetSettlementConfig:", err)
+	}
+
+	var selectedSettlement *model.SettlementClient
+	for _, settlement := range settlementConfig {
+		if settlement.Name == paymentMethod {
+			selectedSettlement = &settlement
+			break
+		}
+	}
+
+	if selectedSettlement == nil {
+		log.Println("selectedSettlement nil, check input.PaymentMethod:", paymentMethod)
+	}
+
+	input.Price = uint(amountFloat + math.Round(float64(*selectedSettlement.AdditionalPercent)/100*amountFloat))
 	input.BodySign = receivedBodysign
 
 	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
