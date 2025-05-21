@@ -101,3 +101,42 @@ type InputPaymentRequest struct {
 	CustomerName    string `json:"customer_name,omitempty"`
 	NotificationUrl string `json:"notification_url,omitempty"`
 }
+
+type InputPaymentRequestOld struct {
+	RedirectURL     string `json:"redirect_url,omitempty"`
+	RedirectTarget  string `json:"redirect_target,omitempty"`
+	UserId          string `json:"user_id,omitempty"`
+	UserMDN         string `json:"user_mdn,omitempty"`
+	MtTid           string `json:"merchant_transaction_id,omitempty"`
+	PaymentMethod   string `json:"payment_method,omitempty"`
+	Currency        string `json:"currency,omitempty"`
+	Amount          string `json:"amount,omitempty"`
+	ItemId          string `json:"item_id,omitempty"`
+	ItemName        string `json:"item_name,omitempty"`
+	ClientAppKey    string `json:"client_appkey,omitempty"`
+	AppName         string `json:"app_name,omitempty"`
+	AppID           string `json:"app_id,omitempty"`
+	Status          string `json:"status,omitempty"`
+	BodySign        string `json:"bodysign,omitempty"`
+	Mobile          string `json:"mobile,omitempty"`
+	Testing         bool   `json:"testing,omitempty"`
+	Route           string `json:"route,omitempty"`
+	Price           uint   `json:"price,omitempty"`
+	Otp             string `json:"otp,omitempty"`
+	ReffId          string `json:"reff_id,omitempty"`
+	CustomerName    string `json:"customer_name,omitempty"`
+	NotificationUrl string `json:"notification_url,omitempty"`
+}
+
+type TransactionReport struct {
+	UserID         string `json:"user_id"`
+	MerchantName   string `json:"merchant_name"`
+	PaymentMethod  string `json:"payment_method"`
+	Amount         uint   `json:"amount"`
+	AmountTax      uint   `json:"amount_tax"`
+	Count          int64  `json:"count"`
+	TotalAmount    uint64 `json:"total_amount"`
+	TotalAmountTax uint64 `json:"total_amount_tax"`
+	ShareRedision  uint   `json:"share_redision"`
+	ShareMerchant  uint   `json:"share_merchant"`
+}
