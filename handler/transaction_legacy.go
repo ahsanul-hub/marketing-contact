@@ -451,7 +451,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"phone_number": transaction.UserMDN,
 			"keyword":      "",
 			"sms_code":     "",
-			"short_code":   "99899",
+			"short_code":   "",
 			"url":          "",
 			"qr":           "",
 			"html":         "",
