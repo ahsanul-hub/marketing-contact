@@ -223,7 +223,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"phone_number": transaction.UserMDN,
 			"keyword":      "",
 			"sms_code":     "",
-			"short_code":   "99899",
+			"shortcode":    "99899",
 			"url":          "",
 			"qr":           "",
 			"html":         "",
@@ -235,8 +235,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success":                 true,
-			"retcode":                 "0000",
-			"message":                 "Successful",
 			"data":                    data,
 			"appid":                   appid,
 			"appkey":                  arrClient.ClientAppkey,
@@ -284,7 +282,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"phone_number": transaction.UserMDN,
 			"keyword":      "",
 			"sms_code":     "",
-			"short_code":   "",
+			"shortcode":    "",
 			"url":          "",
 			"qr":           "",
 			"html":         "",
@@ -296,8 +294,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success":                 true,
-			"retcode":                 "0000",
-			"message":                 "Successful",
 			"data":                    data,
 			"appid":                   appid,
 			"appkey":                  arrClient.ClientAppkey,
@@ -346,7 +342,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"phone_number": transaction.UserMDN,
 			"keyword":      "",
 			"sms_code":     "",
-			"short_code":   "",
+			"shortcode":    "",
 			"url":          "",
 			"qr":           "",
 			"html":         "",
@@ -358,8 +354,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success":                 true,
-			"retcode":                 "0000",
-			"message":                 "Successful",
 			"data":                    data,
 			"appid":                   appid,
 			"appkey":                  arrClient.ClientAppkey,
@@ -389,7 +383,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"phone_number": transaction.UserMDN,
 			"keyword":      keyword,
 			"sms_code":     fmt.Sprintf("%d", otp),
-			"short_code":   "99899",
+			"shortcode":    "99899",
 			"url":          "",
 			"qr":           "",
 			"html":         "",
@@ -401,8 +395,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success":                 true,
-			"retcode":                 "0000",
-			"message":                 "Successful",
 			"data":                    data,
 			"appid":                   appid,
 			"appkey":                  arrClient.ClientAppkey,
@@ -451,7 +443,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"phone_number": transaction.UserMDN,
 			"keyword":      "",
 			"sms_code":     "",
-			"short_code":   "",
+			"shortcode":    "",
 			"url":          "",
 			"qr":           "",
 			"html":         "",
@@ -463,8 +455,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success":                 true,
-			"retcode":                 "0000",
-			"message":                 "Successful",
 			"data":                    data,
 			"appid":                   appid,
 			"appkey":                  arrClient.ClientAppkey,
@@ -494,7 +484,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"phone_number": transaction.UserMDN,
 			"keyword":      "",
 			"sms_code":     "",
-			"short_code":   "",
+			"shortcode":    "",
 			"url":          res.Actions[0].URL,
 			"qr":           "",
 			"html":         "",
@@ -506,8 +496,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success":                 true,
-			"retcode":                 "0000",
-			"message":                 "Successful",
 			"data":                    data,
 			"appid":                   appid,
 			"appkey":                  arrClient.ClientAppkey,
@@ -536,7 +524,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"phone_number": transaction.UserMDN,
 			"keyword":      "",
 			"sms_code":     "",
-			"short_code":   "",
+			"shortcode":    "",
 			"url":          res.Actions[1].URL,
 			"qr":           res.Actions[0].URL,
 			"html":         "",
@@ -548,8 +536,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success":                 true,
-			"retcode":                 "0000",
-			"message":                 "Successful",
 			"data":                    data,
 			"appid":                   appid,
 			"appkey":                  arrClient.ClientAppkey,
@@ -578,7 +564,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"phone_number": transaction.UserMDN,
 			"keyword":      "",
 			"sms_code":     "",
-			"short_code":   "",
+			"shortcode":    "",
 			"url":          res.Actions[0].URL,
 			"qr":           res.QrString,
 			"html":         "",
@@ -590,8 +576,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		return c.JSON(fiber.Map{
 			"success":                 true,
-			"retcode":                 "0000",
-			"message":                 "Successful",
 			"data":                    data,
 			"appid":                   appid,
 			"appkey":                  arrClient.ClientAppkey,
