@@ -11,7 +11,6 @@ import (
 	"html/template"
 	"log"
 	"math"
-	"strconv"
 	"strings"
 	"time"
 
@@ -69,10 +68,8 @@ func PaymentQrisRedirect(c *fiber.Ctx) error {
 		})
 	}
 
-	// Buat ID transaksi unik (contoh pakai timestamp, bisa pakai UUID)
 	transactionID := fmt.Sprintf("trx-%d", time.Now().UnixNano())
 
-	// Simpan data di cache
 	QrCache.Set(transactionID, qrisUrl+"|"+acquirer+"|"+backUrl, cache.DefaultExpiration)
 
 	// Redirect ke halaman tanpa query di URL
@@ -235,7 +232,6 @@ func CreateOrder(c *fiber.Ctx) error {
 
 func CreateOrderLegacy(c *fiber.Ctx) error {
 	var input model.InputPaymentRequest
-	var amountUint uint
 
 	appid := c.Get("appid")
 	appkey := c.Get("appkey")
@@ -249,47 +245,11 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 		})
 	}
 
-	var oldInput model.InputPaymentRequestOld
-	if err := c.BodyParser(&oldInput); err != nil {
+	if err := c.BodyParser(&input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Invalid legacy input",
 		})
-	}
-
-	parsedAmount, err := strconv.ParseUint(oldInput.Amount, 10, 64)
-	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"message": "Invalid amount format",
-		})
-	}
-
-	amountUint = uint(parsedAmount)
-
-	input = model.InputPaymentRequest{
-		RedirectURL:     oldInput.RedirectURL,
-		RedirectTarget:  oldInput.RedirectTarget,
-		UserId:          oldInput.UserId,
-		UserMDN:         oldInput.UserMDN,
-		MtTid:           oldInput.MtTid,
-		PaymentMethod:   oldInput.PaymentMethod,
-		Currency:        oldInput.Currency,
-		Amount:          amountUint,
-		ItemId:          oldInput.ItemId,
-		ItemName:        oldInput.ItemName,
-		ClientAppKey:    appkey,
-		AppName:         oldInput.AppName,
-		Status:          oldInput.Status,
-		BodySign:        oldInput.BodySign,
-		Mobile:          oldInput.Mobile,
-		Testing:         oldInput.Testing,
-		Route:           oldInput.Route,
-		Price:           oldInput.Price,
-		Otp:             oldInput.Otp,
-		ReffId:          oldInput.ReffId,
-		CustomerName:    oldInput.CustomerName,
-		NotificationUrl: oldInput.NotificationUrl,
 	}
 
 	paymentLimits := map[string]uint{
