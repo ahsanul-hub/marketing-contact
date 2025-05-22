@@ -236,6 +236,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"success":                 true,
 			"data":                    data,
+			"error_message":           "",
 			"appid":                   appid,
 			"appkey":                  arrClient.ClientAppkey,
 			"token":                   token,
