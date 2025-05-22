@@ -180,7 +180,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		expiredTime = res.ExpiredTime
 	}
 
-	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, transaction.ClientAppKey, appid, &vaNumber)
+	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4", appid, &vaNumber)
 	if err != nil {
 		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
@@ -219,10 +219,30 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			})
 		}
 
+		data := map[string]interface{}{
+			"phone_number": transaction.UserMDN,
+			"keyword":      "",
+			"sms_code":     "",
+			"short_code":   "99899",
+			"url":          "",
+			"qr":           "",
+			"html":         "",
+			"bankcode":     "",
+			"vaid":         "",
+			"code":         "",
+			"trx_type":     "reply",
+		}
+
 		return c.JSON(fiber.Map{
-			"success": true,
-			"retcode": "0000",
-			"message": "Successful Created Transaction",
+			"success":                 true,
+			"retcode":                 "0000",
+			"message":                 "Successful",
+			"data":                    data,
+			"appid":                   appid,
+			"appkey":                  arrClient.ClientAppkey,
+			"token":                   token,
+			"timestamp":               time.Now().Unix(),
+			"merchant_transaction_id": transaction.MtTid,
 		})
 	case "indosat_airtime":
 		validAmounts, exists := routes["indosat_triyakom"]
@@ -260,11 +280,32 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			log.Println("Updated Ximpay ID error:", err)
 		}
 
+		data := map[string]interface{}{
+			"phone_number": transaction.UserMDN,
+			"keyword":      "",
+			"sms_code":     "",
+			"short_code":   "99899",
+			"url":          "",
+			"qr":           "",
+			"html":         "",
+			"bankcode":     "",
+			"vaid":         "",
+			"code":         "",
+			"trx_type":     "reply",
+		}
+
 		return c.JSON(fiber.Map{
-			"success": true,
-			"retcode": "0000",
-			"message": "Successful Created Transaction",
+			"success":                 true,
+			"retcode":                 "0000",
+			"message":                 "Successful",
+			"data":                    data,
+			"appid":                   appid,
+			"appkey":                  arrClient.ClientAppkey,
+			"token":                   token,
+			"timestamp":               time.Now().Unix(),
+			"merchant_transaction_id": transaction.MtTid,
 		})
+
 	case "three_airtime":
 		validAmounts, exists := routes["three_triyakom"]
 		if !exists {
@@ -301,10 +342,30 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			log.Println("Updated Ximpay ID error:", err)
 		}
 
+		data := map[string]interface{}{
+			"phone_number": transaction.UserMDN,
+			"keyword":      "",
+			"sms_code":     "",
+			"short_code":   "99899",
+			"url":          "",
+			"qr":           "",
+			"html":         "",
+			"bankcode":     "",
+			"vaid":         "",
+			"code":         "",
+			"trx_type":     "reply",
+		}
+
 		return c.JSON(fiber.Map{
-			"success": true,
-			"retcode": "0000",
-			"message": "Successful Created Transaction",
+			"success":                 true,
+			"retcode":                 "0000",
+			"message":                 "Successful",
+			"data":                    data,
+			"appid":                   appid,
+			"appkey":                  arrClient.ClientAppkey,
+			"token":                   token,
+			"timestamp":               time.Now().Unix(),
+			"merchant_transaction_id": transaction.MtTid,
 		})
 
 	case "telkomsel_airtime":
@@ -326,9 +387,16 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		data := map[string]interface{}{
 			"phone_number": transaction.UserMDN,
-			"short_code":   "99899",
 			"keyword":      keyword,
 			"sms_code":     fmt.Sprintf("%d", otp),
+			"short_code":   "99899",
+			"url":          "",
+			"qr":           "",
+			"html":         "",
+			"bankcode":     "",
+			"vaid":         "",
+			"code":         "",
+			"trx_type":     "send_otp",
 		}
 
 		return c.JSON(fiber.Map{
@@ -341,8 +409,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"token":                   token,
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
-			"code":                    "",
-			"trx_type":                "send_otp",
 		})
 
 	case "smartfren_airtime":
@@ -381,15 +447,30 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			log.Println("Updated Ximpay ID error:", err)
 		}
 
+		data := map[string]interface{}{
+			"phone_number": transaction.UserMDN,
+			"keyword":      "",
+			"sms_code":     "",
+			"short_code":   "99899",
+			"url":          "",
+			"qr":           "",
+			"html":         "",
+			"bankcode":     "",
+			"vaid":         "",
+			"code":         "",
+			"trx_type":     "reply",
+		}
+
 		return c.JSON(fiber.Map{
-			"success":      true,
-			"reference_id": ximpayId,
-			"guide": fiber.Map{
-				"en": "Please enter the OTP received via SMS",
-				"id": "Mohon masukan otp yang diterima di sms",
-			},
-			"retcode": "0000",
-			"message": "Successful Created Transaction",
+			"success":                 true,
+			"retcode":                 "0000",
+			"message":                 "Successful",
+			"data":                    data,
+			"appid":                   appid,
+			"appkey":                  arrClient.ClientAppkey,
+			"token":                   token,
+			"timestamp":               time.Now().Unix(),
+			"merchant_transaction_id": transaction.MtTid,
 		})
 
 	case "shopeepay":
@@ -408,12 +489,31 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			log.Println("Updated Midtrans ID error:", err)
 		}
 
-		// log.Println("redirect: ", res.Actions[0].URL)
+		data := map[string]interface{}{
+			"ack":          "",
+			"phone_number": transaction.UserMDN,
+			"keyword":      "",
+			"sms_code":     "",
+			"short_code":   "",
+			"url":          res.Actions[0].URL,
+			"qr":           "",
+			"html":         "",
+			"bankcode":     "",
+			"vaid":         "",
+			"code":         "",
+			"trx_type":     "redirect",
+		}
+
 		return c.JSON(fiber.Map{
-			"success":  true,
-			"redirect": res.Actions[0].URL,
-			"retcode":  "0000",
-			"message":  "Successful Created Transaction",
+			"success":                 true,
+			"retcode":                 "0000",
+			"message":                 "Successful",
+			"data":                    data,
+			"appid":                   appid,
+			"appkey":                  arrClient.ClientAppkey,
+			"token":                   token,
+			"timestamp":               time.Now().Unix(),
+			"merchant_transaction_id": transaction.MtTid,
 		})
 
 	case "gopay":
@@ -431,14 +531,31 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			log.Println("Updated Midtrans ID error:", err)
 		}
 
-		// log.Println("redirect: ", res.Actions[0].URL)
+		data := map[string]interface{}{
+			"ack":          "",
+			"phone_number": transaction.UserMDN,
+			"keyword":      "",
+			"sms_code":     "",
+			"short_code":   "",
+			"url":          res.Actions[1].URL,
+			"qr":           res.Actions[0].URL,
+			"html":         "",
+			"bankcode":     "",
+			"vaid":         "",
+			"code":         "",
+			"trx_type":     "redirect",
+		}
+
 		return c.JSON(fiber.Map{
-			"success":  true,
-			"redirect": res.Actions[1].URL,
-			"qrisUrl":  res.Actions[0].URL,
-			"back_url": transaction.RedirectURL,
-			"retcode":  "0000",
-			"message":  "Successful Created Transaction",
+			"success":                 true,
+			"retcode":                 "0000",
+			"message":                 "Successful",
+			"data":                    data,
+			"appid":                   appid,
+			"appkey":                  arrClient.ClientAppkey,
+			"token":                   token,
+			"timestamp":               time.Now().Unix(),
+			"merchant_transaction_id": transaction.MtTid,
 		})
 
 	case "qris":
@@ -456,14 +573,31 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			log.Println("Updated Midtrans ID error:", err)
 		}
 
-		// log.Println("redirect: ", res.Actions[0].URL)
+		data := map[string]interface{}{
+			"ack":          "",
+			"phone_number": transaction.UserMDN,
+			"keyword":      "",
+			"sms_code":     "",
+			"short_code":   "",
+			"url":          res.Actions[0].URL,
+			"qr":           res.QrString,
+			"html":         "",
+			"bankcode":     "",
+			"vaid":         "",
+			"code":         "",
+			"trx_type":     "redirect",
+		}
+
 		return c.JSON(fiber.Map{
-			"success":  true,
-			"qrisUrl":  res.Actions[0].URL,
-			"back_url": transaction.RedirectURL,
-			"qrString": res.QrString,
-			"retcode":  "0000",
-			"message":  "Successful Created Transaction",
+			"success":                 true,
+			"retcode":                 "0000",
+			"message":                 "Successful",
+			"data":                    data,
+			"appid":                   appid,
+			"appkey":                  arrClient.ClientAppkey,
+			"token":                   token,
+			"timestamp":               time.Now().Unix(),
+			"merchant_transaction_id": transaction.MtTid,
 		})
 	case "ovo":
 		resultChan := make(chan *lib.OVOResponse)
