@@ -1823,7 +1823,7 @@ func ManualCallback(c *fiber.Ctx) error {
 			Currency:               transaction.Currency,
 			Amount:                 transaction.Amount,
 			ChargingAmount:         fmt.Sprintf("%d", transaction.Price),
-			StatusCode:             statusCode,
+			StatusCode:             fmt.Sprintf("%d", statusCode),
 			Status:                 "success",
 			ItemID:                 transaction.ItemId,
 			ItemName:               transaction.ItemName,

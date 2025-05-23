@@ -934,7 +934,7 @@ func SendCallback(merchantURL, secret string, transactionID string, data interfa
 	}
 
 	bodyJSONString := string(jsonData)
-	// log.Println("jsonData", bodyJSONString)
+	log.Println("jsonData Callback", bodyJSONString)
 
 	bodySign, _ := GenerateBodySign(bodyJSONString, secret)
 	// log.Println("bodySign", bodySign)
@@ -990,6 +990,7 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 	}
 
 	bodyJSONString := string(jsonData)
+	log.Println("jsonData Callback Failed", bodyJSONString)
 
 	bodySign, _ := GenerateBodySign(bodyJSONString, secret)
 
