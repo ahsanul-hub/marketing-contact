@@ -853,7 +853,7 @@ func ProcessFailedTransactions() {
 					Currency:               transaction.Currency,
 					Amount:                 transaction.Amount,
 					StatusCode:             fmt.Sprintf("%d", transaction.StatusCode),
-					Status:                 "success",
+					Status:                 status,
 					ItemID:                 transaction.ItemId,
 					ItemName:               transaction.ItemName,
 					UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
