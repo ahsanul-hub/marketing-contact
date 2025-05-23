@@ -49,6 +49,7 @@ type Transactions struct {
 	FailReason              string     `gorm:"type:VARCHAR(255)" json:"fail_reason"`
 	CustomerName            string     `gorm:"type:VARCHAR(255)" json:"customer_name"`
 	NotificationUrl         string     `gorm:"type:VARCHAR(255)" json:"notification_url"`
+	UserIP                  string     `gorm:"type:VARCHAR(25)" json:"user_ip"`
 	CreatedAt               time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt               time.Time  `gorm:"autoCreateTime" json:"updated_at"`
 }
@@ -100,6 +101,7 @@ type InputPaymentRequest struct {
 	ReffId          string `json:"reff_id,omitempty"`
 	CustomerName    string `json:"customer_name,omitempty"`
 	NotificationUrl string `json:"notification_url,omitempty"`
+	UserIP          string `json:"user_ip,omitempty"`
 }
 
 // type InputPaymentRequestOld struct {
@@ -139,4 +141,48 @@ type TransactionReport struct {
 	TotalAmountTax uint64 `json:"total_amount_tax"`
 	ShareRedision  uint   `json:"share_redision"`
 	ShareMerchant  uint   `json:"share_merchant"`
+}
+
+type CallbackDataLegacy struct {
+	AppID                  string      `json:"app_id"`
+	ClientAppKey           string      `json:"client_appkey"`
+	UserID                 string      `json:"user_id"`
+	UserIP                 string      `json:"user_ip"`
+	UserMDN                string      `json:"user_mdn"`
+	MerchantTransactionID  string      `json:"merchant_transaction_id"`
+	TransactionDescription string      `json:"transaction_description"`
+	PaymentMethod          string      `json:"payment_method"`
+	Currency               string      `json:"currency"`
+	Amount                 interface{} `json:"amount"`
+	ChargingAmount         string      `json:"charging_amount"`
+	StatusCode             int         `json:"status_code"`
+	Status                 string      `json:"status"`
+	ItemID                 string      `json:"item_id"`
+	ItemName               string      `json:"item_name"`
+	UpdatedAt              string      `json:"updated_at"`
+	ReferenceID            string      `json:"reference_id"`
+	Testing                string      `json:"testing"`
+	Custom                 string      `json:"custom"`
+}
+
+type FailedCallbackDataLegacy struct {
+	AppID                  string      `json:"app_id"`
+	ClientAppKey           string      `json:"client_appkey"`
+	UserID                 string      `json:"user_id"`
+	UserIP                 string      `json:"user_ip"`
+	UserMDN                string      `json:"user_mdn"`
+	MerchantTransactionID  string      `json:"merchant_transaction_id"`
+	TransactionDescription string      `json:"transaction_description"`
+	PaymentMethod          string      `json:"payment_method"`
+	Currency               string      `json:"currency"`
+	Amount                 interface{} `json:"amount"`
+	StatusCode             int         `json:"status_code"`
+	Status                 string      `json:"status"`
+	ItemID                 string      `json:"item_id"`
+	ItemName               string      `json:"item_name"`
+	UpdatedAt              string      `json:"updated_at"`
+	ReferenceID            string      `json:"reference_id"`
+	Testing                string      `json:"testing"`
+	Custom                 string      `json:"custom"`
+	FailReason             string      `json:"fail_reason"`
 }

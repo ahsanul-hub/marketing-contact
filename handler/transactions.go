@@ -1766,9 +1766,9 @@ func ManualCallback(c *fiber.Ctx) error {
 		}
 	}
 
-	if transaction.NotificationUrl != "" {
-		callbackURL = transaction.NotificationUrl
-	}
+	// if transaction.NotificationUrl != "" {
+	// 	callbackURL = transaction.NotificationUrl
+	// }
 
 	if callbackURL == "" {
 		log.Printf("No matching ClientApp found for AppID callback Url: %s", transaction.AppID)
@@ -1789,24 +1789,72 @@ func ManualCallback(c *fiber.Ctx) error {
 	} else {
 		amount = fmt.Sprintf("%d", transaction.Amount)
 	}
-	callbackData := repository.CallbackData{
-		UserID:                transaction.UserId,
-		MerchantTransactionID: transaction.MtTid,
-		StatusCode:            statusCode,
-		PaymentMethod:         paymentMethod,
-		Amount:                amount,
-		Status:                "success",
-		Currency:              transaction.Currency,
-		ItemName:              transaction.ItemName,
-		ItemID:                transaction.ItemId,
-		ReferenceID:           transactionID,
+
+	// callbackData := repository.CallbackData{
+	// 	UserID:                transaction.UserId,
+	// 	MerchantTransactionID: transaction.MtTid,
+	// 	StatusCode:            statusCode,
+	// 	PaymentMethod:         paymentMethod,
+	// 	Amount:                amount,
+	// 	Status:                "success",
+	// 	Currency:              transaction.Currency,
+	// 	ItemName:              transaction.ItemName,
+	// 	ItemID:                transaction.ItemId,
+	// 	ReferenceID:           transactionID,
+	// }
+
+	// if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+	// 	callbackData.AppID = transaction.AppID
+	// 	callbackData.ClientAppKey = transaction.ClientAppKey
+	// }
+
+	var callbackPayload interface{}
+
+	if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" {
+		callbackPayload = model.CallbackDataLegacy{
+			AppID:                  transaction.AppID,
+			ClientAppKey:           transaction.ClientAppKey,
+			UserID:                 transaction.UserId,
+			UserIP:                 transaction.UserIP,
+			UserMDN:                transaction.UserMDN,
+			MerchantTransactionID:  transaction.MtTid,
+			TransactionDescription: "",
+			PaymentMethod:          paymentMethod,
+			Currency:               transaction.Currency,
+			Amount:                 transaction.Amount,
+			ChargingAmount:         fmt.Sprintf("%d", transaction.Price),
+			StatusCode:             statusCode,
+			Status:                 "success",
+			ItemID:                 transaction.ItemId,
+			ItemName:               transaction.ItemName,
+			UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
+			ReferenceID:            transaction.ID,
+			Testing:                "0",
+			Custom:                 "",
+		}
+	} else {
+		payload := repository.CallbackData{
+			UserID:                transaction.UserId,
+			MerchantTransactionID: transaction.MtTid,
+			StatusCode:            statusCode,
+			PaymentMethod:         paymentMethod,
+			Amount:                amount,
+			Status:                "success",
+			Currency:              transaction.Currency,
+			ItemName:              transaction.ItemName,
+			ItemID:                transaction.ItemId,
+			ReferenceID:           transaction.ID,
+		}
+
+		if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+			payload.AppID = transaction.AppID
+			payload.ClientAppKey = transaction.ClientAppKey
+		}
+
+		callbackPayload = payload
 	}
 
-	if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
-		callbackData.AppID = transaction.AppID
-		callbackData.ClientAppKey = transaction.ClientAppKey
-	}
-	err = repository.SendCallback(callbackURL, arrClient.ClientSecret, transaction.ID, callbackData)
+	err = repository.SendCallback(callbackURL, arrClient.ClientSecret, transaction.ID, callbackPayload)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

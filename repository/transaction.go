@@ -154,6 +154,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		ItemId:        input.ItemId,
 		BodySign:      input.BodySign,
 		CustomerName:  input.CustomerName,
+		UserIP:        input.UserIP,
 	}
 
 	transaction.AppID = appid
@@ -270,9 +271,6 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom i
 	if merchantTransactionId != "" {
 		query = query.Where("mt_tid = ?", merchantTransactionId)
 	}
-	// if appKey != "" {
-	// 	query = query.Where("client_app_key = ?", appKey)
-	// }
 	if status != 0 {
 		query = query.Where("status_code = ?", status)
 	}
@@ -626,9 +624,7 @@ func ProcessTransactions() {
 	}
 
 	for _, transaction := range transactions {
-		// Cek apakah transaksi sudah diproses
 		if _, loaded := processedTransactions.LoadOrStore(transaction.ID, true); loaded {
-			// Jika sudah diproses, lewati transaksi ini
 			continue
 		}
 		// Proses transaksi dalam goroutine
@@ -656,27 +652,6 @@ func ProcessTransactions() {
 				return
 			}
 
-			// var referenceID string
-
-			// switch transaction.PaymentMethod {
-			// case "xl_airtime":
-			// 	referenceID = transaction.ReferenceID
-			// case "three_airtime":
-			// 	referenceID = transaction.XimpayID
-			// case "smartfren_airtime":
-			// 	referenceID = transaction.XimpayID
-			// case "indosat_airtime":
-			// 	referenceID = transaction.XimpayID
-			// case "gopay":
-			// 	referenceID = transaction.MidtransTransactionId
-			// case "shopeepay":
-			// 	referenceID = transaction.MidtransTransactionId
-			// case "qris":
-			// 	referenceID = transaction.MidtransTransactionId
-			// default:
-			// 	referenceID = transaction.ReferenceID
-			// }
-
 			var paymentMethod string
 
 			paymentMethod = transaction.PaymentMethod
@@ -691,26 +666,71 @@ func ProcessTransactions() {
 				amount = fmt.Sprintf("%d", transaction.Amount)
 			}
 
-			callbackData := CallbackData{
-				UserID:                transaction.UserId,
-				MerchantTransactionID: transaction.MtTid,
-				StatusCode:            1000, // Misalnya, status sukses
-				PaymentMethod:         paymentMethod,
-				Amount:                amount,
-				Status:                "success",
-				Currency:              transaction.Currency,
-				ItemName:              transaction.ItemName,
-				ItemID:                transaction.ItemId,
-				ReferenceID:           transaction.ID,
-			}
-			if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
-				callbackData.AppID = transaction.AppID
-				callbackData.ClientAppKey = transaction.ClientAppKey
+			// callbackData := CallbackData{
+			// 	UserID:                transaction.UserId,
+			// 	MerchantTransactionID: transaction.MtTid,
+			// 	StatusCode:            1000, // Misalnya, status sukses
+			// 	PaymentMethod:         paymentMethod,
+			// 	Amount:                amount,
+			// 	Status:                "success",
+			// 	Currency:              transaction.Currency,
+			// 	ItemName:              transaction.ItemName,
+			// 	ItemID:                transaction.ItemId,
+			// 	ReferenceID:           transaction.ID,
+			// }
+			// if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+			// 	callbackData.AppID = transaction.AppID
+			// 	callbackData.ClientAppKey = transaction.ClientAppKey
+			// }
+
+			var callbackPayload interface{}
+
+			if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" {
+				callbackPayload = model.CallbackDataLegacy{
+					AppID:                  transaction.AppID,
+					ClientAppKey:           transaction.ClientAppKey,
+					UserID:                 transaction.UserId,
+					UserIP:                 transaction.UserIP,
+					UserMDN:                transaction.UserMDN,
+					MerchantTransactionID:  transaction.MtTid,
+					TransactionDescription: "",
+					PaymentMethod:          paymentMethod,
+					Currency:               transaction.Currency,
+					Amount:                 transaction.Amount,
+					ChargingAmount:         fmt.Sprintf("%d", transaction.Price),
+					StatusCode:             1000,
+					Status:                 "success",
+					ItemID:                 transaction.ItemId,
+					ItemName:               transaction.ItemName,
+					UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
+					ReferenceID:            transaction.ID,
+					Testing:                "0",
+					Custom:                 "",
+				}
+			} else {
+				payload := CallbackData{
+					UserID:                transaction.UserId,
+					MerchantTransactionID: transaction.MtTid,
+					StatusCode:            1000,
+					PaymentMethod:         paymentMethod,
+					Amount:                amount,
+					Status:                "success",
+					Currency:              transaction.Currency,
+					ItemName:              transaction.ItemName,
+					ItemID:                transaction.ItemId,
+					ReferenceID:           transaction.ID,
+				}
+
+				if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+					payload.AppID = transaction.AppID
+					payload.ClientAppKey = transaction.ClientAppKey
+				}
+
+				callbackPayload = payload
 			}
 
-			// Kirim ke CallbackQueue
 			SuccessCallbackQueue <- CallbackQueueStruct{
-				Data:          callbackData,
+				Data:          callbackPayload,
 				TransactionId: transaction.ID,
 				Secret:        arrClient.ClientSecret,
 				MerchantURL:   callbackURL,
@@ -800,26 +820,71 @@ func ProcessFailedTransactions() {
 				amount = fmt.Sprintf("%d", transaction.Amount)
 			}
 
-			callbackData := CallbackData{
-				UserID:                transaction.UserId,
-				MerchantTransactionID: transaction.MtTid,
-				StatusCode:            transaction.StatusCode,
-				PaymentMethod:         paymentMethod,
-				Amount:                amount,
-				Status:                status,
-				Currency:              transaction.Currency,
-				ItemName:              transaction.ItemName,
-				ItemID:                transaction.ItemId,
-				ReferenceID:           transaction.ID,
-			}
-			if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
-				callbackData.AppID = transaction.AppID
-				callbackData.ClientAppKey = transaction.ClientAppKey
+			// callbackData := CallbackData{
+			// 	UserID:                transaction.UserId,
+			// 	MerchantTransactionID: transaction.MtTid,
+			// 	StatusCode:            transaction.StatusCode,
+			// 	PaymentMethod:         paymentMethod,
+			// 	Amount:                amount,
+			// 	Status:                status,
+			// 	Currency:              transaction.Currency,
+			// 	ItemName:              transaction.ItemName,
+			// 	ItemID:                transaction.ItemId,
+			// 	ReferenceID:           transaction.ID,
+			// }
+			// if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+			// 	callbackData.AppID = transaction.AppID
+			// 	callbackData.ClientAppKey = transaction.ClientAppKey
+			// }
+
+			var callbackPayload interface{}
+
+			if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" {
+				callbackPayload = model.FailedCallbackDataLegacy{
+					AppID:                  transaction.AppID,
+					ClientAppKey:           transaction.ClientAppKey,
+					UserID:                 transaction.UserId,
+					UserIP:                 transaction.UserIP,
+					UserMDN:                transaction.UserMDN,
+					MerchantTransactionID:  transaction.MtTid,
+					TransactionDescription: "",
+					PaymentMethod:          paymentMethod,
+					Currency:               transaction.Currency,
+					Amount:                 transaction.Amount,
+					StatusCode:             1000,
+					Status:                 "success",
+					ItemID:                 transaction.ItemId,
+					ItemName:               transaction.ItemName,
+					UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
+					ReferenceID:            transaction.ID,
+					Testing:                "0",
+					Custom:                 "",
+					FailReason:             status,
+				}
+			} else {
+				payload := CallbackData{
+					UserID:                transaction.UserId,
+					MerchantTransactionID: transaction.MtTid,
+					StatusCode:            transaction.StatusCode,
+					PaymentMethod:         paymentMethod,
+					Amount:                amount,
+					Status:                status,
+					Currency:              transaction.Currency,
+					ItemName:              transaction.ItemName,
+					ItemID:                transaction.ItemId,
+					ReferenceID:           transaction.ID,
+				}
+
+				if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+					payload.AppID = transaction.AppID
+					payload.ClientAppKey = transaction.ClientAppKey
+				}
+
+				callbackPayload = payload
 			}
 
-			// Kirim ke CallbackQueue
 			FailedCallbackQueue <- CallbackQueueStruct{
-				Data:          callbackData,
+				Data:          callbackPayload,
 				TransactionId: transaction.ID,
 				Secret:        arrClient.ClientSecret,
 				MerchantURL:   callbackURL,
@@ -852,7 +917,7 @@ type CallbackData struct {
 }
 
 type CallbackQueueStruct struct {
-	Data          CallbackData
+	Data          interface{}
 	TransactionId string
 	Secret        string
 	MerchantURL   string
@@ -861,7 +926,7 @@ type CallbackQueueStruct struct {
 var SuccessCallbackQueue = make(chan CallbackQueueStruct, 100)
 var FailedCallbackQueue = make(chan CallbackQueueStruct, 100)
 
-func SendCallback(merchantURL, secret string, transactionID string, data CallbackData) error {
+func SendCallback(merchantURL, secret string, transactionID string, data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		log.Printf("failed to marshal callback data: %v", err)
@@ -904,7 +969,7 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("send callback id : %s failed with status: %s , bodySign: %s", transactionID, resp.Status, bodySign)
-		return fmt.Errorf("callback failed with status: %s , bodySign: %s", resp.Status, bodySign)
+		return fmt.Errorf("callback failed with status: %s , url: %s", resp.Status, merchantURL)
 	}
 
 	ctx := context.Background()
@@ -917,7 +982,7 @@ func SendCallback(merchantURL, secret string, transactionID string, data Callbac
 	return nil
 }
 
-func SendCallbackFailed(merchantURL, secret string, transactionID string, data CallbackData) error {
+func SendCallbackFailed(merchantURL, secret string, transactionID string, data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
 		log.Printf("failed to marshal callback data: %v", err)
@@ -958,20 +1023,31 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data C
 	}
 
 	if resp.StatusCode != http.StatusOK {
+		log.Printf("callback failed with status: %s , bodySign: %s, transactionId: %s", resp.Status, bodySign, transactionID)
 		return fmt.Errorf("callback failed with status: %s , bodySign: %s, transactionId: %s", resp.Status, bodySign, transactionID)
 	}
 
 	ctx := context.Background()
 	callbackDate := time.Now()
 
-	if err := UpdateTransactionCallbackTimestamps(ctx, transactionID, data.StatusCode, &callbackDate, callbackResult); err != nil {
+	var statusCode int
+	switch v := data.(type) {
+	case CallbackData:
+		statusCode = v.StatusCode
+	case model.FailedCallbackDataLegacy:
+		statusCode = v.StatusCode
+	default:
+		return fmt.Errorf("unsupported callback data type: %T", data)
+	}
+
+	if err := UpdateTransactionCallbackTimestamps(ctx, transactionID, statusCode, &callbackDate, callbackResult); err != nil {
 		return fmt.Errorf("failed to update transaction callback timestamps: %v", err)
 	}
 
 	return nil
 }
 
-func sendCallbackWithRetry(merchantURL string, transactionID string, secret string, retries int, data CallbackData) error {
+func sendCallbackWithRetry(merchantURL string, transactionID string, secret string, retries int, data interface{}) error {
 	for i := 0; i < retries; i++ {
 
 		err := SendCallback(merchantURL, secret, transactionID, data)
@@ -990,7 +1066,7 @@ func sendCallbackWithRetry(merchantURL string, transactionID string, secret stri
 	return fmt.Errorf("all retry attempts failed for transactionId: %s", transactionID) // Kembalikan error jika semua percobaan gagal
 }
 
-func sendCallbackFailedRetry(merchantURL string, transactionID string, secret string, retries int, data CallbackData) error {
+func sendCallbackFailedRetry(merchantURL string, transactionID string, secret string, retries int, data interface{}) error {
 	for i := 0; i < retries; i++ {
 
 		err := SendCallbackFailed(merchantURL, secret, transactionID, data)
@@ -999,12 +1075,20 @@ func sendCallbackFailedRetry(merchantURL string, transactionID string, secret st
 			return nil
 		}
 
-		// log.Println("data: ", data)
-
 		time.Sleep(5 * time.Minute)
 	}
 
-	if err := UpdateTransactionCallbackTimestamps(context.Background(), transactionID, data.StatusCode, nil, "failed"); err != nil {
+	var statusCode int
+	switch v := data.(type) {
+	case CallbackData:
+		statusCode = v.StatusCode
+	case model.FailedCallbackDataLegacy:
+		statusCode = v.StatusCode
+	default:
+		return fmt.Errorf("unsupported callback data type: %T", data)
+	}
+
+	if err := UpdateTransactionCallbackTimestamps(context.Background(), transactionID, statusCode, nil, "failed"); err != nil {
 		return fmt.Errorf("failed to update transaction callback timestamps: %v", err)
 	}
 

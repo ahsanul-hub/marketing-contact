@@ -22,6 +22,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	bodysign := c.Get("bodysign")
 	appid := c.Params("appid")
 	token := c.Params("token")
+	clientIP := c.IP()
 
 	if appid != "6078feb8764f1ba30a8b4569" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -65,8 +66,8 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		ReffId:          cachedInput.ReffId,
 		CustomerName:    cachedInput.CustomerName,
 		NotificationUrl: cachedInput.NotificationUrl,
+		UserIP:          clientIP,
 	}
-	log.Println(cachedInput)
 
 	var paymentMethod string
 	switch transaction.PaymentMethod {
