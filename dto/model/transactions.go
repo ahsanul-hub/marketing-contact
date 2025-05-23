@@ -155,7 +155,7 @@ type CallbackDataLegacy struct {
 	Currency               string      `json:"currency"`
 	Amount                 interface{} `json:"amount"`
 	ChargingAmount         string      `json:"charging_amount"`
-	StatusCode             int         `json:"status_code"`
+	StatusCode             string      `json:"status_code"`
 	Status                 string      `json:"status"`
 	ItemID                 string      `json:"item_id"`
 	ItemName               string      `json:"item_name"`
@@ -176,7 +176,7 @@ type FailedCallbackDataLegacy struct {
 	PaymentMethod          string      `json:"payment_method"`
 	Currency               string      `json:"currency"`
 	Amount                 interface{} `json:"amount"`
-	StatusCode             int         `json:"status_code"`
+	StatusCode             string      `json:"status_code"`
 	Status                 string      `json:"status"`
 	ItemID                 string      `json:"item_id"`
 	ItemName               string      `json:"item_name"`
