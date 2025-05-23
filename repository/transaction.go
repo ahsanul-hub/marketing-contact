@@ -7,6 +7,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"math"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -698,7 +699,7 @@ func ProcessTransactions() {
 					Currency:               transaction.Currency,
 					Amount:                 transaction.Amount,
 					ChargingAmount:         fmt.Sprintf("%d", transaction.Price),
-					StatusCode:             1000,
+					StatusCode:             "1000",
 					Status:                 "success",
 					ItemID:                 transaction.ItemId,
 					ItemName:               transaction.ItemName,
@@ -851,7 +852,7 @@ func ProcessFailedTransactions() {
 					PaymentMethod:          paymentMethod,
 					Currency:               transaction.Currency,
 					Amount:                 transaction.Amount,
-					StatusCode:             1000,
+					StatusCode:             fmt.Sprintf("%d", transaction.StatusCode),
 					Status:                 "success",
 					ItemID:                 transaction.ItemId,
 					ItemName:               transaction.ItemName,
@@ -1035,7 +1036,11 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 	case CallbackData:
 		statusCode = v.StatusCode
 	case model.FailedCallbackDataLegacy:
-		statusCode = v.StatusCode
+		code, err := strconv.Atoi(v.StatusCode)
+		if err != nil {
+			return fmt.Errorf("invalid status code in legacy callback data: %v", err)
+		}
+		statusCode = code
 	default:
 		return fmt.Errorf("unsupported callback data type: %T", data)
 	}
@@ -1083,7 +1088,11 @@ func sendCallbackFailedRetry(merchantURL string, transactionID string, secret st
 	case CallbackData:
 		statusCode = v.StatusCode
 	case model.FailedCallbackDataLegacy:
-		statusCode = v.StatusCode
+		code, err := strconv.Atoi(v.StatusCode)
+		if err != nil {
+			return fmt.Errorf("invalid status code in legacy callback data: %v", err)
+		}
+		statusCode = code
 	default:
 		return fmt.Errorf("unsupported callback data type: %T", data)
 	}
