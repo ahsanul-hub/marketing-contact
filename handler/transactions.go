@@ -66,6 +66,16 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	}
 
+	mtDupKey := fmt.Sprintf("dup:%s:%s", appkey, transaction.MtTid)
+
+	if _, found := MTIDCache.Get(mtDupKey); found {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0023",
+			"message": "Duplicate merchant_transaction_id",
+		})
+	}
+
 	var paymentMethod string
 	switch transaction.PaymentMethod {
 	case "telkomsel_airtime_sms":
@@ -203,9 +213,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
-	// createdTransId := "rawgg36"
-	// var chargingPrice uint
-	// chargingPrice = 5550
+	MTIDCache.Set(mtDupKey, true, cache.DefaultExpiration)
 
 	switch paymentMethod {
 	case "xl_airtime":

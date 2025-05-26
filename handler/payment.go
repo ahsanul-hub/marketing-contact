@@ -23,6 +23,7 @@ import (
 var TransactionCache = cache.New(10*time.Minute, 11*time.Minute)
 var VaTransactionCache = cache.New(60*time.Minute, 65*time.Minute)
 var QrCache = cache.New(5*time.Minute, 10*time.Minute)
+var MTIDCache = cache.New(12*time.Hour, 1*time.Hour)
 
 type CachedTransaction struct {
 	Data      model.InputPaymentRequest
@@ -90,6 +91,16 @@ func CreateOrder(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Invalid input",
+		})
+	}
+
+	mtDupKey := fmt.Sprintf("dup:%s:%s", appkey, input.MtTid)
+
+	if _, found := MTIDCache.Get(mtDupKey); found {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0023",
+			"message": "Duplicate merchant_transaction_id",
 		})
 	}
 
@@ -218,6 +229,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	input.BodySign = receivedBodysign
 
 	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
+	MTIDCache.Set(mtDupKey, true, cache.DefaultExpiration)
 
 	data := map[string]interface{}{
 		"token": transactionID,
