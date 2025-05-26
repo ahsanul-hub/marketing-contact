@@ -55,7 +55,6 @@ func main() {
 	handler.StartBlockedUserIDCacheRefresher()
 	go lib.ProcessPendingTransactions()
 	// go repository.ProcessTransactions()
-	go repository.ProcessFailedTransactions()
 	go repository.ProccessFailedCallbackWorker()
 	go repository.ProcessCallbackQueue()
 	go handler.ProcessUpdateTransactionPending()

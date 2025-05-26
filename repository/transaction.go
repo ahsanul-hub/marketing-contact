@@ -990,7 +990,7 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 	}
 
 	bodyJSONString := string(jsonData)
-	log.Println("jsonData Callback Failed", bodyJSONString)
+	// log.Println("jsonData Callback Failed", bodyJSONString)
 
 	bodySign, _ := GenerateBodySign(bodyJSONString, secret)
 
@@ -1014,7 +1014,7 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 
 	var responseBody map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
-		log.Printf("failed to decode response body: %v", err)
+		// log.Printf("failed to decode response body: %v", err)
 	}
 
 	var callbackResult string
@@ -1119,14 +1119,14 @@ func ProcessCallbackQueue() {
 }
 
 func ProccessFailedCallbackWorker() {
-	go func() {
-		for job := range FailedCallbackQueue {
-			err := sendCallbackFailedRetry(job.MerchantURL, job.TransactionId, job.Secret, 5, job.Data)
+	for job := range FailedCallbackQueue {
+		go func(j CallbackQueueStruct) {
+			err := sendCallbackFailedRetry(j.MerchantURL, j.TransactionId, j.Secret, 5, j.Data)
 			if err != nil {
 				log.Println("Callback failed, failed to send:", err)
 			}
-		}
-	}()
+		}(job)
+	}
 }
 
 func GenerateBodySign(bodyJson string, appSecret string) (string, error) {

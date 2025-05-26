@@ -99,6 +99,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		"gopay":     10000000,
 		"ovo":       10000000,
 		"dana":      10000000,
+		"va_bca":    10000000,
 	}
 
 	limit, ok := paymentLimits[input.PaymentMethod]

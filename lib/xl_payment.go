@@ -400,6 +400,7 @@ func ProcessPendingTransactions() {
 
 	for {
 		go repository.ProcessTransactions()
+		go repository.ProcessFailedTransactions()
 		transactions, err := repository.GetPendingTransactions(context.Background(), "xl_airtime")
 
 		if err != nil {
