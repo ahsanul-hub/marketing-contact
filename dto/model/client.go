@@ -29,8 +29,8 @@ type SettlementClient struct {
 	AdditionalPercent *float32  `json:"additional_percent"`
 	AdditionalFeeType *int      `json:"additionalfee_type"`
 	PaymentType       string    `json:"payment_type"`
-	ShareRedision     *uint     `json:"share_redision"`
-	SharePartner      *uint     `json:"share_partner"`
+	ShareRedision     *float32  `json:"share_redision"`
+	SharePartner      *float32  `json:"share_partner"`
 	IsDivide1Poin1    string    `json:"is_divide_1poin1"`
 	UpdatedAt         time.Time `gorm:"not null" json:"updated_at"`
 	CreatedAt         time.Time `gorm:"not null" json:"created_at"`
