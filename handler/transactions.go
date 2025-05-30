@@ -552,7 +552,8 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	case "dana":
 		strPrice := fmt.Sprintf("%d00", chargingPrice)
-		res, err := lib.RequestChargingDanaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN) //lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
+		// res, err := lib.RequestChargingDanaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN) //lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
+		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request dana failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -561,15 +562,15 @@ func CreateTransaction(c *fiber.Ctx) error {
 			})
 		}
 
-		if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
-			log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-		}
+		// for faspay
+		// if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+		// 	log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+		// }
 
-		// log.Println("redirect: ", res.Actions[0].URL)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"back_url": transaction.RedirectURL,
-			"redirect": res.RedirectURL,
+			"redirect": checkoutUrl, //"redirect": res.RedirectURL,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
@@ -1166,7 +1167,16 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		})
 	case "dana":
 		strPrice := fmt.Sprintf("%d00", chargingPrice)
-		res, err := lib.RequestChargingDanaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN) //lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
+		// res, err := lib.RequestChargingDanaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN) //lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
+		// if err != nil {
+		// 	log.Println("Charging request dana failed:", err)
+		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// 		"success": false,
+		// 		"message": "Charging request failed",
+		// 	})
+		// }
+
+		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request dana failed:", err)
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -1175,9 +1185,9 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			})
 		}
 
-		if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
-			log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-		}
+		// if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+		// 	log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+		// }
 
 		// err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
 		// if err != nil {
@@ -1188,7 +1198,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"back_url": transaction.RedirectURL,
-			"redirect": res.RedirectURL,
+			"redirect": checkoutUrl,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
