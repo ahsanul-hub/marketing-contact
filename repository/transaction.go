@@ -686,7 +686,8 @@ func ProcessTransactions() {
 
 			var callbackPayload interface{}
 
-			if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" {
+			if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" ||
+				arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" {
 				callbackPayload = model.CallbackDataLegacy{
 					AppID:                  transaction.AppID,
 					ClientAppKey:           transaction.ClientAppKey,
@@ -840,7 +841,8 @@ func ProcessFailedTransactions() {
 
 			var callbackPayload interface{}
 
-			if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" {
+			if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" ||
+				arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" {
 				callbackPayload = model.FailedCallbackDataLegacy{
 					AppID:                  transaction.AppID,
 					ClientAppKey:           transaction.ClientAppKey,
@@ -934,7 +936,7 @@ func SendCallback(merchantURL, secret string, transactionID string, data interfa
 	}
 
 	bodyJSONString := string(jsonData)
-	log.Println("jsonData Callback", bodyJSONString)
+	// log.Println("jsonData Callback", bodyJSONString)
 
 	bodySign, _ := GenerateBodySign(bodyJSONString, secret)
 	// log.Println("bodySign", bodySign)

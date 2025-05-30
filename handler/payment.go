@@ -251,7 +251,13 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 
 	receivedBodysign := c.Get("bodysign")
 
-	if appid != "6078feb8764f1ba30a8b4569" && appkey != "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4" {
+	var allowedClients = map[string]string{
+		"6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+		"64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
+	}
+
+	expectedAppkey, exists := allowedClients[appid]
+	if !exists || appkey != expectedAppkey {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Invalid Endpoint",
@@ -308,11 +314,12 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 
 	}
 
-	appSecret := arrClient.ClientSecret
+	expectedAppkey, skipBodysign := allowedClients[appid]
+	if !skipBodysign || expectedAppkey != appkey {
 
-	expectedBodysign := helper.GenerateBodySign(input, appSecret)
+		appSecret := arrClient.ClientSecret
+		expectedBodysign := helper.GenerateBodySign(input, appSecret)
 
-	if appid != "6078feb8764f1ba30a8b4569" && appkey != "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4" {
 		if receivedBodysign != expectedBodysign {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"success": false,

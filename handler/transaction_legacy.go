@@ -24,13 +24,18 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	token := c.Params("token")
 	clientIP := c.IP()
 
-	if appid != "6078feb8764f1ba30a8b4569" {
+	allowedClients := map[string]string{
+		"6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+		"64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
+	}
+
+	expectedAppKey, exists := allowedClients[appid]
+	if !exists {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Invalid Endpoint",
 		})
 	}
-
 	var transaction model.InputPaymentRequest
 
 	cached, found := TransactionCache.Get(token)
@@ -133,7 +138,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		})
 	}
 
-	arrClient, err := repository.FindClient(c.Context(), "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4", appid)
+	arrClient, err := repository.FindClient(c.Context(), expectedAppKey, appid)
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
@@ -181,7 +186,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		expiredTime = res.ExpiredTime
 	}
 
-	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4", appid, &vaNumber)
+	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, expectedAppKey, appid, &vaNumber)
 	if err != nil {
 		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
@@ -239,7 +244,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"data":                    data,
 			"error_message":           "",
 			"appid":                   appid,
-			"appkey":                  "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+			"appkey":                  expectedAppKey,
 			"token":                   token,
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
@@ -298,7 +303,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"success":                 true,
 			"data":                    data,
 			"appid":                   appid,
-			"appkey":                  "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+			"appkey":                  expectedAppKey,
 			"token":                   token,
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
@@ -358,7 +363,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"success":                 true,
 			"data":                    data,
 			"appid":                   appid,
-			"appkey":                  "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+			"appkey":                  expectedAppKey,
 			"token":                   token,
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
@@ -399,7 +404,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"success":                 true,
 			"data":                    data,
 			"appid":                   appid,
-			"appkey":                  "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+			"appkey":                  expectedAppKey,
 			"token":                   token,
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
@@ -459,7 +464,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"success":                 true,
 			"data":                    data,
 			"appid":                   appid,
-			"appkey":                  "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+			"appkey":                  expectedAppKey,
 			"token":                   token,
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
@@ -500,7 +505,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"success":                 true,
 			"data":                    data,
 			"appid":                   appid,
-			"appkey":                  "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+			"appkey":                  expectedAppKey,
 			"token":                   token,
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
@@ -540,7 +545,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"success":                 true,
 			"data":                    data,
 			"appid":                   appid,
-			"appkey":                  "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+			"appkey":                  expectedAppKey,
 			"token":                   token,
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
@@ -580,7 +585,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"success":                 true,
 			"data":                    data,
 			"appid":                   appid,
-			"appkey":                  "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+			"appkey":                  expectedAppKey,
 			"token":                   token,
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
