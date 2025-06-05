@@ -705,7 +705,7 @@ func ProcessTransactions() {
 					ItemID:                 transaction.ItemId,
 					ItemName:               transaction.ItemName,
 					UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
-					ReferenceID:            transaction.ID,
+					ReferenceID:            transaction.ReferenceID,
 					Testing:                "0",
 					Custom:                 "",
 				}
@@ -859,7 +859,7 @@ func ProcessFailedTransactions() {
 					ItemID:                 transaction.ItemId,
 					ItemName:               transaction.ItemName,
 					UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
-					ReferenceID:            transaction.ID,
+					ReferenceID:            transaction.ReferenceID,
 					Testing:                "0",
 					Custom:                 "",
 					FailReason:             status,

@@ -192,6 +192,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
+	err = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &token, nil, "", nil)
+	if err != nil {
+		log.Printf("Error updating reference id legacy transaction %s : %s", createdTransId, err)
+	}
+
 	switch paymentMethod {
 	case "xl_airtime":
 
