@@ -139,23 +139,24 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	}
 
 	transaction := model.Transactions{
-		ID:            uniqueID.String(),
-		MtTid:         input.MtTid,
-		StatusCode:    1001,
-		ItemName:      input.ItemName,
-		UserMDN:       input.UserMDN,
-		Testing:       input.Testing,
-		Route:         input.Route,
-		UserId:        input.UserId,
-		PaymentMethod: input.PaymentMethod,
-		Currency:      currency,
-		Price:         uint(chargingPrice),
-		NetSettlement: float32(nettSettlement),
-		Amount:        input.Amount,
-		ItemId:        input.ItemId,
-		BodySign:      input.BodySign,
-		CustomerName:  input.CustomerName,
-		UserIP:        input.UserIP,
+		ID:                  uniqueID.String(),
+		MtTid:               input.MtTid,
+		StatusCode:          1001,
+		ItemName:            input.ItemName,
+		UserMDN:             input.UserMDN,
+		Testing:             input.Testing,
+		Route:               input.Route,
+		UserId:              input.UserId,
+		PaymentMethod:       input.PaymentMethod,
+		Currency:            currency,
+		Price:               uint(chargingPrice),
+		NetSettlement:       float32(nettSettlement),
+		Amount:              input.Amount,
+		ItemId:              input.ItemId,
+		BodySign:            input.BodySign,
+		CustomerName:        input.CustomerName,
+		UserIP:              input.UserIP,
+		CallbackReferenceId: input.CallbackReferenceId,
 	}
 
 	transaction.AppID = appid
@@ -618,7 +619,7 @@ func ProcessTransactions() {
 
 	var transactions []model.Transactions
 
-	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code, notification_url FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
+	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code, notification_url, callback_reference_id FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
 	if err != nil {
 		fmt.Println("Error fetching transactions:", err)
 		return
@@ -705,7 +706,7 @@ func ProcessTransactions() {
 					ItemID:                 transaction.ItemId,
 					ItemName:               transaction.ItemName,
 					UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
-					ReferenceID:            transaction.ReferenceID,
+					ReferenceID:            transaction.CallbackReferenceId,
 					Testing:                "0",
 					Custom:                 "",
 				}
@@ -748,7 +749,7 @@ func ProcessFailedTransactions() {
 	err := database.DB.Raw(`
 	SELECT 
 		t.id, t.mt_tid, t.payment_method, t.amount, t.client_app_key, t.app_id, 
-		t.currency, t.item_name, t.item_id, t.user_id, t.reference_id, 
+		t.currency, t.item_name, t.item_id, t.user_id, t.reference_id, t.callback_reference_id,
 		t.ximpay_id, t.midtrans_transaction_id, t.status_code 
 	FROM 
 		transactions t
@@ -859,7 +860,7 @@ func ProcessFailedTransactions() {
 					ItemID:                 transaction.ItemId,
 					ItemName:               transaction.ItemName,
 					UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
-					ReferenceID:            transaction.ReferenceID,
+					ReferenceID:            transaction.CallbackReferenceId,
 					Testing:                "0",
 					Custom:                 "",
 					FailReason:             status,

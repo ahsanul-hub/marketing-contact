@@ -48,30 +48,31 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	cachedInput := cached.(model.InputPaymentRequest)
 
 	transaction = model.InputPaymentRequest{
-		RedirectURL:     cachedInput.RedirectURL,
-		RedirectTarget:  cachedInput.RedirectTarget,
-		UserId:          cachedInput.UserId,
-		UserMDN:         cachedInput.UserMDN,
-		MtTid:           cachedInput.MtTid,
-		PaymentMethod:   cachedInput.PaymentMethod,
-		Currency:        cachedInput.Currency,
-		Amount:          cachedInput.Amount,
-		ItemId:          cachedInput.ItemId,
-		ItemName:        cachedInput.ItemName,
-		ClientAppKey:    cachedInput.ClientAppKey,
-		AppName:         cachedInput.AppName,
-		AppID:           cachedInput.AppID,
-		Status:          cachedInput.Status,
-		BodySign:        cachedInput.BodySign,
-		Mobile:          cachedInput.Mobile,
-		Testing:         cachedInput.Testing,
-		Route:           cachedInput.Route,
-		Price:           cachedInput.Price,
-		Otp:             cachedInput.Otp,
-		ReffId:          cachedInput.ReffId,
-		CustomerName:    cachedInput.CustomerName,
-		NotificationUrl: cachedInput.NotificationUrl,
-		UserIP:          clientIP,
+		RedirectURL:         cachedInput.RedirectURL,
+		RedirectTarget:      cachedInput.RedirectTarget,
+		UserId:              cachedInput.UserId,
+		UserMDN:             cachedInput.UserMDN,
+		MtTid:               cachedInput.MtTid,
+		PaymentMethod:       cachedInput.PaymentMethod,
+		Currency:            cachedInput.Currency,
+		Amount:              cachedInput.Amount,
+		ItemId:              cachedInput.ItemId,
+		ItemName:            cachedInput.ItemName,
+		ClientAppKey:        cachedInput.ClientAppKey,
+		AppName:             cachedInput.AppName,
+		AppID:               cachedInput.AppID,
+		Status:              cachedInput.Status,
+		BodySign:            cachedInput.BodySign,
+		Mobile:              cachedInput.Mobile,
+		Testing:             cachedInput.Testing,
+		Route:               cachedInput.Route,
+		Price:               cachedInput.Price,
+		Otp:                 cachedInput.Otp,
+		ReffId:              cachedInput.ReffId,
+		CustomerName:        cachedInput.CustomerName,
+		NotificationUrl:     cachedInput.NotificationUrl,
+		UserIP:              clientIP,
+		CallbackReferenceId: token,
 	}
 
 	var paymentMethod string
@@ -190,11 +191,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	if err != nil {
 		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
-	}
-
-	err = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &token, nil, "", nil)
-	if err != nil {
-		log.Printf("Error updating reference id legacy transaction %s : %s", createdTransId, err)
 	}
 
 	switch paymentMethod {

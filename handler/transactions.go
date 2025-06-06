@@ -1848,7 +1848,7 @@ func ManualCallback(c *fiber.Ctx) error {
 			ItemID:                 transaction.ItemId,
 			ItemName:               transaction.ItemName,
 			UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
-			ReferenceID:            transaction.ReferenceID,
+			ReferenceID:            transaction.CallbackReferenceId,
 			Testing:                "0",
 			Custom:                 "",
 		}
