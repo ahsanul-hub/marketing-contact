@@ -258,16 +258,20 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 
 	expectedAppkey, exists := allowedClients[appid]
 	if !exists || appkey != expectedAppkey {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.JSON(fiber.Map{
 			"success": false,
-			"message": "Invalid Endpoint",
+			"retcode": "E0000",
+			"message": "Unknown error",
+			"data":    []interface{}{},
 		})
 	}
 
 	if err := c.BodyParser(&input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.JSON(fiber.Map{
 			"success": false,
-			"message": "Invalid legacy input",
+			"retcode": "E0019",
+			"message": "Invalid Data!",
+			"data":    []interface{}{},
 		})
 	}
 
@@ -285,33 +289,42 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 	}
 
 	if input.Amount > limit {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.JSON(fiber.Map{
 			"success": false,
-			"message": fmt.Sprintf("Amount exceeds the maximum allowed limit of %d", limit),
+			"retcode": "E0021",
+			"message": "Some field(s) exceed the length limit!",
+			"data":    []interface{}{},
 		})
 	}
 
 	if input.UserId == "" || input.MtTid == "" || input.PaymentMethod == "" || input.Amount == 0 || input.ItemName == "" || input.UserMDN == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+
+		return c.JSON(fiber.Map{
 			"success": false,
-			"error":   "Missing required fields in request body",
+			"retcode": "E0013",
+			"message": "Some field(s) missing",
+			"data":    []interface{}{},
 		})
 	}
 
 	arrClient, err := repository.FindClient(c.Context(), appkey, appid)
-
 	if err != nil {
-		return response.Response(c, fiber.StatusBadRequest, "E0001")
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0001",
+			"message": "Invalid appkey or appid",
+			"data":    []interface{}{},
+		})
 	}
 
 	isBlocked, _ := repository.IsUserIDBlocked(input.UserId, arrClient.ClientName)
 	if isBlocked {
-		log.Println("userID is blocked")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.JSON(fiber.Map{
 			"success": false,
-			"error":   "userID is blocked",
+			"retcode": "E0015",
+			"message": "Blocked MSISDN!",
+			"data":    []interface{}{},
 		})
-
 	}
 
 	expectedAppkey, skipBodysign := allowedClients[appid]
@@ -321,9 +334,11 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 		expectedBodysign := helper.GenerateBodySign(input, appSecret)
 
 		if receivedBodysign != expectedBodysign {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Invalid bodysign",
+				"retcode": "E0003",
+				"message": "Invalid body signature",
+				"data":    []interface{}{},
 			})
 		}
 	}

@@ -31,17 +31,22 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 	expectedAppKey, exists := allowedClients[appid]
 	if !exists {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.JSON(fiber.Map{
 			"success": false,
-			"message": "Invalid Endpoint",
+			"retcode": "E0000",
+			"message": "Unknown error",
+			"data":    []interface{}{},
 		})
 	}
 	var transaction model.InputPaymentRequest
 
 	cached, found := TransactionCache.Get(token)
 	if !found {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"error": "Transaction data not found in cache",
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0000",
+			"message": "Unknown error",
+			"data":    []interface{}{},
 		})
 	}
 
@@ -111,37 +116,52 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	}
 
 	if paymentMethod == "va_bca" && (transaction.CustomerName == "") {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Missing mandatory fields: customer name must not be empty",
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0013",
+			"message": "Some field(s) missing",
+			"data":    []interface{}{},
 		})
 	}
 
 	if !isEwallet && (transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "") {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amount must not be empty",
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0013",
+			"message": "Some field(s) missing",
+			"data":    []interface{}{},
 		})
 	}
 
 	beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
 
 	if _, found := lib.NumberCache.Get(beautifyMsisdn); found {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.JSON(fiber.Map{
 			"success": false,
-			"message": fmt.Sprintf("Phone number %s is inactive or invalid, please try another number", transaction.UserMDN),
+			"retcode": "E0016",
+			"message": "Invalid MSISDN!",
+			"data":    []interface{}{},
 		})
 
 	}
 
 	if !isEwallet && !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) && paymentMethod != "ovo" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		return c.JSON(fiber.Map{
 			"success": false,
-			"error":   "Invalid prefix, please use valid phone number.",
+			"retcode": "E0016",
+			"message": "Invalid MSISDN!",
+			"data":    []interface{}{},
 		})
 	}
 
 	arrClient, err := repository.FindClient(c.Context(), expectedAppKey, appid)
 	if err != nil {
-		return response.Response(c, fiber.StatusBadRequest, "E0001")
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0001",
+			"message": "Invalid appkey or appid",
+			"data":    []interface{}{},
+		})
 	}
 
 	appName := transaction.AppName
@@ -153,15 +173,21 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 	paymentMethodClient, exists := paymentMethodMap[paymentMethod]
 	if !exists {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid payment method",
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0007",
+			"message": "This payment method is not available for this merchant",
+			"data":    []interface{}{},
 		})
 	}
 
 	var routes map[string][]string
 	if err := json.Unmarshal(paymentMethodClient.Route, &routes); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"error": err,
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0007",
+			"message": "This payment method is not available for this merchant",
+			"data":    []interface{}{},
 		})
 	}
 
@@ -177,9 +203,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		res, err := lib.GenerateVA()
 		if err != nil {
 			log.Println("Generate va failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Generate Va failed",
+				"retcode": "E0000",
+				"message": "Generate va failed",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -190,7 +218,12 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, expectedAppKey, appid, &vaNumber)
 	if err != nil {
 		log.Println("err", err)
-		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0000",
+			"message": "Failed create Transaction",
+			"data":    []interface{}{},
+		})
 	}
 
 	switch paymentMethod {
@@ -198,8 +231,12 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 		validAmounts, exists := routes["xl_twt"]
 		if !exists {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "No valid amounts found for the specified payment method",
+
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0008",
+				"message": "This denom is not supported for this payment method",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -212,17 +249,22 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		}
 
 		if !validAmount && !paymentMethodClient.Flexible {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "This denom is not supported for this payment method",
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0008",
+				"message": "This denom is not supported for this payment method",
+				"data":    []interface{}{},
 			})
 		}
 
 		_, err := lib.RequestChargingXL(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, chargingPrice)
 		if err != nil {
 			log.Println("Charging request failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -253,8 +295,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	case "indosat_airtime":
 		validAmounts, exists := routes["indosat_triyakom"]
 		if !exists {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "No valid amounts found for the specified payment method",
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0008",
+				"message": "This denom is not supported for this payment method",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -267,17 +312,23 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		}
 
 		if !validAmount && !paymentMethodClient.Flexible {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "This denom is not supported for this payment method",
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0008",
+				"message": "This denom is not supported for this payment method",
+				"data":    []interface{}{},
 			})
 		}
 
 		ximpayId, err := lib.RequestChargingIsatTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
 		if err != nil {
 			log.Println("Charging request failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request indosat failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -313,8 +364,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	case "three_airtime":
 		validAmounts, exists := routes["three_triyakom"]
 		if !exists {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "No valid amounts found for the specified payment method",
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0008",
+				"message": "This denom is not supported for this payment method",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -327,17 +381,22 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		}
 
 		if !validAmount && !paymentMethodClient.Flexible {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "This denom is not supported for this payment method",
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0008",
+				"message": "This denom is not supported for this payment method",
+				"data":    []interface{}{},
 			})
 		}
 
 		ximpayId, err := lib.RequestChargingTriTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, transactionAmountStr)
 		if err != nil {
 			log.Println("Charging request tri failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -376,9 +435,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		_, keyword, otp, err := lib.RequestMoTsel(beautifyMsisdn, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
 		if err != nil {
 			log.Println("Charging request failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -414,8 +475,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	case "smartfren_airtime":
 		validAmounts, exists := routes["smartfren_triyakom"]
 		if !exists {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "No valid amounts found for the specified payment method",
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0008",
+				"message": "This denom is not supported for this payment method",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -428,17 +492,22 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		}
 
 		if !validAmount && !paymentMethodClient.Flexible {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": "This denom is not supported for this payment method",
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0008",
+				"message": "This denom is not supported for this payment method",
+				"data":    []interface{}{},
 			})
 		}
 
 		ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
 		if err != nil {
 			log.Println("Charging request smartfren failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -476,9 +545,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request shopee failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -516,9 +587,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request gopay failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -556,9 +629,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		res, err := lib.RequestChargingQris(createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request qris failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
@@ -662,9 +737,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		res, err := lib.RequestChargingDanaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN) //lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request dana failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Charging request failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
