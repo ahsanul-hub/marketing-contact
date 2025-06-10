@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"app/config"
 	"app/repository"
 	"bytes"
 	"context"
@@ -19,7 +20,8 @@ type GopayChargeRequest struct {
 		GrossAmount uint   `json:"gross_amount"`
 	} `json:"transaction_details"`
 	Gopay struct {
-		CallbackURL string `json:"callback_url"`
+		EnableCallback bool   `json:"enable_callback"`
+		CallbackURL    string `json:"callback_url"`
 	} `json:"gopay"`
 }
 
@@ -35,9 +37,11 @@ func RequestChargingGopay(transactionID string, chargingPrice uint, redirectUrl 
 	if redirectUrl != "" {
 		backUrl = redirectUrl
 	} else {
-		backUrl = "https://new-payment.redision.com/api/callback/midtrans"
+		backUrl = fmt.Sprintf("%s/return/dana", config.Config("APIURL", ""))
 	}
+
 	chargeRequest.Gopay.CallbackURL = backUrl
+	chargeRequest.Gopay.EnableCallback = true
 
 	// Marshal struct menjadi JSON
 	jsonBody, err := json.Marshal(chargeRequest)
