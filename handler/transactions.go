@@ -973,37 +973,6 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		})
 	}
 
-	// beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
-
-	// isBlocked, err := repository.IsMDNBlocked(beautifyMsisdn)
-	// if err != nil {
-	// 	log.Println("Msisdn is blocked")
-
-	// }
-
-	// if isBlocked {
-	// 	log.Println(" diblokir")
-	// 	return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
-	// 		"success": false,
-	// 		"message": "Msisdn is blocked",
-	// 	})
-	// }
-
-	// if _, found := lib.NumberCache.Get(beautifyMsisdn); found {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"success": false,
-	// 		"message": fmt.Sprintf("Phone number %s is inactive or invalid, please try another number", transaction.UserMDN),
-	// 	})
-
-	// }
-
-	// if !helper.IsValidPrefix(beautifyMsisdn, transaction.PaymentMethod) {
-	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-	// 		"success": false,
-	// 		"error":   "Invalid prefix, please use valid phone number.",
-	// 	})
-	// }
-
 	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
 
 	appName := repository.GetAppNameFromClient(arrClient, appid)
@@ -1434,7 +1403,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 
 	for _, transaction := range transactions {
-		var status string
+		var status, paymentMethod string
 		var price uint
 		var fee uint
 		var netAmount uint
@@ -1455,13 +1424,31 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			fee = uint(math.Ceil(feeFloat))
 			price = transaction.Amount
 			netAmount = price - fee
+			paymentMethod = transaction.PaymentMethod
 		case "dana":
 			feeFloat := float64(transaction.Amount) * 0.018
 			fee = uint(math.Ceil(feeFloat))
 			price = transaction.Amount
 			netAmount = price - fee
+			paymentMethod = transaction.PaymentMethod
+		case "telkomsel_airtime":
+			paymentMethod = "Telkomsel"
+			price = transaction.Price
+		case "xl_airtime":
+			paymentMethod = "XL"
+			price = transaction.Price
+		case "indosat_airtime":
+			paymentMethod = "Indosat"
+			price = transaction.Price
+		case "three_airtime":
+			paymentMethod = "Tri"
+			price = transaction.Price
+		case "smartfren_airtime":
+			paymentMethod = "Smartfren"
+			price = transaction.Price
 		default:
 			price = transaction.Price
+			paymentMethod = transaction.PaymentMethod
 		}
 
 		var createdAt string
@@ -1482,7 +1469,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			strconv.Itoa(int(price)),
 			strconv.Itoa(int(fee)),
 			transaction.ItemName,
-			transaction.PaymentMethod,
+			paymentMethod,
 			strconv.Itoa(int(netAmount)),
 			transaction.UserId,
 			transaction.Currency,
@@ -1519,7 +1506,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 	// Tulis data transaksi
 	for rowIndex, transaction := range transactions {
-		var status string
+		var status, paymentMethod string
 		var price uint
 		var fee uint
 		var netAmount uint
@@ -1540,13 +1527,31 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 			feeFloat := float64(transaction.Amount) * 0.008
 			fee = uint(math.Ceil(feeFloat))
 			netAmount = price - fee
+			paymentMethod = transaction.PaymentMethod
 		case "dana":
 			feeFloat := float64(transaction.Amount) * 0.018
 			fee = uint(math.Ceil(feeFloat))
 			price = transaction.Amount
 			netAmount = price - fee
+			paymentMethod = transaction.PaymentMethod
+		case "telkomsel_airtime":
+			paymentMethod = "Telkomsel"
+			price = transaction.Price
+		case "xl_airtime":
+			paymentMethod = "XL"
+			price = transaction.Price
+		case "indosat_airtime":
+			paymentMethod = "Indosat"
+			price = transaction.Price
+		case "three_airtime":
+			paymentMethod = "Tri"
+			price = transaction.Price
+		case "smartfren_airtime":
+			paymentMethod = "Smartfren"
+			price = transaction.Price
 		default:
 			price = transaction.Price
+			paymentMethod = transaction.PaymentMethod
 		}
 
 		var createdAt string
@@ -1568,7 +1573,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 		f.SetCellValue(sheetName, "H"+strconv.Itoa(row), price)
 		f.SetCellValue(sheetName, "I"+strconv.Itoa(row), fee)
 		f.SetCellValue(sheetName, "J"+strconv.Itoa(row), transaction.ItemName)
-		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), transaction.PaymentMethod)
+		f.SetCellValue(sheetName, "K"+strconv.Itoa(row), paymentMethod)
 		f.SetCellValue(sheetName, "L"+strconv.Itoa(row), netAmount)
 		f.SetCellValue(sheetName, "M"+strconv.Itoa(row), transaction.UserId)
 		f.SetCellValue(sheetName, "N"+strconv.Itoa(row), transaction.Currency)

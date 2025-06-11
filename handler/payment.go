@@ -395,6 +395,7 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 
 	input.Price = uint(amountFloat + math.Round(float64(*selectedSettlement.AdditionalPercent)/100*amountFloat))
 	input.BodySign = receivedBodysign
+	input.AppName = arrClient.AppName
 
 	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
 
