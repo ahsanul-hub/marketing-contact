@@ -12,6 +12,10 @@ import (
 	"go.elastic.co/apm"
 )
 
+type CheckStatusRequest struct {
+	TransactionID string `json:"transaction_id"`
+}
+
 func CheckStatusDana(c *fiber.Ctx) error {
 	id := c.Params("id")
 
@@ -112,4 +116,76 @@ func CheckStatusOvo(c *fiber.Ctx) error {
 		"success": true,
 		"data":    res,
 	})
+}
+
+func CheckTransactionStatusLegacy(c *fiber.Ctx) error {
+	span, spanCtx := apm.StartSpan(c.Context(), "CheckTransactionStatusPost", "handler")
+	defer span.End()
+
+	var req CheckStatusRequest
+	if err := c.BodyParser(&req); err != nil {
+		return response.Response(c, fiber.StatusBadRequest, "Invalid request body: "+err.Error())
+	}
+
+	appKey := c.Get("appkey")
+	appID := c.Get("appid")
+
+	if req.TransactionID == "" || appKey == "" || appID == "" {
+		return response.Response(c, fiber.StatusBadRequest, "Missing required parameters")
+	}
+
+	transaction, err := repository.CheckTransactionByMerchantID(spanCtx, req.TransactionID, appKey, appID)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, "Failed to get transaction: "+err.Error())
+	}
+
+	if transaction == nil {
+		return response.Response(c, fiber.StatusNotFound, "Transaction not found")
+	}
+
+	var status string
+	var isSuccess bool
+	switch transaction.StatusCode {
+	case 1000:
+		status = "payment_completed"
+		isSuccess = true
+	case 1003:
+		status = "waiting send callback"
+		isSuccess = true
+	case 1001:
+		status = "pending"
+		isSuccess = false
+	case 1005:
+		status = "failed"
+		isSuccess = false
+	default:
+		isSuccess = false
+		status = "unknown"
+	}
+
+	data := CheckStatusData{
+		TransactionID: transaction.ID,
+		UserMDN:       transaction.UserMDN,
+		Amount:        transaction.Amount,
+		ItemName:      transaction.ItemName,
+		StatusCode:    fmt.Sprintf("%d", transaction.StatusCode),
+		Status:        status,
+		Price:         fmt.Sprintf("%d", transaction.Price),
+	}
+
+	return c.JSON(fiber.Map{
+		"success": isSuccess,
+		"message": status,
+		"data":    data,
+	})
+}
+
+type CheckStatusData struct {
+	TransactionID string `json:"_id"`
+	UserMDN       string `json:"user_mdn"`
+	Amount        uint   `json:"amount"`
+	ItemName      string `json:"item_name"`
+	StatusCode    string `json:"status_code"`
+	Status        string `json:"status"`
+	Price         string `json:"price"`
 }

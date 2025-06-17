@@ -30,34 +30,6 @@ type CachedTransaction struct {
 	IsClicked bool
 }
 
-func TestPayment(c *fiber.Ctx) error {
-	// Mendapatkan data dari request body
-	var requestData model.InputPaymentRequest
-	if err := c.BodyParser(&requestData); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"message": "Invalid input",
-		})
-	}
-
-	err, _ := lib.SmartfrenTriyakomFlexible(requestData)
-
-	// err, res := lib.SendData(requestData)
-
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"message": err.Error(),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"message": "Payment successful",
-		// "data:":   res,
-	})
-}
-
 func PaymentQrisRedirect(c *fiber.Ctx) error {
 	qrisUrl := c.Query("qrisUrl")
 	acquirer := c.Query("acquirer")
@@ -254,6 +226,7 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 	var allowedClients = map[string]string{
 		"6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
 		"64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
+		"MHSBZnRBLkDQFlYDMSeXFA":   "5HjSLo37LwvIhTAX_zOJkg",
 	}
 
 	expectedAppkey, exists := allowedClients[appid]

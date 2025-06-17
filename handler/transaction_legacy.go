@@ -27,6 +27,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	allowedClients := map[string]string{
 		"6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
 		"64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
+		"MHSBZnRBLkDQFlYDMSeXFA":   "5HjSLo37LwvIhTAX_zOJkg",
 	}
 
 	expectedAppKey, exists := allowedClients[appid]

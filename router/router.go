@@ -34,7 +34,6 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	// api.Get("/mark-paid/:id", handler.MakePaid)
 	// api.Get("/mark-failed/:id", handler.MakeFailed)
 	api.Get("/check/:id", handler.CheckTrans)
-	api.Post("/test-payment", handler.TestPayment)
 	api.Post("/receive-callback1", handler.ReceiveCallback)
 	api.Get("/order/:appid/:token", handler.PaymentPage)
 	api.Get("/v2/order/:appid/:token", handler.CreateTransactionLegacy)
@@ -50,6 +49,9 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/check-status/dana-faspay/:id", handler.CheckStatusDanaFaspay)
 	api.Get("/check-status/ovo/:id", handler.CheckStatusOvo)
 	api.Get("/checkstatus/:id", handler.CheckTransactionStatus)
+	api.Post("/v1/checkstatus", handler.CheckTransactionStatusLegacy)
+
+	//api.Get("/report/merchant", handler.GetReport)
 
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)
 
