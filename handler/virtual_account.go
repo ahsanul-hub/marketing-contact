@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"app/config"
 	"app/lib"
 	"app/repository"
 	"bytes"
@@ -205,19 +206,72 @@ func InquiryBca(c *fiber.Ctx) error {
 
 	vaNumber := fmt.Sprintf("11131%s", request.CustomerNumber)
 
-	// data, found := VaTransactionCache.Get(vaNumber)
-	// if !found {
-	// 	return c.Status(fiber.StatusNotFound).SendString("Transaction not found or expired")
-	// }
-	// log.Println("dataVa", data)
+	env := config.Config("ENV", "")
 
-	// Pecah qrisUrl dan acquirer
-	// dataStr := data.(string)
-	// parts := strings.Split(dataStr, "|")
-	// if len(parts) != 3 {
-	// 	return c.Status(fiber.StatusInternalServerError).SendString("Invalid data format")
-	// }
-	// transactionID := parts[0]
+	if env == "development" {
+		activeVAs := map[string]string{
+			"111316829726801": "Budi Santoso",
+			"111319869285781": "Siti Aminah",
+			"111311682920749": "Andi Wijaya",
+			"111312959571097": "Dewi Lestari",
+			"111313846905385": "Rudi Hartono",
+			"111314970286953": "Fitriani",
+			"111316810136869": "Joko Anwar",
+			"111319235817402": "Linda Marbun",
+			"111314189406863": "Taufik Hidayat",
+			"111313258468127": "Nur Aini",
+		}
+
+		expiredVAs := map[string]string{
+			"111311326580369": "Expired Darwin",
+			"111314672968104": "Expired Louise",
+		}
+
+		// Periksa VA dummy aktif
+		if name, ok := activeVAs[vaNumber]; ok {
+			response := BillResponse{
+				CompanyCode:    request.CompanyCode,
+				CustomerNumber: request.CustomerNumber,
+				RequestID:      request.RequestID,
+				InquiryStatus:  "00",
+				InquiryReason: &struct {
+					Indonesian string `json:"Indonesian,omitempty"`
+					English    string `json:"English,omitempty"`
+				}{
+					Indonesian: "Sukses",
+					English:    "Success",
+				},
+				CustomerName:   name,
+				CurrencyCode:   "IDR",
+				TotalAmount:    "10000.00",
+				SubCompany:     "00000",
+				DetailBills:    []string{},
+				FreeText:       []string{},
+				AdditionalData: "",
+			}
+			return c.Status(fiber.StatusOK).JSON(response)
+		}
+
+		if _, ok := expiredVAs[vaNumber]; ok {
+			response := BillResponse{
+				CompanyCode:    request.CompanyCode,
+				CustomerNumber: request.CustomerNumber,
+				RequestID:      request.RequestID,
+				InquiryStatus:  "01",
+				InquiryReason: &struct {
+					Indonesian string `json:"Indonesian,omitempty"`
+					English    string `json:"English,omitempty"`
+				}{
+					Indonesian: "Nomor VA tidak valid atau expired",
+					English:    "Invalid VA number or expired",
+				},
+				CurrencyCode: "IDR",
+				TotalAmount:  "10000.00",
+				SubCompany:   "00000",
+			}
+			return c.Status(fiber.StatusOK).JSON(response)
+		}
+	}
 
 	transaction, err := repository.GetTransactionVa(context.Background(), vaNumber)
 	if err != nil {
