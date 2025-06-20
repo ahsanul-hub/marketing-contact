@@ -107,7 +107,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	var isEwallet bool
 
-	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "va_bca" {
+	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "va_bca" || paymentMethod == "va_bri" {
 		isEwallet = true
 	}
 
@@ -484,11 +484,11 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
+
 	case "ovo":
 		resultChan := make(chan *lib.OVOResponse)
 		errorChan := make(chan error)
 
-		// Jalankan ChargingOVO secara async
 		go func() {
 			res, err := lib.ChargingOVO(createdTransId, chargingPrice, transaction.UserMDN)
 			if err != nil {
@@ -552,7 +552,31 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	case "dana":
 		strPrice := fmt.Sprintf("%d00", chargingPrice)
-		// res, err := lib.RequestChargingDanaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN) //lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
+
+		if arrClient.ClientName == "PT Jaya Permata Elektro" {
+			res, err := lib.RequestChargingDanaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN) //lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
+			if err != nil {
+				log.Println("Charging request dana faspay failed:", err)
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"success": false,
+					"message": "Charging request failed",
+				})
+			}
+
+			// for faspay
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+
+			return c.JSON(fiber.Map{
+				"success":  true,
+				"back_url": transaction.RedirectURL,
+				"redirect": res.RedirectURL,
+				"retcode":  "0000",
+				"message":  "Successful Created Transaction",
+			})
+		}
+
 		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request dana failed:", err)
@@ -561,11 +585,6 @@ func CreateTransaction(c *fiber.Ctx) error {
 				"message": "Charging request failed",
 			})
 		}
-
-		// for faspay
-		// if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
-		// 	log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-		// }
 
 		return c.JSON(fiber.Map{
 			"success":  true,
@@ -1136,14 +1155,32 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		})
 	case "dana":
 		strPrice := fmt.Sprintf("%d00", chargingPrice)
-		// res, err := lib.RequestChargingDanaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN) //lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
-		// if err != nil {
-		// 	log.Println("Charging request dana failed:", err)
-		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-		// 		"success": false,
-		// 		"message": "Charging request failed",
-		// 	})
-		// }
+
+		if arrClient.ClientName == "PT Jaya Permata Elektro" {
+			res, err := lib.RequestChargingDanaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN) //lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
+			if err != nil {
+				log.Println("Charging request dana faspay failed:", err)
+				return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+					"success": false,
+					"message": "Charging request failed",
+				})
+			}
+
+			// for faspay
+			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			}
+
+			TransactionCache.Delete(token)
+
+			return c.JSON(fiber.Map{
+				"success":  true,
+				"back_url": transaction.RedirectURL,
+				"redirect": res.RedirectURL,
+				"retcode":  "0000",
+				"message":  "Successful Created Transaction",
+			})
+		}
 
 		checkoutUrl, err := lib.RequestChargingDana(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL)
 		if err != nil {
@@ -1153,15 +1190,6 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 				"message": "Charging request failed",
 			})
 		}
-
-		// if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
-		// 	log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
-		// }
-
-		// err = repository.UpdateMidtransId(context.Background(), createdTransId, res.TransactionID)
-		// if err != nil {
-		// 	log.Println("Updated Midtrans ID error:", err)
-		// }
 
 		TransactionCache.Delete(token)
 		return c.JSON(fiber.Map{
@@ -1383,7 +1411,7 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 
 func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) error {
 	log.Println("export transaction csv hit")
-	// Set header untuk file CSV
+
 	c.Set("Content-Type", "text/csv")
 	c.Set("Content-Disposition", "attachment; filename=transactions.csv")
 
