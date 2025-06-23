@@ -227,6 +227,7 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 		"6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
 		"64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
 		"MHSBZnRBLkDQFlYDMSeXFA":   "5HjSLo37LwvIhTAX_zOJkg",
+		"64d07790764f1bbe758b4569": "L66vZHbpCnCyjRzvnJ67wYeBEKPb5k1Q",
 	}
 
 	expectedAppkey, exists := allowedClients[appid]
@@ -1083,7 +1084,7 @@ func VaPage(c *fiber.Ctx) error {
 func GetAllCachedTransactions(c *fiber.Ctx) error {
 	transactions := make(map[string]CachedTransaction)
 
-	TransactionCache.Items() // Mendapatkan semua item dalam cache
+	TransactionCache.Items()
 	for k, v := range TransactionCache.Items() {
 		if cachedData, ok := v.Object.(CachedTransaction); ok {
 			transactions[k] = cachedData
