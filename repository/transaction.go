@@ -759,7 +759,7 @@ func ProcessFailedTransactions() {
 	WHERE 
 		t.status_code = ? 
 		AND (t.timestamp_callback_result IS NULL OR t.timestamp_callback_result = '')  
-		AND t.created_at >= NOW() - INTERVAL '2 days'
+		AND t.created_at >= NOW() - INTERVAL '1 days'
 		AND ca.fail_callback = '1'
 `, 1005).Scan(&transactions).Error
 	if err != nil {
