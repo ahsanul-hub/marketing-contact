@@ -55,9 +55,9 @@ func ConnectDB() *gorm.DB {
 		log.Fatalf("Failed to get database object: %v", err)
 	}
 
-	sqlDB.SetMaxOpenConns(60)
+	sqlDB.SetMaxOpenConns(40)
 
-	sqlDB.SetMaxIdleConns(20)
+	sqlDB.SetMaxIdleConns(12)
 
 	err = DB.AutoMigrate(&model.User{}, &model.Client{}, &model.ClientApp{}, &model.Transactions{}, &model.PaymentMethodClient{}, &model.PaymentMethod{}, &model.SettlementClient{}, &model.BlockedMDN{}, &model.BlockedUserId{})
 	if err != nil {

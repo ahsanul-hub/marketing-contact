@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -52,7 +53,36 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		})
 	}
 
-	cachedInput := cached.(model.InputPaymentRequest)
+	cachedInput := cached.(model.InputPaymentRequestLegacy)
+
+	var amount uint
+
+	switch v := cachedInput.Amount.(type) {
+	case string:
+		parsed, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0020",
+				"message": "Invalid amount format!",
+				"data":    []interface{}{},
+			})
+		}
+		amount = uint(parsed)
+	case float64:
+		amount = uint(v)
+	case int:
+		amount = uint(v)
+	case uint:
+		amount = v
+	default:
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0020",
+			"message": "Unsupported amount type!",
+			"data":    []interface{}{},
+		})
+	}
 
 	transaction = model.InputPaymentRequest{
 		RedirectURL:         cachedInput.RedirectURL,
@@ -62,7 +92,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		MtTid:               cachedInput.MtTid,
 		PaymentMethod:       cachedInput.PaymentMethod,
 		Currency:            cachedInput.Currency,
-		Amount:              cachedInput.Amount,
+		Amount:              amount,
 		ItemId:              cachedInput.ItemId,
 		ItemName:            cachedInput.ItemName,
 		ClientAppKey:        cachedInput.ClientAppKey,

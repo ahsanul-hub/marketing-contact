@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"log"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -216,7 +217,7 @@ func CreateOrder(c *fiber.Ctx) error {
 }
 
 func CreateOrderLegacy(c *fiber.Ctx) error {
-	var input model.InputPaymentRequest
+	var input model.InputPaymentRequestLegacy
 
 	appid := c.Get("appid")
 	appkey := c.Get("appkey")
@@ -262,7 +263,36 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 		limit = 500000
 	}
 
-	if input.Amount > limit {
+	var amount uint
+
+	switch v := input.Amount.(type) {
+	case string:
+		parsed, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0020",
+				"message": "Invalid amount format!",
+				"data":    []interface{}{},
+			})
+		}
+		amount = uint(parsed)
+	case float64:
+		amount = uint(v)
+	case int:
+		amount = uint(v)
+	case uint:
+		amount = v
+	default:
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0020",
+			"message": "Unsupported amount type!",
+			"data":    []interface{}{},
+		})
+	}
+
+	if amount > limit {
 		return c.JSON(fiber.Map{
 			"success": false,
 			"retcode": "E0021",
@@ -319,7 +349,7 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 
 	transactionID := uuid.New().String()
 
-	amountFloat := float64(input.Amount)
+	amountFloat := float64(amount)
 
 	var paymentMethod string
 	switch input.PaymentMethod {
