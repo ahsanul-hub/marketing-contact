@@ -77,7 +77,7 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 				"development": map[string]interface{}{
 					"partnerid":   "REDIS",
 					"partnername": "Redision",
-					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"seckey":      "41F1DA297ADB47128B47DF980B6A1213",
 					"requestUrl":  "https://secure.ximpay.com/api/dev10SDPflex/Gopayment.aspx",
 					"confirmUrl":  "https://secure.ximpay.com/api/dev10SDPflex/Gopin.aspx",
 					"dir":         "smartfren_triyakom_flex",
@@ -85,7 +85,7 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 				"production": map[string]interface{}{
 					"partnerid":   "REDIS",
 					"partnername": "Redision",
-					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"seckey":      "41F1DA297ADB47128B47DF980B6A1213",
 					"requestUrl":  "https://secure.ximpay.com/api/10SDPflex/Gopayment.aspx",
 					"confirmUrl":  "https://secure.ximpay.com/api/10SDPflex/Gopin.aspx",
 					"dir":         "smartfren_triyakom_flex",
@@ -100,14 +100,14 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 				"development": map[string]interface{}{
 					"partnerid":   "REDIS",
 					"partnername": "Redision",
-					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"seckey":      "41F1DA297ADB47128B47DF980B6A1213",
 					"requestUrl":  "https://secure.ximpay.com/api/dev07/Gopayment.aspx",
 					"dir":         "indosat_triyakom",
 				},
 				"production": map[string]interface{}{
 					"partnerid":   "REDIS",
 					"partnername": "Redision",
-					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"seckey":      "41F1DA297ADB47128B47DF980B6A1213",
 					"requestUrl":  "https://secure.ximpay.com/api/07flex/Gopayment.aspx",
 					"dir":         "indosat_triyakom",
 				},
@@ -137,14 +137,14 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 				"development": map[string]interface{}{
 					"partnerid":   "REDIS",
 					"partnername": "Redision",
-					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"seckey":      "41F1DA297ADB47128B47DF980B6A1213",
 					"requestUrl":  "https://secure.ximpay.com/api/dev03/Gopayment.aspx",
 					"dir":         "tri_triyakom",
 				},
 				"production": map[string]interface{}{
 					"partnerid":   "REDIS",
 					"partnername": "Redision",
-					"seckey":      "DE9D7033E2584FCBBC479FFD654F44C7",
+					"seckey":      "41F1DA297ADB47128B47DF980B6A1213",
 					"requestUrl":  "https://secure.ximpay.com/api/03/Gopayment.aspx",
 					"dir":         "tri_triyakom",
 				},
@@ -299,7 +299,7 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 		// 			'partnerid'=>'REDIS',
 		// 			'partnername'=>'Redision',
 		// 			// 'seckey'=>'B42D3BC1D3AF4CE694209CC1FA69C7C6',
-		// 			'seckey'=>'DE9D7033E2584FCBBC479FFD654F44C7',
+		// 			'seckey'=>'41F1DA297ADB47128B47DF980B6A1213',
 		// 			'requestUrl'=>'https://secure.ximpay.com/api/dev07/Gopayment.aspx',
 		// 			'dir' => 'indosat_triyakom',
 
@@ -308,7 +308,7 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 		// 			'partnerid'=>'REDIS',
 		// 			'partnername'=>'Redision',
 		// 			// 'seckey'=>'B42D3BC1D3AF4CE694209CC1FA69C7C6',
-		// 			'seckey'=>'DE9D7033E2584FCBBC479FFD654F44C7',
+		// 			'seckey'=>'41F1DA297ADB47128B47DF980B6A1213',
 		// 			'requestUrl'=>'https://secure.ximpay.com/api/07/Gopayment.aspx',
 		// 			'dir' => 'indosat_triyakom',
 
