@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -24,7 +25,7 @@ type VaRedpayTokenRequest struct {
 type RedpayVaTokenResp struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
-	ExpiresIn   int    `json:"expires_in"`
+	ExpiresIn   string `json:"expires_in"`
 	Scope       string `json:"scope"`
 }
 
@@ -103,15 +104,19 @@ func RequestTokenVaBCARedpay() (*RedpayVaTokenResp, error) {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	expiredAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+	expiresInSec, err := strconv.Atoi(tokenResp.ExpiresIn)
+	if err != nil {
+		return nil, fmt.Errorf("invalid expires_in format: %w", err)
+	}
 
-	// Simpan ke cache
+	expiredAt := time.Now().Add(time.Duration(expiresInSec) * time.Second)
+
 	cached := CachedToken{
 		Token:     tokenResp.AccessToken,
 		ExpiredAt: expiredAt,
 	}
 
-	RedpayTokenCache.Set("redpay_token", cached, time.Duration(tokenResp.ExpiresIn)*time.Second)
+	RedpayTokenCache.Set("redpay_token", cached, time.Duration(expiresInSec)*time.Second)
 
 	return &tokenResp, nil
 }
