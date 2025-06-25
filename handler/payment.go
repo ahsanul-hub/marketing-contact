@@ -301,7 +301,13 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 		})
 	}
 
-	if input.UserId == "" || input.MtTid == "" || input.PaymentMethod == "" || input.Amount == 0 || input.ItemName == "" || input.UserMDN == "" {
+	var isEwallet bool
+
+	if input.PaymentMethod == "shopeepay" || input.PaymentMethod == "gopay" || input.PaymentMethod == "qris" || input.PaymentMethod == "dana" || input.PaymentMethod == "va_bca" || input.PaymentMethod == "ovo" {
+		isEwallet = true
+	}
+
+	if !isEwallet && (input.UserId == "" || input.MtTid == "" || input.PaymentMethod == "" || input.Amount == 0 || input.ItemName == "" || input.UserMDN == "") {
 
 		return c.JSON(fiber.Map{
 			"success": false,
@@ -528,6 +534,166 @@ func PaymentPage(c *fiber.Ctx) error {
 	return c.Render("notfound", fiber.Map{})
 }
 
+func PaymentPageLegacy(c *fiber.Ctx) error {
+	span, _ := apm.StartSpan(c.Context(), "PaymentPage", "handler")
+	defer span.End()
+	token := c.Params("token")
+	appid := c.Params("appid")
+
+	var allowedClients = map[string]string{
+		"6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+		"64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
+		"MHSBZnRBLkDQFlYDMSeXFA":   "5HjSLo37LwvIhTAX_zOJkg",
+		"64d07790764f1bbe758b4569": "L66vZHbpCnCyjRzvnJ67wYeBEKPb5k1Q",
+	}
+
+	expectedAppkey, exists := allowedClients[appid]
+	if !exists {
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0000",
+			"message": "Unknown error",
+			"data":    []interface{}{},
+		})
+	}
+
+	if cachedData, found := TransactionCache.Get(token); found {
+		inputReq := cachedData.(model.InputPaymentRequestLegacy)
+		var StrPaymentMethod string
+
+		var amount uint
+
+		switch v := inputReq.Amount.(type) {
+		case string:
+			parsed, err := strconv.ParseUint(v, 10, 64)
+			if err != nil {
+				return c.JSON(fiber.Map{
+					"success": false,
+					"retcode": "E0020",
+					"message": "Invalid amount format!",
+					"data":    []interface{}{},
+				})
+			}
+			amount = uint(parsed)
+		case float64:
+			amount = uint(v)
+		case int:
+			amount = uint(v)
+		case uint:
+			amount = v
+		default:
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0020",
+				"message": "Unsupported amount type!",
+				"data":    []interface{}{},
+			})
+		}
+
+		currency := inputReq.Currency
+		if currency == "" {
+			currency = "IDR"
+		}
+
+		var paymentMethod string
+		switch inputReq.PaymentMethod {
+		case "telkomsel_airtime_sms":
+			paymentMethod = "telkomsel_airtime"
+		case "telkomsel_airtime_ussd":
+			paymentMethod = "telkomsel_airtime"
+		case "xl_gcpay":
+			paymentMethod = "xl_airtime"
+		case "smartfren":
+			paymentMethod = "smartfren_airtime"
+		case "three":
+			paymentMethod = "three_airtime"
+		case "indosat_airtime2":
+			paymentMethod = "indosat_airtime"
+		case "ovo_wallet":
+			paymentMethod = "ovo"
+		case "smartfren_airtime2":
+			paymentMethod = "smartfren_airtime"
+		case "Three":
+			paymentMethod = "three_airtime"
+		case "Telkomsel":
+			paymentMethod = "telkomsel_airtime"
+		case "qr":
+			paymentMethod = "qris"
+		default:
+			paymentMethod = inputReq.PaymentMethod
+
+		}
+
+		switch paymentMethod {
+		case "xl_airtime":
+			StrPaymentMethod = "XL"
+		case "telkomsel_airtime":
+			StrPaymentMethod = "Telkomsel"
+		case "three_airtime":
+			StrPaymentMethod = "Tri"
+		case "smartfren_airtime":
+			StrPaymentMethod = "Smartfren"
+		case "indosat_airtime":
+			StrPaymentMethod = "Indosat"
+		case "shopeepay":
+			StrPaymentMethod = "Shopeepay"
+		case "gopay":
+			StrPaymentMethod = "Gopay"
+		case "qris":
+			StrPaymentMethod = "Qris"
+		case "va_bca":
+			StrPaymentMethod = "BCA"
+		case "dana":
+			StrPaymentMethod = "Dana"
+		case "ovo":
+			StrPaymentMethod = "OVO"
+		}
+
+		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" {
+			vat := inputReq.Price - amount
+			return c.Render("payment_ewallet", fiber.Map{
+				"AppName":          inputReq.AppName,
+				"PaymentMethod":    paymentMethod,
+				"PaymentMethodStr": StrPaymentMethod,
+				"ItemName":         inputReq.ItemName,
+				"ItemId":           inputReq.ItemId,
+				"Price":            inputReq.Price,
+				"Amount":           amount,
+				"Currency":         currency,
+				"ClientAppKey":     expectedAppkey,
+				"VAT":              vat,
+				"AppID":            appid,
+				"MtID":             inputReq.MtTid,
+				"UserId":           inputReq.UserId,
+				"Token":            token,
+				"BodySign":         inputReq.BodySign,
+				"RedirectURL":      inputReq.RedirectURL,
+			})
+		}
+
+		return c.Render("payment", fiber.Map{
+			"AppName":          inputReq.AppName,
+			"PaymentMethod":    paymentMethod,
+			"PaymentMethodStr": StrPaymentMethod,
+			"ItemName":         inputReq.ItemName,
+			"ItemId":           inputReq.ItemId,
+			"Price":            inputReq.Price,
+			"Amount":           amount,
+			"Currency":         currency,
+			"ClientAppKey":     expectedAppkey,
+			"AppID":            appid,
+			"MtID":             inputReq.MtTid,
+			"UserId":           inputReq.UserId,
+			"RedirectURL":      inputReq.RedirectURL,
+			"Token":            token,
+			"BodySign":         inputReq.BodySign,
+		})
+
+	}
+
+	return c.Render("notfound", fiber.Map{})
+}
+
 func PayReturnSuccess(c *fiber.Ctx) error {
 	return c.Render("payreturn_success", fiber.Map{})
 }
@@ -585,6 +751,63 @@ func SuccessPage(c *fiber.Ctx) error {
 
 	if cachedData, found := TransactionCache.Get(token); found {
 		inputReq := cachedData.(model.InputPaymentRequest)
+		var StrPaymentMethod string
+		var steps []string
+
+		currency := inputReq.Currency
+		if currency == "" {
+			currency = "IDR"
+		}
+
+		switch inputReq.PaymentMethod {
+		case "xl_airtime":
+			StrPaymentMethod = "XL"
+			steps = []string{
+				"Cek SMS yang masuk ke nomor anda",
+				"Cek kembali informasi yang diterima di sms, kemudian balas sms dengan kode OTP yang diterima",
+				"Pastikan pulsa cukup sesuai nominal transaksi",
+				"Transaksi akan diproses setelah OTP dikirim.",
+			}
+		case "telkomsel_airtime":
+			StrPaymentMethod = "Telkomsel"
+		case "ovo":
+			StrPaymentMethod = "OVO"
+			steps = []string{
+				"Pastikan sudah login ke aplikasi OVO",
+				`Pembayaran akan kadaluarsa dalam 55 detik.`,
+				"Buka notifikasi OVO untuk melakukan pembayaran",
+				`Pilih metode pembayaran "OVO Cash" atau "OVO Point" atau kombinasi keduanya, lalu klik "Bayar".`,
+			}
+		}
+
+		if inputReq.PaymentMethod == "ovo" {
+			return c.Render("success_ovo", fiber.Map{
+				"PaymentMethodStr": StrPaymentMethod,
+				"Msisdn":           msisdn,
+				"RedirectURL":      inputReq.RedirectURL,
+				"Steps":            steps,
+			})
+		}
+
+		return c.Render("success_payment", fiber.Map{
+			"PaymentMethodStr": StrPaymentMethod,
+			"Msisdn":           msisdn,
+			"RedirectURL":      inputReq.RedirectURL,
+			"Steps":            steps,
+		})
+	}
+
+	return c.Render("notfound", fiber.Map{})
+}
+
+func SuccessPageLegacy(c *fiber.Ctx) error {
+	span, _ := apm.StartSpan(c.Context(), "SuccessPage", "handler")
+	defer span.End()
+	token := c.Params("token")
+	msisdn := c.Params("msisdn")
+
+	if cachedData, found := TransactionCache.Get(token); found {
+		inputReq := cachedData.(model.InputPaymentRequestLegacy)
 		var StrPaymentMethod string
 		var steps []string
 

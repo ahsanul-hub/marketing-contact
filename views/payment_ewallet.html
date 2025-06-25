@@ -276,8 +276,23 @@
               console.error("Error:", error);
             });
 
-          if (dataFormated.payment_method == "ovo") {
-            window.location.href = `/api/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`;
+          const allowedClients = {
+            "6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+            "64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
+            MHSBZnRBLkDQFlYDMSeXFA: "5HjSLo37LwvIhTAX_zOJkg",
+            "64d07790764f1bbe758b4569": "L66vZHbpCnCyjRzvnJ67wYeBEKPb5k1Q",
+          };
+
+          if (dataFormated.payment_method === "ovo") {
+            const expectedAppkey = allowedClients[data.app_id];
+            const useV1 =
+              expectedAppkey && expectedAppkey === data.client_appkey;
+
+            const redirectUrl = useV1
+              ? `/api/v1/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`
+              : `/api/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`;
+
+            window.location.href = redirectUrl;
           }
         });
 
