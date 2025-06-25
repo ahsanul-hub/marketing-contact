@@ -25,8 +25,14 @@ type VaRedpayTokenRequest struct {
 type RedpayVaTokenResp struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
-	ExpiresIn   string `json:"expires_in"`
+	ExpiresIn   int    `json:"expires_in"`
 	Scope       string `json:"scope"`
+}
+type rawRedpayVaTokenResp struct {
+	AccessToken string      `json:"access_token"`
+	TokenType   string      `json:"token_type"`
+	ExpiresIn   interface{} `json:"expires_in"` // bisa string atau number
+	Scope       string      `json:"scope"`
 }
 
 type CachedToken struct {
@@ -67,9 +73,6 @@ func GenerateRandomString(length int) string {
 }
 
 func RequestTokenVaBCARedpay() (*RedpayVaTokenResp, error) {
-	// config, _ := config.GetGatewayConfig("xl_twt")
-	// arrayOptions := config.Options["development"].(map[string]interface{})
-
 	requestBody := VaRedpayTokenRequest{
 		GrantType: "client_credentials",
 	}
@@ -99,24 +102,37 @@ func RequestTokenVaBCARedpay() (*RedpayVaTokenResp, error) {
 		return nil, fmt.Errorf("request failed with status: %s", resp.Status)
 	}
 
-	var tokenResp RedpayVaTokenResp
-	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+	var rawResp rawRedpayVaTokenResp
+	if err := json.NewDecoder(resp.Body).Decode(&rawResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	expiresInSec, err := strconv.Atoi(tokenResp.ExpiresIn)
-	if err != nil {
-		return nil, fmt.Errorf("invalid expires_in format: %w", err)
+	var expiresIn int
+	switch v := rawResp.ExpiresIn.(type) {
+	case float64:
+		expiresIn = int(v)
+	case string:
+		expiresIn, err = strconv.Atoi(v)
+		if err != nil {
+			return nil, fmt.Errorf("invalid expires_in value: %w", err)
+		}
+	default:
+		return nil, fmt.Errorf("unexpected type for expires_in: %T", v)
 	}
 
-	expiredAt := time.Now().Add(time.Duration(expiresInSec) * time.Second)
+	tokenResp := &RedpayVaTokenResp{
+		AccessToken: rawResp.AccessToken,
+		TokenType:   rawResp.TokenType,
+		ExpiresIn:   expiresIn,
+		Scope:       rawResp.Scope,
+	}
 
+	expiredAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 	cached := CachedToken{
 		Token:     tokenResp.AccessToken,
 		ExpiredAt: expiredAt,
 	}
+	RedpayTokenCache.Set("redpay_token", cached, time.Duration(tokenResp.ExpiresIn)*time.Second)
 
-	RedpayTokenCache.Set("redpay_token", cached, time.Duration(expiresInSec)*time.Second)
-
-	return &tokenResp, nil
+	return tokenResp, nil
 }
