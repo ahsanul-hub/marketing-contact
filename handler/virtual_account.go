@@ -149,6 +149,9 @@ func validateBCASignature(c *fiber.Ctx, token, secret, path string) bool {
 	h.Write([]byte(stringToSign))
 	expectedSignature := hex.EncodeToString(h.Sum(nil))
 
+	log.Println("BCA Request Body:\n", string(body))
+	log.Println("expected signature", expectedSignature)
+
 	// Bandingkan
 	return hmac.Equal([]byte(signatureFromHeader), []byte(expectedSignature))
 }
@@ -384,6 +387,8 @@ func PaymentBca(c *fiber.Ctx) error {
 	expectedAuthorization := fmt.Sprintf("Bearer %s", token)
 	expectedXBCAKEy := "XrPd1pztIr"
 
+	log.Println("expectedAuthorization", expectedAuthorization)
+
 	if authorization != expectedAuthorization || x_bca_key != expectedXBCAKEy {
 		resError = VaBCAErrorResponse{
 			ErrorCode: "ERROR-INVALID-AUTHORIZATION",
@@ -419,6 +424,78 @@ func PaymentBca(c *fiber.Ctx) error {
 	// 	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Total"})
 	// }
 	// totalAmount := uint(totalFloat)
+
+	env := config.Config("ENV", "")
+
+	if env == "development" {
+		activeVAs := map[string]string{
+			"111316829726801": "Budi Santoso",
+			"111319869285781": "Siti Aminah",
+			"111311682920749": "Andi Wijaya",
+			"111312959571097": "Dewi Lestari",
+			"111313846905385": "Rudi Hartono",
+			"111314970286953": "Fitriani",
+			"111316810136869": "Joko Anwar",
+			"111319235817402": "Linda Marbun",
+			"111314189406863": "Taufik Hidayat",
+			"111313258468127": "Nur Aini",
+		}
+
+		expiredVAs := map[string]string{
+			"111311326580369": "Expired Darwin",
+			"111314672968104": "Expired Louise",
+		}
+
+		// Periksa VA dummy aktif
+		if _, ok := activeVAs[vaNumber]; ok {
+			response = PaymentResponse{
+				CompanyCode:       request.CompanyCode,
+				CustomerNumber:    request.CustomerNumber,
+				RequestID:         request.RequestID,
+				PaymentFlagStatus: "00",
+				PaymentFlagReason: &struct {
+					Indonesian string `json:"Indonesian,omitempty"`
+					English    string `json:"English,omitempty"`
+				}{
+					Indonesian: "Sukses",
+					English:    "Success",
+				},
+				CustomerName:    request.CustomerName,
+				CurrencyCode:    "IDR",
+				PaidAmount:      request.PaidAmount,
+				TotalAmount:     "10000.00",
+				TransactionDate: time.Now().Format("02/01/2006 15:04:05"),
+				DetailBills:     []string{},
+				FreeText:        []string{},
+				AdditionalData:  "",
+			}
+			return c.Status(fiber.StatusOK).JSON(response)
+		}
+
+		if _, ok := expiredVAs[vaNumber]; ok {
+			response = PaymentResponse{
+				CompanyCode:       request.CompanyCode,
+				CustomerNumber:    request.CustomerNumber,
+				RequestID:         request.RequestID,
+				PaymentFlagStatus: "01",
+				PaymentFlagReason: &struct {
+					Indonesian string `json:"Indonesian,omitempty"`
+					English    string `json:"English,omitempty"`
+				}{
+					Indonesian: "Payment tidak valid",
+					English:    "Invalid payment",
+				},
+				CurrencyCode:    "IDR",
+				PaidAmount:      request.PaidAmount,
+				TotalAmount:     "10000.00",
+				TransactionDate: time.Now().Format("02/01/2006 15:04:05"),
+				DetailBills:     []string{},
+				FreeText:        []string{},
+				AdditionalData:  "",
+			}
+			return c.Status(fiber.StatusOK).JSON(response)
+		}
+	}
 
 	transaction, err := repository.GetTransactionVa(context.Background(), vaNumber)
 	if err != nil {
