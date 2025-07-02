@@ -2,7 +2,6 @@ package handler
 
 import (
 	"app/config"
-	"app/lib"
 	"app/repository"
 	"bytes"
 	"context"
@@ -12,7 +11,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/rand"
 	"strconv"
+	"sync"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -109,20 +110,52 @@ type ErrorMessage struct {
 	English    string `json:"English"`
 }
 
-func GetRedpayBCAToken() (string, error) {
-	if cached, found := lib.RedpayTokenCache.Get("redpay_token"); found {
-		tokenData := cached.(lib.CachedToken)
-		if time.Now().Before(tokenData.ExpiredAt) {
-			return tokenData.Token, nil
-		}
+// func GetRedpayBCAToken() (string, error) {
+// 	if cached, found := lib.RedpayTokenCache.Get("redpay_token"); found {
+// 		tokenData := cached.(lib.CachedToken)
+// 		if time.Now().Before(tokenData.ExpiredAt) {
+// 			return tokenData.Token, nil
+// 		}
+// 	}
+
+// 	tokenResp, err := lib.RequestTokenVaBCARedpay()
+// 	if err != nil {
+// 		log.Println("error request token lib BCA")
+// 		return "", err
+// 	}
+// 	return tokenResp.AccessToken, nil
+// }
+
+var (
+	tokenCache     string
+	tokenExpiresAt time.Time
+	cacheMutex     sync.Mutex
+)
+
+func generateRandomToken(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	rand.Seed(time.Now().UnixNano())
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[rand.Intn(len(charset))]
+	}
+	return string(b)
+}
+
+func GenerateOrGetToken() (string, int) {
+	cacheMutex.Lock()
+	defer cacheMutex.Unlock()
+
+	now := time.Now()
+
+	if now.Before(tokenExpiresAt) && tokenCache != "" {
+		expiresIn := int(tokenExpiresAt.Sub(now).Seconds())
+		return tokenCache, expiresIn
 	}
 
-	tokenResp, err := lib.RequestTokenVaBCARedpay()
-	if err != nil {
-		log.Println("error request token lib BCA")
-		return "", err
-	}
-	return tokenResp.AccessToken, nil
+	tokenCache = generateRandomToken(14)
+	tokenExpiresAt = now.Add(3600 * time.Second)
+	return tokenCache, 3600
 }
 
 func validateBCASignature(c *fiber.Ctx, token, secret, path string) bool {
@@ -165,10 +198,8 @@ func InquiryBca(c *fiber.Ctx) error {
 	// x_bca_timestamp := c.Get("X-BCA-Timestamp")
 	secret := "jokwFlBC80WNVCJ"
 
-	token, err := GetRedpayBCAToken()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error get token redpay bca"})
-	}
+	token, _ := GenerateOrGetToken()
+
 	expectedAuthorization := fmt.Sprintf("Bearer %s", token)
 	expectedXBCAKEy := "XrPd1pztIr"
 
@@ -340,13 +371,19 @@ func TokenBca(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusOK).JSON(resError)
 	}
 
-	tokenRedpay, err := lib.RequestTokenVaBCARedpay()
-	if err != nil {
-		log.Println("err", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error request token"})
-	}
+	// tokenRedpay, err := lib.RequestTokenVaBCARedpay()
+	// if err != nil {
+	// 	log.Println("err", err)
+	// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error request token"})
+	// }
 
-	return c.Status(fiber.StatusOK).JSON(tokenRedpay)
+	token, expiresIn := GenerateOrGetToken()
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"access_token": token,
+		"expires_in":   expiresIn,
+	})
+
 }
 
 func PaymentBca(c *fiber.Ctx) error {
@@ -380,10 +417,8 @@ func PaymentBca(c *fiber.Ctx) error {
 
 	var resError VaBCAErrorResponse
 
-	token, err := GetRedpayBCAToken()
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Error get token redpay bca"})
-	}
+	token, _ := GenerateOrGetToken()
+
 	expectedAuthorization := fmt.Sprintf("Bearer %s", token)
 	expectedXBCAKEy := "XrPd1pztIr"
 
