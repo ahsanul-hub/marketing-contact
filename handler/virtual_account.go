@@ -322,7 +322,7 @@ func InquiryBca(c *fiber.Ctx) error {
 				English:    "Invalid VA number or expired",
 			},
 			CurrencyCode: "IDR",
-			TotalAmount:  fmt.Sprintf("%d.00", transaction.Amount),
+			TotalAmount:  "",
 			SubCompany:   "00000",
 		}
 		return c.Status(fiber.StatusOK).JSON(response)
