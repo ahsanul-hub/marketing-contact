@@ -176,52 +176,67 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 	return transaction.ID, transaction.Price, nil
 }
 
-func GetAllTransactions(ctx context.Context, limit, offset, status, denom int, transactionId, merchantTransactionId, appID, userMDN, userId, appName string, merchants, paymentMethods []string, startDate, endDate *time.Time) ([]model.Transactions, int64, error) {
+func GetAllTransactions(
+	ctx context.Context,
+	limit, offset, status, denom int,
+	transactionId, merchantTransactionId, appID, userMDN, userId, appName string,
+	merchants, paymentMethods []string,
+	startDate, endDate *time.Time,
+) ([]model.Transactions, int64, error) {
+
 	span, _ := apm.StartSpan(ctx, "GetAllTransactions", "repository")
 	defer span.End()
+
 	var transactions []model.Transactions
 	var totalItems int64
 
-	query := database.DB
+	baseQuery := database.DB.Model(&model.Transactions{})
 
 	if transactionId != "" {
-		query = query.Where("id = ?", transactionId)
+		baseQuery = baseQuery.Where("id = ?", transactionId)
 	}
 	if merchantTransactionId != "" {
-		query = query.Where("mt_tid = ?", merchantTransactionId)
+		baseQuery = baseQuery.Where("mt_tid = ?", merchantTransactionId)
 	}
 	if status != 0 {
-		query = query.Where("status_code = ?", status)
+		baseQuery = baseQuery.Where("status_code = ?", status)
 	}
 	if denom != 0 {
-		query = query.Where("amount = ?", denom)
+		baseQuery = baseQuery.Where("amount = ?", denom)
 	}
 	if userId != "" {
-		query = query.Where("user_id = ?", userId)
+		baseQuery = baseQuery.Where("user_id = ?", userId)
 	}
 	if appID != "" {
-		query = query.Where("app_id = ?", appID)
+		baseQuery = baseQuery.Where("app_id = ?", appID)
 	}
 	if appName != "" {
-		query = query.Where("app_name = ?", appName)
+		baseQuery = baseQuery.Where("app_name = ?", appName)
 	}
 	if len(merchants) > 0 {
-		query = query.Where("merchant_name IN ?", merchants)
+		baseQuery = baseQuery.Where("merchant_name IN ?", merchants)
 	}
 	if userMDN != "" {
-		query = query.Where("user_mdn = ?", userMDN)
+		baseQuery = baseQuery.Where("user_mdn = ?", userMDN)
 	}
 	if len(paymentMethods) > 0 {
-		query = query.Where("payment_method IN ?", paymentMethods)
+		baseQuery = baseQuery.Where("payment_method IN ?", paymentMethods)
 	}
 	if startDate != nil && endDate != nil {
-		query = query.Where("created_at BETWEEN ? AND ?", *startDate, *endDate)
+		baseQuery = baseQuery.Where("created_at BETWEEN ? AND ?", *startDate, *endDate)
 	}
-	if err := query.Model(&model.Transactions{}).Where(query).Count(&totalItems).Error; err != nil {
+
+	countQuery := baseQuery.Session(&gorm.Session{})
+	if err := countQuery.Count(&totalItems).Error; err != nil {
 		return nil, 0, fmt.Errorf("unable to count transactions: %w", err)
 	}
 
-	if err := query.Debug().Order("created_at DESC").Limit(limit).Offset(offset).Find(&transactions).Error; err != nil {
+	dataQuery := baseQuery.Session(&gorm.Session{})
+	if err := dataQuery.Debug().
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&transactions).Error; err != nil {
 		return nil, 0, fmt.Errorf("unable to fetch transactions: %w", err)
 	}
 
