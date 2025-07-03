@@ -52,7 +52,7 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 			break
 		}
 	}
-	sms := fmt.Sprintf("Waspada Penipuan! Anda akan membeli coin dengan tarif %s (termasuk ppn). Balas %s %d Abaikan jika tdk membeli. CS: bit.ly/3AqzjzU", price, keyword, otp)
+	sms := fmt.Sprintf("Waspada Penipuan! Anda akan membeli coin dengan tarif %s (termasuk ppn). Balas \n \n %s %d \n \n Abaikan jika tdk membeli. CS: bit.ly/3AqzjzU", price, keyword, otp)
 
 	params := url.Values{}
 	params.Add("adn", "99899")
