@@ -145,21 +145,27 @@ func CheckTransactionStatusLegacy(c *fiber.Ctx) error {
 
 	var status string
 	var isSuccess bool
+	var statusCode int
 	switch transaction.StatusCode {
 	case 1000:
 		status = "payment_completed"
+		statusCode = 1000
 		isSuccess = true
 	case 1003:
-		status = "waiting send callback"
+		status = "payment_completed"
+		statusCode = 1000
 		isSuccess = true
 	case 1001:
 		status = "pending"
+		statusCode = 1001
 		isSuccess = false
 	case 1005:
 		status = "failed"
+		statusCode = 1005
 		isSuccess = false
 	default:
 		isSuccess = false
+		statusCode = transaction.StatusCode
 		status = "unknown"
 	}
 
@@ -168,7 +174,7 @@ func CheckTransactionStatusLegacy(c *fiber.Ctx) error {
 		UserMDN:       transaction.UserMDN,
 		Amount:        transaction.Amount,
 		ItemName:      transaction.ItemName,
-		StatusCode:    fmt.Sprintf("%d", transaction.StatusCode),
+		StatusCode:    fmt.Sprintf("%d", statusCode),
 		Status:        status,
 		Price:         fmt.Sprintf("%d", transaction.Price),
 	}
