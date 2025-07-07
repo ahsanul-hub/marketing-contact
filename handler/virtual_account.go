@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/patrickmn/go-cache"
 )
 
 type BillRequest struct {
@@ -131,6 +132,7 @@ var (
 	tokenExpiresAt time.Time
 	cacheMutex     sync.Mutex
 )
+var VAPaidCache = cache.New(12*time.Hour, 1*time.Hour)
 
 func generateRandomToken(length int) string {
 	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -263,6 +265,27 @@ func InquiryBca(c *fiber.Ctx) error {
 
 		// Periksa VA dummy aktif
 		if name, ok := activeVAs[vaNumber]; ok {
+
+			if _, found := VAPaidCache.Get(vaNumber); found {
+				response := BillResponse{
+					CompanyCode:    request.CompanyCode,
+					CustomerNumber: request.CustomerNumber,
+					RequestID:      request.RequestID,
+					InquiryStatus:  "01",
+					InquiryReason: &struct {
+						Indonesian string `json:"Indonesian,omitempty"`
+						English    string `json:"English,omitempty"`
+					}{
+						Indonesian: "Tagihan sudah dibayar",
+						English:    "Bill has been paid",
+					},
+					CurrencyCode: "IDR",
+					TotalAmount:  "10000.00",
+					SubCompany:   "00000",
+				}
+				return c.Status(fiber.StatusOK).JSON(response)
+			}
+
 			response := BillResponse{
 				CompanyCode:    request.CompanyCode,
 				CustomerNumber: request.CustomerNumber,
@@ -483,6 +506,26 @@ func PaymentBca(c *fiber.Ctx) error {
 
 		// Periksa VA dummy aktif
 		if _, ok := activeVAs[vaNumber]; ok {
+			if _, found := VAPaidCache.Get(vaNumber); found {
+				response := BillResponse{
+					CompanyCode:    request.CompanyCode,
+					CustomerNumber: request.CustomerNumber,
+					RequestID:      request.RequestID,
+					InquiryStatus:  "01",
+					InquiryReason: &struct {
+						Indonesian string `json:"Indonesian,omitempty"`
+						English    string `json:"English,omitempty"`
+					}{
+						Indonesian: "Tagihan sudah dibayar",
+						English:    "Bill has been paid",
+					},
+					CurrencyCode: "IDR",
+					TotalAmount:  "10000.00",
+					SubCompany:   "00000",
+				}
+				return c.Status(fiber.StatusOK).JSON(response)
+			}
+
 			response = PaymentResponse{
 				CompanyCode:       request.CompanyCode,
 				CustomerNumber:    request.CustomerNumber,
@@ -504,6 +547,8 @@ func PaymentBca(c *fiber.Ctx) error {
 				FreeText:        []string{},
 				AdditionalData:  "",
 			}
+			VAPaidCache.Set(vaNumber, true, cache.DefaultExpiration)
+
 			return c.Status(fiber.StatusOK).JSON(response)
 		}
 
