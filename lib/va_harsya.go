@@ -1,9 +1,12 @@
 package lib
 
 import (
+	"app/repository"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
@@ -66,7 +69,7 @@ type VaChargingRequest struct {
 // 	// Tambahkan field lain bila perlu
 // }
 
-type VAChargingResponse struct {
+type HarsyaChargingResponse struct {
 	Code    string         `json:"code"`
 	Message string         `json:"message"`
 	Data    VAChargingData `json:"data"`
@@ -113,13 +116,14 @@ type ChargeDetail struct {
 	} `json:"amount"`
 	StatementDescriptor string         `json:"statementDescriptor"`
 	Status              string         `json:"status"`
-	AuthorizedAmount    *int           `json:"authorizedAmount"`
-	CapturedAmount      *int           `json:"capturedAmount"`
+	AuthorizedAmount    *int           `json:"authorizedAmount,omitempty"`
+	CapturedAmount      *int           `json:"capturedAmount,omitempty"`
 	IsCaptured          bool           `json:"isCaptured"`
 	CreatedAt           time.Time      `json:"createdAt"`
 	UpdatedAt           time.Time      `json:"updatedAt"`
-	PaidAt              *time.Time     `json:"paidAt"`
-	VirtualAccount      VirtualAccount `json:"virtualAccount"`
+	PaidAt              *time.Time     `json:"paidAt,omitempty"`
+	VirtualAccount      VirtualAccount `json:"virtualAccount,omitempty"`
+	Qr                  QrHarsya       `json:"qr,omitempty"`
 }
 
 type VirtualAccount struct {
@@ -141,7 +145,7 @@ func RequestHarsyaAccessToken(clientID, clientSecret string) (*HarsyaTokenRespon
 		GrantType: "client_credentials",
 	}
 
-	url := "https://api-stg.harsya.com/v1/access-token"
+	url := "https://api.harsya.com/v1/access-token"
 	body, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
@@ -153,8 +157,8 @@ func RequestHarsyaAccessToken(clientID, clientSecret string) (*HarsyaTokenRespon
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-MERCHANT-ID", "fd3bd903-ac6d-44e0-85cc-63435a4fb429")
-	req.Header.Set("X-MERCHANT-SECRET", "P3J1PqOUlE8W1WpvUuKENzGTWQB1CXcbWGKWYkjt")
+	req.Header.Set("X-MERCHANT-ID", clientID)
+	req.Header.Set("X-MERCHANT-SECRET", clientSecret)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -201,7 +205,7 @@ func GetAccessTokenHarsya(clientID, clientSecret string) (string, error) {
 	return tokenResp.Data.AccessToken, nil
 }
 
-func VaHarsyaCharging(transactionId, customerName, bankName string, amount uint) (*VAChargingResponse, error) {
+func VaHarsyaCharging(transactionId, customerName, bankName string, amount uint) (*HarsyaChargingResponse, error) {
 	accessToken, err := GetAccessTokenHarsya("fd3bd903-ac6d-44e0-85cc-63435a4fb429", "P3J1PqOUlE8W1WpvUuKENzGTWQB1CXcbWGKWYkjt")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %w", err)
@@ -248,9 +252,23 @@ func VaHarsyaCharging(transactionId, customerName, bankName string, amount uint)
 		return nil, fmt.Errorf("request failed with status: %s", resp.Status)
 	}
 
-	var chargingResp VAChargingResponse
+	var chargingResp HarsyaChargingResponse
 	if err := json.NewDecoder(resp.Body).Decode(&chargingResp); err != nil {
 		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	now := time.Now()
+
+	requestDate := &now
+
+	err = repository.UpdateTransactionTimestamps(context.Background(), transactionId, requestDate, nil, nil)
+	if err != nil {
+		log.Printf("Error updating request timestamp for transaction %s: %s", transactionId, err)
+	}
+
+	err = repository.UpdateTransactionStatus(context.Background(), transactionId, 1001, &chargingResp.Data.ID, nil, "Processing payment", nil)
+	if err != nil {
+		log.Printf("Error updating transaction %s to PROCESSING: %s", transactionId, err)
 	}
 
 	return &chargingResp, nil
