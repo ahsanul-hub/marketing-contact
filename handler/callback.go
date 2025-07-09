@@ -560,7 +560,13 @@ func CallbackHarsya(c *fiber.Ctx) error {
 		})
 	}
 
-	log.Println("reqCallbackHarsya", req)
+	if strings.ToUpper(req.Event) == "PAYMENT.TEST" {
+		return c.JSON(fiber.Map{
+			"status":  "success",
+			"message": "Test callback received",
+		})
+	}
+
 	transactionID := req.Data.ClientReferenceID
 
 	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
