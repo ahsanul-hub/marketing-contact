@@ -207,6 +207,15 @@ func CreateTransaction(c *fiber.Ctx) error {
 		expiredTime = res.ExpiredTime
 	}
 
+	channelRoute, _ := helper.GetRouteWeightFromClient(arrClient, paymentMethod)
+	selectedRoute := paymentMethod
+
+	if len(channelRoute) > 0 {
+		selectedRoute = helper.ChooseRouteByWeight(channelRoute)
+	}
+
+	transaction.Route = selectedRoute
+
 	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, appkey, appid, &vaNumber)
 	if err != nil {
 		log.Println("err", err)
@@ -215,7 +224,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	MTIDCache.Set(mtDupKey, true, cache.DefaultExpiration)
 
-	switch paymentMethod {
+	switch selectedRoute {
 	case "xl_airtime":
 
 		validAmounts, exists := routes["xl_twt"]
@@ -475,7 +484,6 @@ func CreateTransaction(c *fiber.Ctx) error {
 			log.Println("Updated Midtrans ID error:", err)
 		}
 
-		// log.Println("redirect: ", res.Actions[0].URL)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"qrisUrl":  res.Actions[0].URL,
@@ -484,7 +492,24 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
+	case "qris_harsya":
+		res, err := lib.QrisHarsyaCharging(createdTransId, transaction.Amount)
+		if err != nil {
+			log.Println("Charging request qris harsya failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
 
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"qrisUrl":  res.Data.PaymentURL,
+			"back_url": transaction.RedirectURL,
+			"qrString": res.Data.ChargeDetails[0].Qr.QRContent,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+		})
 	case "ovo":
 		resultChan := make(chan *lib.OVOResponse)
 		errorChan := make(chan error)
@@ -1415,7 +1440,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 	c.Set("Content-Type", "text/csv")
 	c.Set("Content-Disposition", "attachment; filename=transactions.csv")
 
-	if len(transactions) > 1400000 {
+	if len(transactions) > 1100000 {
 		return response.Response(c, fiber.StatusBadRequest, "Data terlalu besar untuk diekspor ke Excel. Silakan gunakan CSV.")
 	}
 

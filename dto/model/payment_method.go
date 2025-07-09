@@ -10,7 +10,7 @@ import (
 type PaymentMethod struct {
 	ID           uint            `gorm:"primaryKey;autoIncrement" json:"id"`
 	Slug         string          `gorm:"type:VARCHAR(255);not null" json:"slug"`
-	Description  string          `gorm:"type:TEXT;not null" json:"description"`
+	Description  string          `gorm:"type:TEXT" json:"description"`
 	Route        pq.StringArray  `gorm:"type:TEXT" json:"route"`
 	Type         string          `gorm:"type:VARCHAR(50);not null" json:"type"`
 	Expired      string          `gorm:"type:VARCHAR(50)" json:"expired"`
@@ -26,16 +26,17 @@ type PaymentMethod struct {
 	StatusDenom  json.RawMessage `gorm:"type:JSONB" json:"status_denom"`
 	Prefix       pq.StringArray  `gorm:"type:TEXT" json:"prefix"`
 	Denom        pq.StringArray  `gorm:"type:TEXT" json:"denom"`
-	DailyLimit   int             ` json:"daily_limit"`
+	DailyLimit   int             `json:"daily_limit"`
 	UpdatedAt    time.Time       `gorm:"not null" json:"updated_at"`
 	CreatedAt    time.Time       `gorm:"not null" json:"created_at"`
 }
 
-// type PaymentMethodClient struct {
-// 	ID       uint            `gorm:"primaryKey" json:"id"`
-// 	Name     string          `gorm:"size:255;not null" json:"name"`
-// 	Route    json.RawMessage `gorm:"type:jsonb" json:"route"`
-// 	Status   int             `json:"status"`
-// 	Msisdn   int             `json:"msisdn"`
-// 	ClientID string          `gorm:"size:50;not null" json:"client_id"`
-// }
+type ChannelRouteWeight struct {
+	ID            uint      `gorm:"primaryKey" json:"id"`
+	ClientID      string    `gorm:"not null" json:"client_id"`
+	PaymentMethod string    `gorm:"not null" json:"payment_method"`
+	Route         string    `gorm:"not null" json:"route"`
+	Weight        int       `gorm:"not null" json:"weight"`
+	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+}

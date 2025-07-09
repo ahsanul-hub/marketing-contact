@@ -42,7 +42,7 @@ func FindClient(ctx context.Context, clientAppKey, clientID string) (*model.Clie
 	// Mencari client berdasarkan clientAppKey dan clientID
 	if err := db.Joins("JOIN client_apps ON client_apps.client_id = clients.uid").
 		Where("client_apps.app_id = ? AND client_apps.app_key = ?", clientID, clientAppKey).
-		Preload("ClientApps").Preload("PaymentMethods").
+		Preload("ClientApps").Preload("PaymentMethods").Preload("ChannelRouteWeight").
 		First(&client).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("client not found: %w", err)
@@ -82,24 +82,36 @@ func generateClientSecret() (string, error) {
 
 func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 
+	if input.ClientName == nil || input.AppName == nil || input.Mobile == nil ||
+		input.ClientStatus == nil || input.Testing == nil || input.Lang == nil ||
+		input.Phone == nil || input.Email == nil || input.CallbackURL == nil || input.FailCallback == nil || input.Isdcb == nil {
+		log.Println("Error: Missing required fields in input")
+		return fmt.Errorf("missing required fields in input")
+	}
+
 	clientSecret, err := generateClientSecret()
 	if err != nil {
+		log.Println("Error generating client secret:", err)
 		return fmt.Errorf("failed to generate client secret: %w", err)
 	}
 
+	// Generate keys & UUID
 	clientAppKey, err := generateUniqueKey()
 	if err != nil {
+		log.Println("Error generating client app key:", err)
 		return fmt.Errorf("failed to generate client app key: %w", err)
 	}
 
 	clientAppID, err := generateUniqueKey()
 	if err != nil {
+		log.Println("Error generating client app ID:", err)
 		return fmt.Errorf("failed to generate client app ID: %w", err)
 	}
 
 	uuidClient, err := uuid.NewV7()
 	if err != nil {
-		log.Fatal(err)
+		log.Println("Error generating UUID:", err)
+		return fmt.Errorf("failed to generate UUID: %w", err)
 	}
 	client := model.Client{
 		UID:          uuidClient.String(),
@@ -120,7 +132,7 @@ func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 	}
 
 	if err := database.DB.Create(&client).Error; err != nil {
-
+		log.Println("Error creating client in database:", err)
 		return fmt.Errorf("unable to create client: %w", err)
 	}
 
@@ -130,8 +142,8 @@ func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 			return err
 		}
 	}
-	// log.Println("settlement: ", input.Settlements)
 
+	// Process Settlements
 	for _, settlements := range input.Settlements {
 		if err := AddSettlements(client.UID, &settlements); err != nil {
 			log.Printf("Failed to add settlement for client %s: %s", client.UID, err)
@@ -143,6 +155,14 @@ func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 		if err := AddClientApps(client.UID, &clients); err != nil {
 			log.Printf("Failed to add client app for client %s: %s", client.UID, err)
 			return err
+		}
+	}
+
+	for _, weight := range input.ChannelRouteWeight {
+		weight.ClientID = client.UID
+		if err := database.DB.Create(&weight).Error; err != nil {
+			log.Printf("Failed to insert supplier route weight: %+v, error: %v", weight, err)
+			return fmt.Errorf("failed to create supplier route weight: %w", err)
 		}
 	}
 
@@ -348,6 +368,28 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 		}
 	}
 
+	for _, weight := range input.ChannelRouteWeight {
+		var existingWeight model.ChannelRouteWeight
+		if err := db.Where("client_id = ? AND payment_method = ? AND route = ?", existingClient.UID, weight.PaymentMethod, weight.Route).First(&existingWeight).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				weight.ClientID = existingClient.UID
+				if err := db.Create(&weight).Error; err != nil {
+					log.Printf("Failed to create supplier weight: %s", err)
+					return err
+				}
+			} else {
+				log.Printf("Failed to find supplier weight: %s", err)
+				return err
+			}
+		} else {
+			existingWeight.Weight = weight.Weight
+			if err := db.Save(&existingWeight).Error; err != nil {
+				log.Printf("Failed to update supplier weight: %s", err)
+				return err
+			}
+		}
+	}
+
 	merchantCache.Set(cacheKey, &existingClient, cache.DefaultExpiration)
 
 	return nil
@@ -405,7 +447,7 @@ func AddClientApps(clientID string, clients *model.ClientApp) error {
 
 func GetByClientID(clientAppID string) (model.Client, error) {
 	var client model.Client
-	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Preload("ClientApps").Where("client_id = ?", clientAppID).First(&client).Error; err != nil {
+	if err := database.DB.Preload("PaymentMethods").Preload("Settlements").Preload("ClientApps").Preload("ChannelRouteWeight").Where("client_id = ?", clientAppID).First(&client).Error; err != nil {
 		return client, fmt.Errorf("client not found: %w", err)
 	}
 	return client, nil
