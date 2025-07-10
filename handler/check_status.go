@@ -2,11 +2,15 @@ package handler
 
 import (
 	"app/dto/http"
+	"app/dto/model"
 	"app/lib"
 	"app/pkg/response"
 	"app/repository"
 	"context"
 	"fmt"
+	"log"
+	"reflect"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"go.elastic.co/apm"
@@ -129,6 +133,52 @@ func CheckTransactionStatusLegacy(c *fiber.Ctx) error {
 
 	appKey := c.Get("appkey")
 	appID := c.Get("appid")
+
+	if cached, found := TransactionCache.Get(req.TransactionID); found {
+		cachedInput := cached.(model.InputPaymentRequestLegacy)
+
+		var amount uint
+
+		switch v := cachedInput.Amount.(type) {
+		case float64:
+			amount = uint(v)
+		case float32:
+			amount = uint(v)
+		case int:
+			amount = uint(v)
+		case int64:
+			amount = uint(v)
+		case uint:
+			amount = v
+		case string:
+			parsed, err := strconv.Atoi(v)
+			if err == nil {
+				amount = uint(parsed)
+			} else {
+				log.Println("Invalid amount string:", v)
+				amount = 0
+			}
+		default:
+			log.Println("Unknown amount type:", reflect.TypeOf(cachedInput.Amount))
+			amount = 0
+		}
+
+		data := CheckStatusData{
+			TransactionID: cachedInput.MtTid,
+			UserMDN:       cachedInput.UserMDN,
+			Amount:        amount,
+			ItemName:      cachedInput.ItemName,
+			StatusCode:    "1002",
+			Status:        "waiting for payment",
+			Price:         fmt.Sprintf("%d", cachedInput.Price),
+		}
+
+		return c.JSON(fiber.Map{
+			"success": true,
+			"message": "waiting for payment",
+			"data":    data,
+		})
+	}
 
 	if req.TransactionID == "" || appKey == "" || appID == "" {
 		return response.Response(c, fiber.StatusBadRequest, "Missing required parameters")

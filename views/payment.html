@@ -133,7 +133,7 @@
       <form action="/api/payment" method="POST" id="paymentForm">
         {{ if or (eq .PaymentMethod "va_bca") (eq .PaymentMethod "va_mandiri")
         (eq .PaymentMethod "va_bri") (eq .PaymentMethod "va_bni") (eq
-        .PaymentMethod "va_permata") }}
+        .PaymentMethod "va_permata") (eq .PaymentMethod "va_sinarmas") }}
         <div class="form-group mb-2">
           <label for="customer_name">Nama:</label>
           <br />
@@ -262,9 +262,8 @@
             data.payment_method === "va_bni" ||
             data.payment_method === "va_mandiri" ||
             data.payment_method === "va_bri" ||
-            data.payment_method === "va_permata";
-
-          console.log("isVa", isVa);
+            data.payment_method === "va_permata" ||
+            data.payment_method === "va_sinarmas";
 
           const dataFormated = {
             amount: parseFloat(data.amount),
@@ -308,6 +307,26 @@
                 // } else {
 
                 // }
+
+                const allowedClients = {
+                  "6078feb8764f1ba30a8b4569":
+                    "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+                  "64522e4e764f1bb11b8b4567":
+                    "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
+                  MHSBZnRBLkDQFlYDMSeXFA: "5HjSLo37LwvIhTAX_zOJkg",
+                  "64d07790764f1bbe758b4569":
+                    "L66vZHbpCnCyjRzvnJ67wYeBEKPb5k1Q",
+                };
+
+                const expectedAppkey = allowedClients[dataFormated.app_id];
+                const useV1 =
+                  expectedAppkey &&
+                  expectedAppkey === dataFormated.client_appkey;
+
+                const redirectUrl = useV1
+                  ? `/api/v1/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`
+                  : `/api/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`;
+
                 switch (dataFormated.payment_method) {
                   case "smartfren_airtime":
                     window.location.href = `/api/input-otp/${data.reff_id}/${dataFormated.token}`;
@@ -327,9 +346,13 @@
                   case "va_permata":
                     window.location.href = `/api/va-payment/${data.data.va}`;
                     break;
+                  case "va_sinarmas":
+                    window.location.href = `/api/va-payment/${data.data.va}`;
+                    break;
 
                   default:
-                    window.location.href = `/api/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`;
+                    window.location.href = redirectUrl;
+
                     break;
                 }
               } else {

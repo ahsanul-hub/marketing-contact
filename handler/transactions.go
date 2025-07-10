@@ -49,6 +49,10 @@ func containsString(slice []string, str string) bool {
 	return false
 }
 
+func isBankVA(method string) bool {
+	return method == "va_bca" || method == "va_bri" || method == "va_bni" || method == "va_mandiri" || method == "va_permata" || method == "va_sinarmas"
+}
+
 func CreateTransaction(c *fiber.Ctx) error {
 	span, spanCtx := apm.StartSpan(c.Context(), "CreateTransactionV2", "handler")
 	defer span.End()
@@ -107,19 +111,26 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	var isEwallet bool
 
-	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "va_bca" || paymentMethod == "va_bri" {
+	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" {
 		isEwallet = true
 	}
 
-	if paymentMethod == "va_bca" && (transaction.CustomerName == "") {
+	if isBankVA(paymentMethod) && (transaction.CustomerName == "") {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Missing mandatory fields: customer name must not be empty",
 		})
 	}
 
-	if !isEwallet && (transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "") {
+	userMDNRequired := !(isBankVA(paymentMethod) || (isEwallet && paymentMethod != "ovo"))
+
+	if transaction.UserId == "" ||
+		transaction.MtTid == "" ||
+		(userMDNRequired && transaction.UserMDN == "") ||
+		transaction.PaymentMethod == "" ||
+		transaction.Amount <= 0 ||
+		transaction.ItemName == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amount must not be empty",
+			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, item_name, amount or UserMDN (if required) must not be empty",
 		})
 	}
 
@@ -130,10 +141,9 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"success": false,
 			"message": fmt.Sprintf("Phone number %s is inactive or invalid, please try another number", transaction.UserMDN),
 		})
-
 	}
 
-	if !isEwallet && !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) && paymentMethod != "ovo" {
+	if !isEwallet && !isBankVA(paymentMethod) && !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) && paymentMethod != "ovo" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"error":   "Invalid prefix, please use valid phone number.",
@@ -638,6 +648,141 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":        "0000",
 			"message":        "Successful Created Transaction",
 		})
+	case "va_bri":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "800")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+		}
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             res.TrxID,
+			"expired_date":   expiredDate,
+			"customer_name":  transaction.CustomerName,
+			"transaction_id": createdTransId,
+			"payment_url":    res.RedirectURL,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+	case "va_permata":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "402")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+		}
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             res.TrxID,
+			"expired_date":   expiredDate,
+			"customer_name":  transaction.CustomerName,
+			"transaction_id": createdTransId,
+			"payment_url":    res.RedirectURL,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+	case "va_mandiri":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "802")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+		}
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             res.TrxID,
+			"expired_date":   expiredDate,
+			"customer_name":  transaction.CustomerName,
+			"transaction_id": createdTransId,
+			"payment_url":    res.RedirectURL,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+	case "va_bni":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "801")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+		}
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             res.TrxID,
+			"expired_date":   expiredDate,
+			"customer_name":  transaction.CustomerName,
+			"payment_url":    res.RedirectURL,
+			"transaction_id": createdTransId,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+	case "va_sinarmas":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "818")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+		}
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             res.TrxID,
+			"expired_date":   expiredDate,
+			"customer_name":  transaction.CustomerName,
+			"payment_url":    res.RedirectURL,
+			"transaction_id": createdTransId,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
@@ -1048,6 +1193,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			log.Println("Updated Midtrans ID error:", err)
 		}
 		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"redirect": res.Actions[0].URL,
@@ -1071,6 +1217,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		}
 
 		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"redirect": res.Actions[1].URL,
@@ -1095,6 +1242,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		}
 
 		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"qrisUrl":  res.Actions[0].URL,
@@ -1171,9 +1319,10 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		}
 
 		TransactionCache.Delete(token)
+		log.Println("transaction.MtTid: ", transaction.MtTid)
+		TransactionCache.Delete(transaction.MtTid)
 		return c.JSON(fiber.Map{
-			"success": true,
-			// "qrisUrl":  res.Actions[0].URL,
+			"success":  true,
 			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
@@ -1197,6 +1346,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			}
 
 			TransactionCache.Delete(token)
+			TransactionCache.Delete(transaction.MtTid)
 
 			return c.JSON(fiber.Map{
 				"success":  true,
@@ -1217,6 +1367,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		}
 
 		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
 		return c.JSON(fiber.Map{
 			"success":  true,
 			"back_url": transaction.RedirectURL,

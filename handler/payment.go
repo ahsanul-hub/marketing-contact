@@ -7,6 +7,7 @@ import (
 	"app/lib"
 	"app/pkg/response"
 	"app/repository"
+	"context"
 	"fmt"
 	"html/template"
 	"log"
@@ -409,6 +410,10 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 
 	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
 
+	if appid == "MHSBZnRBLkDQFlYDMSeXFA" {
+		TransactionCache.Set(input.MtTid, input, cache.DefaultExpiration)
+	}
+
 	data := map[string]interface{}{
 		"token": transactionID,
 	}
@@ -483,6 +488,16 @@ func PaymentPage(c *fiber.Ctx) error {
 			StrPaymentMethod = "Qris"
 		case "va_bca":
 			StrPaymentMethod = "BCA"
+		case "va_bri":
+			StrPaymentMethod = "BRI"
+		case "va_bni":
+			StrPaymentMethod = "BNI"
+		case "va_mandiri":
+			StrPaymentMethod = "MANDIRI"
+		case "va_permata":
+			StrPaymentMethod = "PERMATA"
+		case "va_sinarmas":
+			StrPaymentMethod = "SINARMAS"
 		case "dana":
 			StrPaymentMethod = "Dana"
 		case "ovo":
@@ -892,6 +907,7 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 	appid := c.Get("appid")
 	token := c.Get("token")
 
+	var vaBCa, expiredTime string
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -900,9 +916,9 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 		})
 	}
 
-	if transaction.UserId == "" || transaction.MtTid == "" || transaction.UserMDN == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "" || transaction.CustomerName == "" {
+	if transaction.UserId == "" || transaction.MtTid == "" || transaction.PaymentMethod == "" || transaction.Amount <= 0 || transaction.ItemName == "" || transaction.CustomerName == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, UserMDN , item_name or amount must not be empty",
+			"error": "Missing mandatory fields: UserId, mtId, paymentMethod , item_name or amount must not be empty",
 		})
 	}
 
@@ -918,18 +934,23 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
 	}
 
-	res, err := lib.GenerateVA()
-	if err != nil {
-		log.Println("Generate va failed:", err)
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"message": "Generate Va failed",
-		})
+	if transaction.PaymentMethod == "va_bca" {
+		res, err := lib.GenerateVA()
+		if err != nil {
+			log.Println("Generate va failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Generate Va failed",
+			})
+		}
+		vaBCa = res.VaNumber
+		expiredTime = res.ExpiredTime
 	}
 
 	var transactionID string
+	var chargingPrice uint
 
-	transactionID, _, err = repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid, &res.VaNumber)
+	transactionID, chargingPrice, err = repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid, &vaBCa)
 	if err != nil {
 		log.Println("err", err)
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
@@ -938,15 +959,16 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 	switch transaction.PaymentMethod {
 	case "va_bca":
 		vaPayment := http.VaPayment{
-			VaNumber:      res.VaNumber,
+			VaNumber:      vaBCa,
 			TransactionID: transactionID,
 			CustomerName:  transaction.CustomerName,
 			Bank:          "BCA",
-			ExpiredDate:   res.ExpiredTime,
+			ExpiredDate:   expiredTime,
 		}
 
 		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
 		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
 
 		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
 			"success":        true,
@@ -957,177 +979,320 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 		})
 
 	case "va_bri":
-		res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BRI", transaction.Amount)
+		// res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BRI", transaction.Amount)
+		// if err != nil {
+		// 	log.Println("Generate va failed:", err)
+		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// 		"success": false,
+		// 		"message": "Generate Va failed",
+		// 	})
+		// }
+
+		// vaPayment := http.VaPayment{
+		// 	VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
+		// 	TransactionID: transactionID,
+		// 	Bank:          "BCA",
+		// 	ExpiredDate:   res.Data.ExpiryAt,
+		// }
+
+		// VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+
+		// return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		// 	"success":        true,
+		// 	"va":             vaPayment.VaNumber,
+		// 	"transaction_id": transactionID,
+		// 	"retcode":        "0000",
+		// 	"message":        "Successful Created Transaction",
+		// })
+
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(transactionID, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "800")
 		if err != nil {
-			log.Println("Generate va failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
 				"success": false,
-				"message": "Generate Va failed",
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
 			})
 		}
 
-		// var vaPayment http.VaPayment
-
-		// var bankName string
-
-		// switch transaction.PaymentMethod {
-		// case "va_bca":
-		// 	bankName = "BCA"
-		// case "va_bni":
-		// 	bankName = "BNI"
-		// case "va_bri":
-		// 	bankName = "BRI"
-		// case "va_mandiri":
-		// 	bankName = "MANDIRI"
-		// case "va_permata":
-		// 	bankName = "PERMATA"
-		// case "va_cimb":
-		// 	bankName = "CIMB"
-		// }
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
 
 		vaPayment := http.VaPayment{
-			VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
-			TransactionID: transactionID,
-			Bank:          "BCA",
-			ExpiredDate:   res.Data.ExpiryAt,
-		}
-
-		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
-
-		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
-			"success":        true,
-			"va":             vaPayment.VaNumber,
-			"transaction_id": transactionID,
-			"retcode":        "0000",
-			"message":        "Successful Created Transaction",
-		})
-	case "va_permata":
-		res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "PERMATA", transaction.Amount)
-		if err != nil {
-			log.Println("Generate va failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"success": false,
-				"message": "Generate Va failed",
-			})
-		}
-
-		// var vaPayment http.VaPayment
-
-		// var bankName string
-
-		// switch transaction.PaymentMethod {
-		// case "va_bca":
-		// 	bankName = "BCA"
-		// case "va_bni":
-		// 	bankName = "BNI"
-		// case "va_bri":
-		// 	bankName = "BRI"
-		// case "va_mandiri":
-		// 	bankName = "MANDIRI"
-		// case "va_permata":
-		// 	bankName = "PERMATA"
-		// case "va_cimb":
-		// 	bankName = "CIMB"
-		// }
-		vaPayment := http.VaPayment{
-			VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
-			TransactionID: transactionID,
-			Bank:          "PERMATA",
-			ExpiredDate:   res.Data.ExpiryAt,
-		}
-
-		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
-
-		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
-			"success":        true,
-			"va":             vaPayment.VaNumber,
-			"transaction_id": transactionID,
-			"retcode":        "0000",
-			"message":        "Successful Created Transaction",
-		})
-	case "va_mandiri":
-		res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "MANDIRI", transaction.Amount)
-		if err != nil {
-			log.Println("Generate va failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"success": false,
-				"message": "Generate Va failed",
-			})
-		}
-
-		// var vaPayment http.VaPayment
-
-		// var bankName string
-
-		// switch transaction.PaymentMethod {
-		// case "va_bca":
-		// 	bankName = "BCA"
-		// case "va_bni":
-		// 	bankName = "BNI"
-		// case "va_bri":
-		// 	bankName = "BRI"
-		// case "va_mandiri":
-		// 	bankName = "MANDIRI"
-		// case "va_permata":
-		// 	bankName = "PERMATA"
-		// case "va_cimb":
-		// 	bankName = "CIMB"
-		// }
-
-		vaPayment := http.VaPayment{
-			VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
-			TransactionID: transactionID,
-			Bank:          "BCA",
-			ExpiredDate:   res.Data.ExpiryAt,
-		}
-
-		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
-
-		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
-			"success":        true,
-			"va":             vaPayment.VaNumber,
-			"transaction_id": transactionID,
-			"retcode":        "0000",
-			"message":        "Successful Created Transaction",
-		})
-	case "va_bni":
-		res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BNI", transaction.Amount)
-		if err != nil {
-			log.Println("Generate va failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"success": false,
-				"message": "Generate Va failed",
-			})
-		}
-
-		// var vaPayment http.VaPayment
-
-		// var bankName string
-
-		// switch transaction.PaymentMethod {
-		// case "va_bca":
-		// 	bankName = "BCA"
-		// case "va_bni":
-		// 	bankName = "BNI"
-		// case "va_bri":
-		// 	bankName = "BRI"
-		// case "va_mandiri":
-		// 	bankName = "MANDIRI"
-		// case "va_permata":
-		// 	bankName = "PERMATA"
-		// case "va_cimb":
-		// 	bankName = "CIMB"
-		// }
-
-		vaPayment := http.VaPayment{
-			VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
+			VaNumber:      res.TrxID,
 			TransactionID: transactionID,
 			CustomerName:  transaction.CustomerName,
-			Bank:          "BCA",
-			ExpiredDate:   res.Data.ExpiryAt,
+			Bank:          "BRI",
+			ExpiredDate:   expiredDate,
 		}
 
 		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             vaPayment.VaNumber,
+			"transaction_id": transactionID,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+
+	case "va_permata":
+		// res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "PERMATA", transaction.Amount)
+		// if err != nil {
+		// 	log.Println("Generate va failed:", err)
+		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// 		"success": false,
+		// 		"message": "Generate Va failed",
+		// 	})
+		// }
+
+		// vaPayment := http.VaPayment{
+		// 	VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
+		// 	TransactionID: transactionID,
+		// 	Bank:          "PERMATA",
+		// 	ExpiredDate:   res.Data.ExpiryAt,
+		// }
+
+		// VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+
+		// return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		// 	"success":        true,
+		// 	"va":             vaPayment.VaNumber,
+		// 	"transaction_id": transactionID,
+		// 	"retcode":        "0000",
+		// 	"message":        "Successful Created Transaction",
+		// })
+
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(transactionID, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "402")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+
+		vaPayment := http.VaPayment{
+			VaNumber:      res.TrxID,
+			TransactionID: transactionID,
+			CustomerName:  transaction.CustomerName,
+			Bank:          "PERMATA",
+			ExpiredDate:   expiredDate,
+		}
+
+		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             vaPayment.VaNumber,
+			"transaction_id": transactionID,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+
+	case "va_mandiri":
+		// res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "MANDIRI", transaction.Amount)
+		// if err != nil {
+		// 	log.Println("Generate va failed:", err)
+		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// 		"success": false,
+		// 		"message": "Generate Va failed",
+		// 	})
+		// }
+
+		// vaPayment := http.VaPayment{
+		// 	VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
+		// 	TransactionID: transactionID,
+		// 	Bank:          "BCA",
+		// 	ExpiredDate:   res.Data.ExpiryAt,
+		// }
+
+		// VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+
+		// return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		// 	"success":        true,
+		// 	"va":             vaPayment.VaNumber,
+		// 	"transaction_id": transactionID,
+		// 	"retcode":        "0000",
+		// 	"message":        "Successful Created Transaction",
+		// })
+
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(transactionID, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "802")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+
+		vaPayment := http.VaPayment{
+			VaNumber:      res.TrxID,
+			TransactionID: transactionID,
+			CustomerName:  transaction.CustomerName,
+			Bank:          "MANDIRI",
+			ExpiredDate:   expiredDate,
+		}
+
+		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             vaPayment.VaNumber,
+			"transaction_id": transactionID,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+
+	case "va_bni":
+		// res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BNI", transaction.Amount)
+		// if err != nil {
+		// 	log.Println("Generate va failed:", err)
+		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// 		"success": false,
+		// 		"message": "Generate Va failed",
+		// 	})
+		// }
+
+		// var vaPayment http.VaPayment
+
+		// var bankName string
+
+		// vaPayment := http.VaPayment{
+		// 	VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
+		// 	TransactionID: transactionID,
+		// 	CustomerName:  transaction.CustomerName,
+		// 	Bank:          "BCA",
+		// 	ExpiredDate:   res.Data.ExpiryAt,
+		// }
+
+		// VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+
+		// return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		// 	"success":        true,
+		// 	"va":             vaPayment.VaNumber,
+		// 	"transaction_id": transactionID,
+		// 	"retcode":        "0000",
+		// 	"message":        "Successful Created Transaction",
+		// })
+
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(transactionID, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "801")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+
+		vaPayment := http.VaPayment{
+			VaNumber:      res.TrxID,
+			TransactionID: transactionID,
+			CustomerName:  transaction.CustomerName,
+			Bank:          "BNI",
+			ExpiredDate:   expiredDate,
+		}
+
+		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             vaPayment.VaNumber,
+			"transaction_id": transactionID,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+	case "va_sinarmas":
+		// res, err := lib.VaHarsyaCharging(transactionID, transaction.CustomerName, "BNI", transaction.Amount)
+		// if err != nil {
+		// 	log.Println("Generate va failed:", err)
+		// 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+		// 		"success": false,
+		// 		"message": "Generate Va failed",
+		// 	})
+		// }
+
+		// var vaPayment http.VaPayment
+
+		// var bankName string
+
+		// vaPayment := http.VaPayment{
+		// 	VaNumber:      res.Data.ChargeDetails[0].VirtualAccount.VirtualAccountNumber,
+		// 	TransactionID: transactionID,
+		// 	CustomerName:  transaction.CustomerName,
+		// 	Bank:          "BCA",
+		// 	ExpiredDate:   res.Data.ExpiryAt,
+		// }
+
+		// VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+
+		// return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		// 	"success":        true,
+		// 	"va":             vaPayment.VaNumber,
+		// 	"transaction_id": transactionID,
+		// 	"retcode":        "0000",
+		// 	"message":        "Successful Created Transaction",
+		// })
+
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(transactionID, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "818")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+
+		vaPayment := http.VaPayment{
+			VaNumber:      res.TrxID,
+			TransactionID: transactionID,
+			CustomerName:  transaction.CustomerName,
+			Bank:          "SINARMAS",
+			ExpiredDate:   expiredDate,
+		}
+
+		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
 
 		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
 			"success":        true,
@@ -1244,6 +1409,36 @@ func VaPage(c *fiber.Ctx) error {
 				"Pembayaran Anda telah berhasil",
 			},
 		},
+		"PERMATA": {
+			"ATM": []template.HTML{
+				"Input kartu ATM dan PIN Anda",
+				"Pilih menu <b>Menu Lainnya > PEMBAYARAN > PEMBAYARAN LAINNYA > Pilih “Virtual Account</b>.",
+				template.HTML("Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>"),
+				"Konfirmasi detail pembayaran.",
+				"Klik Ya/Next/Oke untuk menyelesaikan transaksi.",
+				"Simpan struk transaksi sebagai bukti pembayaran.",
+			},
+			"Mobile Banking": []template.HTML{
+				"Lakukan LOG IN pada aplikasi PERMATAMOBILE.",
+				"Pilih menu BAYAR TAGIHAN.",
+				"Pilih Menu Virtual Account.",
+				template.HTML("Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>"),
+				"Tagihan yang harus dibayarkan akan muncul pada layar konfirmasi",
+				"Konfirmasi transaksi dan masukkan Password Transaksi",
+				"Pembayaran SELESAI.",
+			},
+			"Internet Banking": []template.HTML{
+				"Ketik alamat https://new.permatanet.com kemudian klik “Enter”",
+				"Masukkan User ID dan Password.",
+				"Masukkan Kode Keamanan (CAPTCHA).",
+				"Pilih menu “PEMBAYARAN TAGIHAN”.",
+				"Pilih “Virtual Account",
+				template.HTML("Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>"),
+				"Kemudin tagihan yang harus dibayarkan akan muncul pada layar konfirmasi.",
+				"Masukkan Kode Otentikasi Token.",
+				"Pembayaran Anda telah berhasil",
+			},
+		},
 		"MANDIRI": {
 			"ATM": []template.HTML{
 				"Pilih pembayaran/pembelian",
@@ -1264,65 +1459,25 @@ func VaPage(c *fiber.Ctx) error {
 				"Masukkan PIN dan kode token",
 			},
 		},
-		"PERMATA": {
+		"SINARMAS": {
 			"ATM": []template.HTML{
 				"Input kartu ATM dan PIN Anda",
-				"Pilih menu <b> Pembayaran > Pembayaran > Pembayaran Lain > Virtual Account.",
+				"Pilih menu <b> PEMBAYARAN > Menu Berikutnya > Pilih “Virtual Account</b>.",
 				template.HTML("Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>"),
 				"Konfirmasi detail pembayaran.",
 				"Klik Ya/Next/Oke untuk menyelesaikan transaksi.",
 				"Simpan struk transaksi sebagai bukti pembayaran.",
 			},
+			"Internet Banking": []template.HTML{
+				"Pilih menu “PEMBAYARAN/PEMBELIAN”.",
+				"Pilih “Virtual Account",
+				template.HTML("Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>"),
+				"Kemudin tagihan yang harus dibayarkan akan muncul pada layar konfirmasi.",
+				"Masukkan Kode Otentikasi Token.",
+				"Pembayaran Anda telah berhasil",
+			},
 		},
 	}
-
-	// steps := map[string]map[string][]string{
-	// 	"BCA": {
-	// 		"ATM": {
-	// 			"Kunjungi ATM BCA terdekat.",
-	// 			"Pilih menu Transaksi Lainnya > Transfer > ke Rek BCA Virtual Account.",
-	// 			template.HTML("Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>"),
-	// 			"Konfirmasi detail pembayaran.",
-	// 			"Klik Ya/Next/Oke untuk menyelesaikan transaksi.",
-	// 			"Simpan struk transaksi sebagai bukti pembayaran.",
-	// 		},
-	// 		"Mobile Banking": {
-	// 			"Lakukan LOG IN pada aplikasi BCA Mobile.",
-	// 			"Pilih m-BCA lalu masukkan KODE AKSES m-BCA.",
-	// 			"Pilih M-TRANSFER lalu BCA VIRTUAL ACCOUNT.",
-	// 			template.HTML("Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>"),
-	// 			"Konfirmasi detail pembayaran dan masukkan PIN.",
-	// 			"Pembayaran SELESAI.",
-	// 		},
-	// 		"Internet Banking": {
-	// 			"Login ke KlikBCA.",
-	// 			"Pilih Transfer Dana > BCA Virtual Account.",
-	// 			template.HTML("Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>"),
-	// 			"Konfirmasi detail pembayaran.",
-	// 			"Masukkan token KeyBCA dan selesaikan transaksi.",
-	// 		},
-	// 	},
-	// 	"Mandiri": {
-	// 		"ATM": {
-	// 			"Masukkan kartu ATM dan PIN.",
-	// 			"Pilih Bayar/Beli > Multi Payment.",
-	// 			"Masukkan kode perusahaan dan nomor Virtual Account.",
-	// 			"Periksa detail transaksi, lalu konfirmasi pembayaran.",
-	// 		},
-	// 		"Mobile Banking": {
-	// 			"Login ke Livin' by Mandiri.",
-	// 			"Pilih menu Bayar lalu Virtual Account.",
-	// 			"Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>",
-	// 			"Konfirmasi detail pembayaran dan selesaikan transaksi.",
-	// 		},
-	// 		"Internet Banking": {
-	// 			"Login ke Mandiri Internet Banking.",
-	// 			"Pilih Pembayaran > Virtual Account.",
-	// 			"Masukkan nomor VA berikut: <b>" + inputReq.VaNumber + "</b>",
-	// 			"Periksa detail transaksi dan selesaikan pembayaran.",
-	// 		},
-	// 	},
-	// }
 
 	return c.Render("va_page", fiber.Map{
 		"VaNumber":     inputReq.VaNumber,
