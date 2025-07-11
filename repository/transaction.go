@@ -3,22 +3,23 @@ package repository
 import (
 	"app/database"
 	"app/dto/model"
+	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
 	"math"
+	"net/http"
 	"strconv"
 	"strings"
 	"sync"
 
 	// "app/webhook"
-	"bytes"
+
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -703,7 +704,8 @@ func ProcessTransactions() {
 			var callbackPayload interface{}
 
 			if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" ||
-				arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" {
+				arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" ||
+				arrClient.ClientName == "TutuReels" || arrClient.ClientSecret == "UPF6qN7b2nP5geg" {
 				callbackPayload = model.CallbackDataLegacy{
 					AppID:                  transaction.AppID,
 					ClientAppKey:           transaction.ClientAppKey,
@@ -858,7 +860,8 @@ func ProcessFailedTransactions() {
 			var callbackPayload interface{}
 
 			if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" ||
-				arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" {
+				arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" ||
+				arrClient.ClientName == "TutuReels" || arrClient.ClientSecret == "UPF6qN7b2nP5geg" {
 				callbackPayload = model.FailedCallbackDataLegacy{
 					AppID:                  transaction.AppID,
 					ClientAppKey:           transaction.ClientAppKey,
