@@ -52,7 +52,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/checkstatus/:id", handler.CheckTransactionStatus)
 	api.Post("/v1/checkstatus", handler.CheckTransactionStatusLegacy)
 
-	//api.Get("/report/merchant", handler.GetReport)
+	// api.Get("/summary/transaction", handler.GetTransactionSummary)
+	api.Get("/report/merchant", handler.GetReport)
 
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)
 
@@ -93,6 +94,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	admin.Get("/payment-methods/:slug", middleware.AdminOnly(false), paymentMethodHandler.GetPaymentMethodByID)
 	admin.Put("/payment-methods/:slug", middleware.AdminOnly(false), paymentMethodHandler.UpdatePaymentMethod)
 	admin.Delete("/payment-methods/:slug", middleware.AdminOnly(false), paymentMethodHandler.DeletePaymentMethod)
+	// admin.Post("/admin/channel-route", middleware.AdminOnly(false), handler.AddChannelRouteWeight)
 
 	admin.Post("/merchant", middleware.AdminOnly(false), handler.AddMerchant)
 	admin.Put("/merchant/:clientID", middleware.AdminOnly(true), handler.UpdateMerchant)
