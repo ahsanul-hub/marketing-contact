@@ -122,6 +122,21 @@ func CheckStatusOvo(c *fiber.Ctx) error {
 	})
 }
 
+func CheckStatusQrisHarsya(c *fiber.Ctx) error {
+	id := c.Params("id")
+
+	res, err := lib.CheckStatusHarsya(id)
+	if err != nil {
+		log.Println("err", err)
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    res,
+	})
+}
+
 func CheckTransactionStatusLegacy(c *fiber.Ctx) error {
 	span, spanCtx := apm.StartSpan(c.Context(), "CheckTransactionStatusPost", "handler")
 	defer span.End()

@@ -49,6 +49,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/check-status/dana/:id", handler.CheckStatusDana)
 	api.Get("/check-status/dana-faspay/:id", handler.CheckStatusDanaFaspay)
 	api.Get("/check-status/ovo/:id", handler.CheckStatusOvo)
+	api.Get("/check-status/qris-harsya/:id", handler.CheckStatusQrisHarsya)
 	api.Get("/checkstatus/:id", handler.CheckTransactionStatus)
 	api.Post("/v1/checkstatus", handler.CheckTransactionStatusLegacy)
 

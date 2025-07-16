@@ -41,6 +41,25 @@ type QrHarsya struct {
 	MerchantName             string    `json:"merchantName,omitempty"`
 }
 
+type HarsyaCheckStatusResponse struct {
+	Code    string `json:"code"`
+	Message string `json:"message"`
+	Data    struct {
+		ID                string `json:"id"`
+		ClientReferenceID string `json:"clientReferenceId"`
+		Status            string `json:"status"`
+		Amount            struct {
+			Value    uint   `json:"value"`
+			Currency string `json:"currency"`
+		} `json:"amount"`
+		ChargeDetails []struct {
+			Status     string `json:"status"`
+			PaidAt     string `json:"paidAt"`
+			IsCaptured bool   `json:"isCaptured"`
+		} `json:"chargeDetails"`
+	} `json:"data"`
+}
+
 func QrisHarsyaCharging(transactionId string, amount uint) (*HarsyaChargingResponse, error) {
 	accessToken, err := GetAccessTokenHarsya("2e0ca65d-d5c2-4d55-8123-d049a888bce1", "IstUCDSYJDgbgCZsHu18xnGDesJjcJPRV3nZl4pN")
 	if err != nil {
@@ -110,4 +129,76 @@ func QrisHarsyaCharging(transactionId string, amount uint) (*HarsyaChargingRespo
 	}
 
 	return &chargingResp, nil
+}
+
+func CheckStatusHarsya(transactionId string) (*HarsyaCheckStatusResponse, error) {
+	accessToken, err := GetAccessTokenHarsya("2e0ca65d-d5c2-4d55-8123-d049a888bce1", "IstUCDSYJDgbgCZsHu18xnGDesJjcJPRV3nZl4pN")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get access token: %w", err)
+	}
+
+	url := fmt.Sprintf("https://api.pivot-payment.com/v2/payments/%s", transactionId)
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("status code error: %d %s", resp.StatusCode, resp.Status)
+	}
+
+	var result HarsyaCheckStatusResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	switch result.Data.Status {
+	case "PAID":
+		paidAt, _ := time.Parse(time.RFC3339, result.Data.ChargeDetails[0].PaidAt)
+		status := 1000
+
+		err = repository.UpdateTransactionStatus(context.Background(), result.Data.ClientReferenceID, status, &result.Data.ID, nil, "", &paidAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update transaction status: %w", err)
+		}
+	case "PROCESSING":
+		paidAt, _ := time.Parse(time.RFC3339, result.Data.ChargeDetails[0].PaidAt)
+		status := 1001
+
+		err = repository.UpdateTransactionStatus(context.Background(), result.Data.ClientReferenceID, status, &result.Data.ID, nil, "Payment Pending", &paidAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update transaction status: %w", err)
+		}
+	case "EXPIRED":
+		paidAt, _ := time.Parse(time.RFC3339, result.Data.ChargeDetails[0].PaidAt)
+		status := 1005
+
+		err = repository.UpdateTransactionStatus(context.Background(), result.Data.ClientReferenceID, status, &result.Data.ID, nil, "Payment Expired", &paidAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update transaction status: %w", err)
+		}
+	case "CANCELLED":
+		paidAt, _ := time.Parse(time.RFC3339, result.Data.ChargeDetails[0].PaidAt)
+		status := 1005
+
+		err = repository.UpdateTransactionStatus(context.Background(), result.Data.ClientReferenceID, status, &result.Data.ID, nil, "Payment Cancelled", &paidAt)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update transaction status: %w", err)
+		}
+
+	default:
+		return nil, fmt.Errorf("get another status from channel: %s", result.Data.Status)
+
+	}
+
+	return &result, nil
 }
