@@ -65,8 +65,9 @@ func QrisHarsyaCharging(transactionId string, amount uint) (*HarsyaChargingRespo
 	if err != nil {
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
-	timeNow := time.Now().UTC()
-	expiryAt := timeNow.Add(10 * time.Minute)
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	timeNow := time.Now().In(loc)
+	expiryAt := timeNow.Add(15 * time.Minute)
 
 	successUrl := fmt.Sprintf("%s/return/dana", config.Config("APIURL", ""))
 
