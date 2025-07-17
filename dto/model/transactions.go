@@ -148,19 +148,19 @@ type TransactionReport struct {
 }
 
 type TransactionDailySummary struct {
-	Date           string    `json:"date"`
-	Status         string    `json:"status"`
-	PaymentMethod  string    `json:"payment_method"`
-	Amount         uint      `json:"amount"`
-	Route          string    `json:"route"`
-	MerchantName   string    `json:"merchant_name"`
-	Total          int       `json:"total"`
-	Revenue        float64   `json:"revenue"`
-	FirstCreatedAt time.Time `json:"first_created_at"`
-	LastCreatedAt  time.Time `json:"last_created_at"`
+	Date          string  `json:"date"`
+	Status        string  `json:"status"`
+	PaymentMethod string  `json:"payment_method"`
+	Amount        uint    `json:"amount"`
+	Route         string  `json:"route"`
+	MerchantName  string  `json:"merchant_name"`
+	Total         int     `json:"total"`
+	Revenue       float64 `json:"revenue"`
+	// FirstCreatedAt time.Time `json:"first_created_at"`
+	// LastCreatedAt  time.Time `json:"last_created_at"`
 
-	FirstTransactionID string `json:"first_transaction_id,omitempty"`
-	LastTransactionID  string `json:"last_transaction_id,omitempty"`
+	// FirstTransactionID string `json:"first_transaction_id,omitempty"`
+	// LastTransactionID  string `json:"last_transaction_id,omitempty"`
 }
 
 type CallbackDataLegacy struct {

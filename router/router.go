@@ -53,7 +53,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/checkstatus/:id", handler.CheckTransactionStatus)
 	api.Post("/v1/checkstatus", handler.CheckTransactionStatusLegacy)
 
-	// api.Get("/summary/transaction", handler.GetTransactionSummary)
+	api.Get("/summary/transaction", handler.GetTransactionSummary)
 	api.Get("/report/merchant", handler.GetReport)
 
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)

@@ -65,60 +65,79 @@ func GetTransactionReport(ctx context.Context, startDate, endDate *time.Time, me
 func GetTransactionSummaryDaily(startDate, endDate time.Time, merchantName, status, paymentMethod, route string) ([]model.TransactionDailySummary, error) {
 	var summaries []model.TransactionDailySummary
 
-	locJakarta, _ := time.LoadLocation("Asia/Jakarta")
+	jakartaLocation, err := time.LoadLocation("Asia/Jakarta")
+	if err != nil {
 
-	now := time.Now().In(locJakarta)
+		log.Printf("Warning: Could not load 'Asia/Jakarta' timezone, falling back to fixed offset. Error: %v", err)
+		jakartaLocation = time.FixedZone("WIB", 7*60*60)
+	}
 
-	// Set default tanggal
+	nowWIB := time.Now().In(jakartaLocation)
+
 	if startDate.IsZero() {
-		startDate = now.AddDate(0, 0, -4)
+		startDate = time.Date(
+			nowWIB.Year(), nowWIB.Month(), nowWIB.Day()-7,
+			0, 0, 0, 0, jakartaLocation,
+		)
+	} else {
+		startDate = time.Date(
+			startDate.In(jakartaLocation).Year(),
+			startDate.In(jakartaLocation).Month(),
+			startDate.In(jakartaLocation).Day(),
+			0, 0, 0, 0,
+			jakartaLocation,
+		)
 	}
+
 	if endDate.IsZero() {
-		endDate = now
+		endDate = time.Date(
+			nowWIB.Year(), nowWIB.Month(), nowWIB.Day()+1,
+			0, 0, 0, -1, jakartaLocation,
+		)
+	} else {
+		endDate = time.Date(
+			endDate.In(jakartaLocation).Year(),
+			endDate.In(jakartaLocation).Month(),
+			endDate.In(jakartaLocation).Day()+1,
+			0, 0, 0, -1,
+			jakartaLocation,
+		)
 	}
 
-	startDate = time.Date(startDate.Year(), startDate.Month(), startDate.Day(), 0, 0, 0, 0, locJakarta)
-	endDate = time.Date(endDate.Year(), endDate.Month(), endDate.Day(), 23, 59, 59, 999999999, locJakarta)
+	// log.Println("startDate", startDate)
+	// log.Println("endDate", endDate)
+	query := database.DB.Table("transactions").Select(`
+    DATE_TRUNC('day', created_at AT TIME ZONE 'Asia/Jakarta') AS date,
+    status_code,
+    payment_method,
+    amount,
+    route,
+    merchant_name,
+    COUNT(*) AS total,
+    SUM(amount) AS revenue,
+    MIN(created_at) AS first_created_at,
+    MAX(created_at) AS last_created_at
+`)
 
-	query := database.DB.Model(&model.Transactions{}).
-		Select(`
-		DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jakarta') AS date,
-		CASE
-			WHEN status_code = 1001 THEN 'pending'
-			WHEN status_code IN (1000, 1003) THEN 'success'
-			ELSE 'failed'
-		END AS status,
-		payment_method,
-		amount,
-		route,
-		merchant_name,
-		COUNT(*) AS total,
-		CAST(amount * COUNT(*) AS FLOAT) AS revenue
-	`).
-		Where(`
-		(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jakarta') BETWEEN ? AND ?
-	`, startDate, endDate).
-		Group(`
-		DATE(created_at AT TIME ZONE 'UTC' AT TIME ZONE 'Asia/Jakarta'),
-		status,
-		payment_method,
-		amount,
-		route,
-		merchant_name
-	`)
+	query = query.Where("created_at BETWEEN ? AND ?", startDate, endDate)
 
 	if merchantName != "" {
 		query = query.Where("merchant_name = ?", merchantName)
 	}
 	if status != "" {
-		// Ubah status string ke status_code sesuai mapping
+		statusCode := -1
 		switch status {
-		case "pending":
-			query = query.Where("status_code = ?", 1001)
 		case "success":
-			query = query.Where("status_code IN ?", []int{1000, 1003})
+			statusCode = 1000
+		case "pending":
+			statusCode = 1001
 		case "failed":
-			query = query.Where("status_code NOT IN ?", []int{1000, 1001, 1003})
+			statusCode = 1005
+		}
+		if statusCode != -1 {
+			query = query.Where("status_code = ?", statusCode)
+		} else {
+			log.Printf("Warning: Invalid status string provided: %s", status)
 		}
 	}
 	if paymentMethod != "" {
@@ -128,85 +147,53 @@ func GetTransactionSummaryDaily(startDate, endDate time.Time, merchantName, stat
 		query = query.Where("route = ?", route)
 	}
 
-	err := query.Scan(&summaries).Error
-	if err != nil {
-		return nil, err
+	query = query.Group(`
+    DATE_TRUNC('day', created_at AT TIME ZONE 'Asia/Jakarta'),
+    status_code,
+    payment_method,
+    amount,
+    route,
+    merchant_name
+`).Order(`
+    DATE_TRUNC('day', created_at AT TIME ZONE 'Asia/Jakarta') DESC,
+    merchant_name,
+    payment_method,
+    amount,
+    status_code
+`)
+
+	// Define a struct to scan the raw query results into
+	type Result struct {
+		Date           time.Time `gorm:"column:date"`
+		StatusCode     int       `gorm:"column:status_code"`
+		PaymentMethod  string    `gorm:"column:payment_method"`
+		Amount         uint      `gorm:"column:amount"`
+		Route          string    `gorm:"column:route"`
+		MerchantName   string    `gorm:"column:merchant_name"`
+		Total          int       `gorm:"column:total"`
+		Revenue        float64   `gorm:"column:revenue"`
+		FirstCreatedAt time.Time `gorm:"column:first_created_at"`
+		LastCreatedAt  time.Time `gorm:"column:last_created_at"`
 	}
 
-	for i, summary := range summaries {
-		// Parse summary.Date (yyyy-mm-dd) ke time.Time
-		fmt.Printf("DEBUG summary.Date: %v\n", summary.Date)
+	var results []Result
+	if err := query.Scan(&results).Error; err != nil {
+		return nil, fmt.Errorf("failed to get daily transaction summary: %w", err)
+	}
 
-		summaryDate, err := time.Parse("2006-01-02", summary.Date)
-		if err != nil {
-			continue
-		}
-
-		startOfDayJakarta := time.Date(summaryDate.Year(), summaryDate.Month(), summaryDate.Day(), 0, 0, 0, 0, locJakarta)
-		endOfDayJakarta := time.Date(summaryDate.Year(), summaryDate.Month(), summaryDate.Day(), 23, 59, 59, 999999999, locJakarta)
-
-		startOfDay := startOfDayJakarta.UTC()
-		endOfDay := endOfDayJakarta.UTC()
-
-		fmt.Printf("[DEBUG] Checking summary for %s | Start: %s | End: %s\n", summary.Date, startOfDay, endOfDay)
-
-		// Mapping status ke status_code
-		var statusCodes []int
-		switch summary.Status {
-		case "success":
-			statusCodes = []int{1000, 1003}
-		case "pending":
-			statusCodes = []int{1001}
-		default:
-			statusCodes = []int{} // berarti NOT IN (1000,1001,1003)
-		}
-
-		fmt.Printf("[DEBUG] Querying range %s - %s for %s, %s, amount: %d, route: %s\n",
-			startOfDay.UTC().Format(time.RFC3339),
-			endOfDay.UTC().Format(time.RFC3339),
-			summary.MerchantName,
-			summary.PaymentMethod,
-			summary.Amount,
-			summary.Route,
-		)
-
-		// Query First
-		var first model.Transactions
-		firstQuery := database.DB.Model(&model.Transactions{}).
-			Where("merchant_name = ? AND payment_method = ? AND amount = ? AND route = ? AND created_at BETWEEN ? AND ?", summary.MerchantName, summary.PaymentMethod, summary.Amount, summary.Route, startOfDay.UTC(), endOfDay.UTC()).
-			Order("created_at ASC").
-			Limit(1)
-
-		if len(statusCodes) > 0 {
-			firstQuery = firstQuery.Where("status_code IN ?", statusCodes)
-		} else {
-			firstQuery = firstQuery.Where("status_code NOT IN ?", []int{1000, 1001, 1003})
-		}
-
-		firstQuery.Find(&first)
-
-		fmt.Printf("[DEBUG] first.ID = %v, first.CreatedAt = %v\n", first.ID, first.CreatedAt)
-
-		// Query Last
-		var last model.Transactions
-		lastQuery := database.DB.Model(&model.Transactions{}).
-			Where("merchant_name = ? AND payment_method = ? AND amount = ? AND route = ? AND created_at BETWEEN ? AND ?", summary.MerchantName, summary.PaymentMethod, summary.Amount, summary.Route, startOfDay.UTC(), endOfDay.UTC()).
-			Order("created_at DESC").
-			Limit(1)
-
-		if len(statusCodes) > 0 {
-			lastQuery = lastQuery.Where("status_code IN ?", statusCodes)
-		} else {
-			lastQuery = lastQuery.Where("status_code NOT IN ?", []int{1000, 1001, 1003})
-		}
-
-		lastQuery.Find(&last)
-
-		// Assign ke summary
-		summaries[i].FirstCreatedAt = first.CreatedAt
-		summaries[i].LastCreatedAt = last.CreatedAt
-		summaries[i].FirstTransactionID = first.ID
-		summaries[i].LastTransactionID = last.ID
+	for _, r := range results {
+		summaries = append(summaries, model.TransactionDailySummary{
+			Date:          r.Date.Format(time.RFC3339),
+			Status:        MapStatusCodeToString(r.StatusCode),
+			PaymentMethod: r.PaymentMethod,
+			Amount:        r.Amount,
+			Route:         r.Route,
+			MerchantName:  r.MerchantName,
+			Total:         r.Total,
+			Revenue:       r.Revenue,
+			// FirstCreatedAt: r.FirstCreatedAt,
+			// LastCreatedAt:  r.LastCreatedAt,
+		})
 	}
 
 	return summaries, nil
@@ -242,3 +229,18 @@ func GetTransactionSummaryDaily(startDate, endDate time.Time, merchantName, stat
 
 // 	return reports, nil
 // }
+
+func MapStatusCodeToString(statusCode int) string {
+	switch statusCode {
+	case 1000:
+		return "success"
+	case 1003:
+		return "success"
+	case 1001:
+		return "pending"
+	case 1005:
+		return "failed"
+	default:
+		return fmt.Sprintf("unknown (%d)", statusCode)
+	}
+}
