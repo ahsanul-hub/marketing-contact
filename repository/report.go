@@ -111,10 +111,11 @@ func GetTransactionSummaryDaily(startDate, endDate time.Time, merchantName, stat
     status_code,
     payment_method,
     amount,
+	price,
     route,
     merchant_name,
     COUNT(*) AS total,
-    SUM(amount) AS revenue,
+    SUM(price) AS revenue,
     MIN(created_at) AS first_created_at,
     MAX(created_at) AS last_created_at
 `)
@@ -152,6 +153,7 @@ func GetTransactionSummaryDaily(startDate, endDate time.Time, merchantName, stat
     status_code,
     payment_method,
     amount,
+	price,
     route,
     merchant_name
 `).Order(`
@@ -168,6 +170,7 @@ func GetTransactionSummaryDaily(startDate, endDate time.Time, merchantName, stat
 		StatusCode     int       `gorm:"column:status_code"`
 		PaymentMethod  string    `gorm:"column:payment_method"`
 		Amount         uint      `gorm:"column:amount"`
+		Price          uint      `gorm:"column:price"`
 		Route          string    `gorm:"column:route"`
 		MerchantName   string    `gorm:"column:merchant_name"`
 		Total          int       `gorm:"column:total"`
@@ -183,10 +186,11 @@ func GetTransactionSummaryDaily(startDate, endDate time.Time, merchantName, stat
 
 	for _, r := range results {
 		summaries = append(summaries, model.TransactionDailySummary{
-			Date:          r.Date.Format(time.RFC3339),
+			Date:          r.Date,
 			Status:        MapStatusCodeToString(r.StatusCode),
 			PaymentMethod: r.PaymentMethod,
 			Amount:        r.Amount,
+			Price:         r.Price,
 			Route:         r.Route,
 			MerchantName:  r.MerchantName,
 			Total:         r.Total,

@@ -50,7 +50,7 @@ func exportExcelSummaryDaily(c *fiber.Ctx, data []model.TransactionDailySummary)
 	sheet := "Sheet1"
 
 	headers := []string{
-		"Date", "Status", "PaymentMethod", "Amount", "Route", "MerchantName", "Total", "Revenue",
+		"Date", "Status", "PaymentMethod", "Amount", "Price", "Route", "MerchantName", "Total", "Revenue",
 	}
 
 	for i, h := range headers {
@@ -64,6 +64,7 @@ func exportExcelSummaryDaily(c *fiber.Ctx, data []model.TransactionDailySummary)
 			d.Status,
 			d.PaymentMethod,
 			d.Amount,
+			d.Price,
 			d.Route,
 			d.MerchantName,
 			d.Total,
@@ -92,16 +93,17 @@ func exportCSVSummaryDaily(c *fiber.Ctx, data []model.TransactionDailySummary) e
 
 	// Header
 	writer.Write([]string{
-		"Date", "Status", "PaymentMethod", "Amount", "Route", "MerchantName", "Total", "Revenue",
+		"Date", "Status", "PaymentMethod", "Amount", "Price", "Route", "MerchantName", "Total", "Revenue",
 	})
-
+	loc, _ := time.LoadLocation("Asia/Jakarta")
 	// Data
 	for _, d := range data {
 		writer.Write([]string{
-			d.Date,
+			d.Date.In(loc).Format("2006-01-02"),
 			d.Status,
 			d.PaymentMethod,
 			fmt.Sprintf("%d", d.Amount),
+			fmt.Sprintf("%d", d.Price),
 			d.Route,
 			d.MerchantName,
 			fmt.Sprintf("%d", d.Total),
