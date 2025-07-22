@@ -111,7 +111,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 	var isEwallet bool
 
-	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" {
+	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "qrph" {
 		isEwallet = true
 	}
 
@@ -194,6 +194,16 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"error": err,
 		})
 	}
+
+	currency, err := helper.ValidateCurrency(transaction.Currency)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	transaction.Currency = currency
 
 	transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
 	transaction.BodySign = bodysign
@@ -517,6 +527,23 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"qrisUrl":  res.Data.PaymentURL,
 			"back_url": transaction.RedirectURL,
 			"qrString": res.Data.ChargeDetails[0].Qr.QRContent,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+		})
+	case "qrph":
+		res, err := lib.RequestQrphCharging(createdTransId, transaction.CustomerName, "", transaction.Amount)
+		if err != nil {
+			log.Println("Charging request qrph failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"qrisUrl":  res.PaymentLink,
+			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
@@ -1152,7 +1179,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 
 	}
 
-	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" {
+	if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "qrph" {
 		isMidtrans = true
 	}
 
@@ -1326,6 +1353,26 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
+		})
+
+	case "qrph":
+
+		res, err := lib.RequestQrphCharging(createdTransId, transaction.CustomerName, "", transaction.Amount)
+		if err != nil {
+			log.Println("Charging request qrph failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Charging request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success":        true,
+			"qrisUrl":        res.PaymentLink,
+			"payment_method": "qrph",
+			"back_url":       transaction.RedirectURL,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
 		})
 	case "dana":
 		strPrice := fmt.Sprintf("%d00", chargingPrice)

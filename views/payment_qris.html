@@ -40,9 +40,22 @@
   </head>
   <body>
     <div class="container">
-      <h4>Pembayaran QRIS {{ .Acquirer}}</h4>
+      <h4>Pembayaran QR {{ .Acquirer}}</h4>
       <p>Silakan scan QR code di bawah ini untuk menyelesaikan pembayaran.</p>
+
+      {{ if eq .PaymentMethod "qrph" }}
+      <iframe
+        src="{{ .QrisUrl }}"
+        width="100%"
+        height="420px"
+        style="border: none; border-radius: 10px"
+      >
+      </iframe>
+      {{ else }}
       <img src="{{ .QrisUrl }}" alt="QRIS Payment" class="qris-img" />
+
+      {{ end }}
+
       <!-- <button class="btn btn-primary" onclick="window.history.back();">
         Kembali
       </button> -->

@@ -36,8 +36,9 @@ func PaymentQrisRedirect(c *fiber.Ctx) error {
 	qrisUrl := c.Query("qrisUrl")
 	acquirer := c.Query("acquirer")
 	backUrl := c.Query("back_url")
+	typeQr := c.Query("typeQr")
 
-	if qrisUrl == "" || acquirer == "" {
+	if qrisUrl == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Missing required parameters",
 		})
@@ -45,7 +46,7 @@ func PaymentQrisRedirect(c *fiber.Ctx) error {
 
 	transactionID := fmt.Sprintf("trx-%d", time.Now().UnixNano())
 
-	QrCache.Set(transactionID, qrisUrl+"|"+acquirer+"|"+backUrl, cache.DefaultExpiration)
+	QrCache.Set(transactionID, qrisUrl+"|"+acquirer+"|"+backUrl+"|"+typeQr, cache.DefaultExpiration)
 
 	// Redirect ke halaman tanpa query di URL
 	return c.Redirect("/api/payment-qris/" + transactionID)
@@ -196,6 +197,15 @@ func CreateOrder(c *fiber.Ctx) error {
 		log.Println("selectedSettlement nil, check input.PaymentMethod:", paymentMethod)
 	}
 
+	currency, err := helper.ValidateCurrency(input.Currency)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": err.Error(),
+		})
+	}
+
+	input.Currency = currency
 	input.Price = uint(amountFloat + math.Round(float64(*selectedSettlement.AdditionalPercent)/100*amountFloat))
 	input.AppID = appid
 	input.ClientAppKey = appkey
@@ -248,6 +258,16 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 			"retcode": "E0019",
 			"message": "Invalid Data!",
 			"data":    []interface{}{},
+		})
+	}
+
+	mtDupKey := fmt.Sprintf("dup:%s:%s", appkey, input.MtTid)
+
+	if _, found := MTIDCache.Get(mtDupKey); found {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0023",
+			"message": "Duplicate merchant_transaction_id",
 		})
 	}
 
@@ -414,6 +434,8 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 		TransactionCache.Set(input.MtTid, input, cache.DefaultExpiration)
 	}
 
+	MTIDCache.Set(mtDupKey, true, cache.DefaultExpiration)
+
 	data := map[string]interface{}{
 		"token": transactionID,
 	}
@@ -502,9 +524,11 @@ func PaymentPage(c *fiber.Ctx) error {
 			StrPaymentMethod = "Dana"
 		case "ovo":
 			StrPaymentMethod = "OVO"
+		case "qrph":
+			StrPaymentMethod = "Qr PH"
 		}
 
-		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" {
+		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" || paymentMethod == "qrph" {
 			vat := inputReq.Price - inputReq.Amount
 			return c.Render("payment_ewallet", fiber.Map{
 				"AppName":          inputReq.AppName,
@@ -729,17 +753,18 @@ func QrisPage(c *fiber.Ctx) error {
 	// Pecah qrisUrl dan acquirer
 	dataStr := data.(string)
 	parts := strings.Split(dataStr, "|")
-	if len(parts) != 3 {
+	if len(parts) != 4 {
 		return c.Status(fiber.StatusInternalServerError).SendString("Invalid data format")
 	}
 
-	qrisUrl, acquirer, backUrl := parts[0], parts[1], parts[2]
+	qrisUrl, acquirer, backUrl, qrType := parts[0], parts[1], parts[2], parts[3]
 
 	// Render halaman tanpa menampilkan query parameter
 	return c.Render("payment_qris", fiber.Map{
-		"QrisUrl":     qrisUrl,
-		"Acquirer":    acquirer,
-		"RedirectURL": backUrl,
+		"QrisUrl":       qrisUrl,
+		"Acquirer":      acquirer,
+		"RedirectURL":   backUrl,
+		"PaymentMethod": qrType,
 	})
 }
 

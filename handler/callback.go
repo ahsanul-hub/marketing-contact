@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"app/config"
 	"app/helper"
 	"app/lib"
 	"app/repository"
@@ -137,6 +138,18 @@ type DanaCallbackResultInfo struct {
 	ResultCodeId string `json:"resultCodeId"`
 	ResultCode   string `json:"resultCode"`
 	ResultMsg    string `json:"resultMsg"`
+}
+
+type DigiphCallbackPayload struct {
+	ID             string  `json:"id"`
+	ReferenceID    string  `json:"referenceId"`
+	Status         string  `json:"status"`
+	Amount         float64 `json:"amount"`
+	Currency       string  `json:"currency"`
+	PaidAt         string  `json:"paidAt"`
+	PaymentMethod  string  `json:"paymentMethod"`
+	PaymentChannel string  `json:"paymentChannel"`
+	Description    string  `json:"description"`
 }
 
 func CallbackTriyakom(c *fiber.Ctx) error {
@@ -604,6 +617,61 @@ func CallbackHarsya(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "Callback processed successfully",
+	})
+}
+
+func DigiphCallback(c *fiber.Ctx) error {
+
+	verificationToken := config.Config("DIGIPH_VERIFICATION_TOKEN", "")
+	token := c.Get("Verification-Token")
+	if token != verificationToken {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid verification token",
+		})
+	}
+
+	var payload DigiphCallbackPayload
+	if err := c.BodyParser(&payload); err != nil {
+		log.Println("Failed to parse callback body:", err)
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid payload format",
+		})
+	}
+
+	var paidAt *time.Time
+	if payload.PaidAt != "" {
+		t, err := time.Parse(time.RFC3339, payload.PaidAt)
+		if err == nil {
+			paidAt = &t
+		}
+	}
+
+	var statusCode int
+	switch payload.Status {
+	case "success":
+		statusCode = 1000
+	case "failed":
+		statusCode = 1005
+	case "expired":
+		statusCode = 1005
+	default:
+		statusCode = 1001
+	}
+
+	err := repository.UpdateTransactionStatus(context.Background(), payload.ReferenceID, statusCode, &payload.ID, nil, payload.Status, paidAt)
+	if err != nil {
+		log.Printf("Failed to update transaction status: %s", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to update transaction",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Callback received and processed",
 	})
 }
 
