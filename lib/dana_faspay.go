@@ -113,7 +113,7 @@ func RequestChargingDanaFaspay(transactionId, itemName, price, redirectUrl, cust
 	tomorrow := time.Now().In(location).AddDate(0, 0, 1)
 	itemDesc := fmt.Sprintf("item %s", price)
 
-	signature, err := helper.GenerateFaspayDanaSign("bot34184", "AGpzaek@", transactionId)
+	signature, err := helper.GenerateFaspaySign("bot34184", "AGpzaek@", transactionId)
 	if err != nil {
 		log.Println("Error generate faspay dana sign")
 	}
@@ -190,7 +190,7 @@ func CheckOrderDanaFaspay(transactionId, referenceID string) (*DanaFaspayQueryRe
 		return nil, fmt.Errorf("referenceID kosong, tidak bisa cek status Dana Faspay")
 	}
 
-	signature, err := helper.GenerateFaspayDanaSign("bot34184", "AGpzaek@", transactionId)
+	signature, err := helper.GenerateFaspaySign("bot34184", "AGpzaek@", transactionId)
 	if err != nil {
 		log.Println("Error generate faspay dana sign:", err)
 		return nil, err
@@ -291,36 +291,36 @@ func CheckTransactionStatusDanaFaspay(transaction model.Transactions) {
 
 }
 
-func worker(jobs <-chan model.Transactions) {
-	for tx := range jobs {
-		CheckTransactionStatusDanaFaspay(tx)
-	}
-}
+// func worker(jobs <-chan model.Transactions) {
+// 	for tx := range jobs {
+// 		CheckTransactionStatusDanaFaspay(tx)
+// 	}
+// }
 
-func ProcessPendingDanaFaspayTransactions() {
-	const workerCount = 10
-	jobs := make(chan model.Transactions, 100)
+// func ProcessPendingDanaFaspayTransactions() {
+// 	const workerCount = 10
+// 	jobs := make(chan model.Transactions, 100)
 
-	// Worker
-	for i := 0; i < workerCount; i++ {
-		go worker(jobs)
-	}
+// 	// Worker
+// 	for i := 0; i < workerCount; i++ {
+// 		go worker(jobs)
+// 	}
 
-	// Producer
-	go func() {
-		for {
-			transactions, err := repository.GetPendingTransactions(context.Background(), "dana")
-			if err != nil {
-				log.Printf("Error retrieving pending transactions: %s", err)
-				time.Sleep(1 * time.Minute)
-				continue
-			}
+// 	// Producer
+// 	go func() {
+// 		for {
+// 			transactions, err := repository.GetPendingTransactions(context.Background(), "dana")
+// 			if err != nil {
+// 				log.Printf("Error retrieving pending transactions: %s", err)
+// 				time.Sleep(1 * time.Minute)
+// 				continue
+// 			}
 
-			for _, tx := range transactions {
-				jobs <- tx
-			}
+// 			for _, tx := range transactions {
+// 				jobs <- tx
+// 			}
 
-			time.Sleep(5 * time.Second)
-		}
-	}()
-}
+// 			time.Sleep(5 * time.Second)
+// 		}
+// 	}()
+// }

@@ -124,8 +124,9 @@
           <h4 style="font-size: 18px">
             Total: {{ .Currency }} {{if or (eq .PaymentMethod "va_bca") (eq
             .PaymentMethod "va_mandiri") (eq .PaymentMethod "va_bri") (eq
-            .PaymentMethod "va_bni") (eq .PaymentMethod "va_permata") }}{{
-            .Amount }}{{ else }}{{ .Price }}{{ end }}
+            .PaymentMethod "va_bni") (eq .PaymentMethod "va_permata") (eq
+            .PaymentMethod "alfamart_otc") (eq .PaymentMethod "indomaret_otc")
+            }}{{ .Amount }}{{ else }}{{ .Price }}{{ end }}
           </h4>
         </div>
       </div>
@@ -133,7 +134,8 @@
       <form action="/api/payment" method="POST" id="paymentForm">
         {{ if or (eq .PaymentMethod "va_bca") (eq .PaymentMethod "va_mandiri")
         (eq .PaymentMethod "va_bri") (eq .PaymentMethod "va_bni") (eq
-        .PaymentMethod "va_permata") (eq .PaymentMethod "va_sinarmas") }}
+        .PaymentMethod "va_permata") (eq .PaymentMethod "va_sinarmas") (eq
+        .PaymentMethod "alfamart_otc") (eq .PaymentMethod "indomaret_otc") }}
         <div class="form-group mb-2">
           <label for="customer_name">Nama:</label>
           <br />
@@ -263,7 +265,9 @@
             data.payment_method === "va_mandiri" ||
             data.payment_method === "va_bri" ||
             data.payment_method === "va_permata" ||
-            data.payment_method === "va_sinarmas";
+            data.payment_method === "va_sinarmas" ||
+            data.payment_method === "indomaret_otc" ||
+            data.payment_method === "alfamart_otc";
 
           const dataFormated = {
             amount: parseFloat(data.amount),
@@ -347,6 +351,12 @@
                     window.location.href = `/api/va-payment/${data.data.va}`;
                     break;
                   case "va_sinarmas":
+                    window.location.href = `/api/va-payment/${data.data.va}`;
+                    break;
+                  case "alfamart_otc":
+                    window.location.href = `/api/va-payment/${data.data.va}`;
+                    break;
+                  case "indomaret_otc":
                     window.location.href = `/api/va-payment/${data.data.va}`;
                     break;
 

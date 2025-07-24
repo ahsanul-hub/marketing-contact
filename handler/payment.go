@@ -526,6 +526,10 @@ func PaymentPage(c *fiber.Ctx) error {
 			StrPaymentMethod = "OVO"
 		case "qrph":
 			StrPaymentMethod = "Qr PH"
+		case "alfamart_otc":
+			StrPaymentMethod = "Alfamart"
+		case "indomaret_otc":
+			StrPaymentMethod = "Indomaret"
 		}
 
 		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" || paymentMethod == "qrph" {
@@ -1326,6 +1330,79 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 			"retcode":        "0000",
 			"message":        "Successful Created Transaction",
 		})
+
+	case "indomaret_otc":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(transactionID, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "706")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+
+		vaPayment := http.VaPayment{
+			VaNumber:      res.TrxID,
+			TransactionID: transactionID,
+			CustomerName:  transaction.CustomerName,
+			Bank:          "INDOMARET",
+			ExpiredDate:   expiredDate,
+		}
+
+		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             vaPayment.VaNumber,
+			"transaction_id": transactionID,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+	case "alfamart_otc":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestChargingVaFaspay(transactionID, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "707")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+
+		vaPayment := http.VaPayment{
+			VaNumber:      res.TrxID,
+			TransactionID: transactionID,
+			CustomerName:  transaction.CustomerName,
+			Bank:          "ALFAMART",
+			ExpiredDate:   expiredDate,
+		}
+
+		VaTransactionCache.Set(vaPayment.VaNumber, vaPayment, cache.DefaultExpiration)
+		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             vaPayment.VaNumber,
+			"transaction_id": transactionID,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
 	}
 
 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -1500,6 +1577,24 @@ func VaPage(c *fiber.Ctx) error {
 				"Kemudin tagihan yang harus dibayarkan akan muncul pada layar konfirmasi.",
 				"Masukkan Kode Otentikasi Token.",
 				"Pembayaran Anda telah berhasil",
+			},
+		},
+		"INDOMARET": {
+			"INDOMARET": []template.HTML{
+				template.HTML("Catat dan simpan kode pembayaran Indomaret Anda, yaitu : <b>" + inputReq.VaNumber + "</b>"),
+				"Datangi kasir Indomaret terdekat dan beritahukan pada kasir bahwa Anda ingin melakukan <b>pembayaran Faspay</b>",
+				"Beritahukan kode pembayaran Indomaret Anda pada kasir dan silahkan lakukan pembayaran Anda.",
+				"Konfirmasi detail pembayaran.",
+				"Simpan struk pembayaran Anda sebagai tanda bukti pembayaran yang sah.",
+			},
+		},
+		"ALFAMART": {
+			"ALFAMART": []template.HTML{
+				template.HTML("Catat dan simpan kode pembayaran Alfamart Anda, yaitu : <b>" + inputReq.VaNumber + "</b>"),
+				"Datangi kasir Alfamart terdekat dan beritahukan pada kasir bahwa Anda ingin melakukan <b>pembayaran Faspay</b>",
+				"Beritahukan kode pembayaran Alfamart Anda pada kasir dan silahkan lakukan pembayaran Anda.",
+				"Konfirmasi detail pembayaran.",
+				"Simpan struk pembayaran Anda sebagai tanda bukti pembayaran yang sah.",
 			},
 		},
 	}

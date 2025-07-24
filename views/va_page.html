@@ -48,10 +48,20 @@
       <div class="divider">
         <hr class="custom-hr" />
       </div>
+
+      {{ if or (eq .BankName "ALFAMART") (eq .BankName "INDOMARET") }}
+      <p>
+        Selesaikan pembayaran Anda. Anda dapat melakukan pembayaran melalui {{
+        .BankName}}
+      </p>
+
+      {{ else }}
       <p>
         Selesaikan pembayaran Anda. Anda dapat melakukan pembayaran melalui
         Internet Banking, Mobile Banking (SMS), dan ATM.
       </p>
+
+      {{ end }}
 
       <p class="text-center">Nomor Virtual Account:</p>
       <div class="d-flex justify-content-center align-items-center">

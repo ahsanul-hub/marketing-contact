@@ -46,7 +46,7 @@ MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQC78abeCHePJNdAB8pFdpyOxdj2FWpY
 	return base64.StdEncoding.EncodeToString(signature), nil
 }
 
-func GenerateFaspayDanaSign(userID, password, billNo string) (string, error) {
+func GenerateFaspaySign(userID, password, billNo string) (string, error) {
 	combined := userID + password + billNo
 
 	md5Hash := md5.Sum([]byte(combined))

@@ -68,7 +68,7 @@ func RequestChargingVaFaspay(transactionId, itemName, price, redirectUrl, custom
 	tomorrow := time.Now().In(location).AddDate(0, 0, 1)
 	itemDesc := fmt.Sprintf("item %s", price)
 
-	signature, err := helper.GenerateFaspayDanaSign("bot34184", "AGpzaek@", transactionId)
+	signature, err := helper.GenerateFaspaySign("bot34184", "AGpzaek@", transactionId)
 	if err != nil {
 		log.Println("Error generate faspay dana sign")
 	}

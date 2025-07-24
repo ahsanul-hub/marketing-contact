@@ -50,7 +50,7 @@ func containsString(slice []string, str string) bool {
 }
 
 func isBankVA(method string) bool {
-	return method == "va_bca" || method == "va_bri" || method == "va_bni" || method == "va_mandiri" || method == "va_permata" || method == "va_sinarmas"
+	return method == "va_bca" || method == "va_bri" || method == "va_bni" || method == "va_mandiri" || method == "va_permata" || method == "va_sinarmas" || method == "alfamart_otc" || method == "indomaret_otc"
 }
 
 func CreateTransaction(c *fiber.Ctx) error {
@@ -807,6 +807,60 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"customer_name":  transaction.CustomerName,
 			"payment_url":    res.RedirectURL,
 			"transaction_id": createdTransId,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+	case "indomaret_otc":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestIndomaretFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "706")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+		}
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             res.TrxID,
+			"expired_date":   expiredDate,
+			"customer_name":  transaction.CustomerName,
+			"transaction_id": createdTransId,
+			"payment_url":    res.RedirectURL,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+	case "alfamart_otc":
+		strPrice := fmt.Sprintf("%d00", chargingPrice)
+		res, expiredDate, err := lib.RequestAlfaFaspay(createdTransId, transaction.ItemName, strPrice, transaction.RedirectURL, transaction.CustomerName, transaction.UserMDN, "707")
+		if err != nil {
+			log.Println("Charging request va faspay failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1001, &res.TrxID, nil, "", nil); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+		}
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"va":             res.TrxID,
+			"expired_date":   expiredDate,
+			"customer_name":  transaction.CustomerName,
+			"transaction_id": createdTransId,
+			"payment_url":    res.RedirectURL,
 			"retcode":        "0000",
 			"message":        "Successful Created Transaction",
 		})
