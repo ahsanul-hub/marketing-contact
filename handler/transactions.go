@@ -864,6 +864,26 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":        "0000",
 			"message":        "Successful Created Transaction",
 		})
+	case "visa_master":
+		res, err := lib.CardHarsyaCharging(createdTransId, transaction.CustomerName, transaction.UserMDN, transaction.Amount)
+		if err != nil {
+			log.Println("Charging request credit card pivot failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"transaction_id": createdTransId,
+			"payment_url":    res.Data.PaymentURL,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{

@@ -19,8 +19,19 @@ var ValidPrefixes = map[string][]string{
 
 // Fungsi untuk mengecek apakah prefix valid
 func IsValidPrefix(userMDN, paymentMethod string) bool {
+	// Jika payment method ada di map, cek prefix sesuai payment method
 	if validPrefixList, exists := ValidPrefixes[paymentMethod]; exists {
 		for _, prefix := range validPrefixList {
+			if strings.HasPrefix(userMDN, prefix) {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Jika payment method tidak ada di map, cek semua prefix
+	for _, prefixList := range ValidPrefixes {
+		for _, prefix := range prefixList {
 			if strings.HasPrefix(userMDN, prefix) {
 				return true
 			}

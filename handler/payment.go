@@ -530,6 +530,8 @@ func PaymentPage(c *fiber.Ctx) error {
 			StrPaymentMethod = "Alfamart"
 		case "indomaret_otc":
 			StrPaymentMethod = "Indomaret"
+		case "visa_master":
+			StrPaymentMethod = "Credit Card"
 		}
 
 		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" || paymentMethod == "qrph" {
@@ -1400,6 +1402,25 @@ func CreateTransactionVa(c *fiber.Ctx) error {
 			"success":        true,
 			"va":             vaPayment.VaNumber,
 			"transaction_id": transactionID,
+			"retcode":        "0000",
+			"message":        "Successful Created Transaction",
+		})
+	case "visa_master":
+		res, err := lib.CardHarsyaCharging(transactionID, transaction.CustomerName, transaction.UserMDN, transaction.Amount)
+		if err != nil {
+			log.Println("Charging request visa pivot failed:", err)
+			return c.JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed charging request",
+				"data":    []interface{}{},
+			})
+		}
+
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"transaction_id": transactionID,
+			"payment_url":    res.Data.PaymentURL,
 			"retcode":        "0000",
 			"message":        "Successful Created Transaction",
 		})

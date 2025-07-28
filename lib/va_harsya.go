@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"app/config"
 	"app/repository"
 	"bytes"
 	"context"
@@ -144,8 +145,8 @@ func RequestHarsyaAccessToken(clientID, clientSecret string) (*HarsyaTokenRespon
 	requestBody := HarsyaTokenRequest{
 		GrantType: "client_credentials",
 	}
-
-	url := "https://api.harsya.com/v1/access-token"
+	requestUrl := config.Config("PIVOT_BASE_URL", "")
+	url := fmt.Sprintf("%s/v1/access-token", requestUrl)
 	body, err := json.Marshal(requestBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)

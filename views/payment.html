@@ -135,7 +135,8 @@
         {{ if or (eq .PaymentMethod "va_bca") (eq .PaymentMethod "va_mandiri")
         (eq .PaymentMethod "va_bri") (eq .PaymentMethod "va_bni") (eq
         .PaymentMethod "va_permata") (eq .PaymentMethod "va_sinarmas") (eq
-        .PaymentMethod "alfamart_otc") (eq .PaymentMethod "indomaret_otc") }}
+        .PaymentMethod "alfamart_otc") (eq .PaymentMethod "indomaret_otc") (eq
+        .PaymentMethod "visa_master") }}
         <div class="form-group mb-2">
           <label for="customer_name">Nama:</label>
           <br />
@@ -267,6 +268,7 @@
             data.payment_method === "va_permata" ||
             data.payment_method === "va_sinarmas" ||
             data.payment_method === "indomaret_otc" ||
+            data.payment_method === "visa_master" ||
             data.payment_method === "alfamart_otc";
 
           const dataFormated = {
@@ -358,6 +360,9 @@
                     break;
                   case "indomaret_otc":
                     window.location.href = `/api/va-payment/${data.data.va}`;
+                    break;
+                  case "visa_master":
+                    window.location.href = data.data.payment_url;
                     break;
 
                   default:
