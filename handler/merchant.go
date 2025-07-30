@@ -103,6 +103,25 @@ func DeleteMerchant(c *fiber.Ctx) error {
 	return response.ResponseSuccess(c, fiber.StatusOK, "Client deleted successfully")
 }
 
+func GetMerchantByAppID(c *fiber.Ctx) error {
+	appID := c.Query("app_id")
+	appKey := c.Query("app_key")
+
+	if appID == "" || appKey == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "App ID and App Key are required",
+		})
+	}
+
+	client, err := repository.FindClient(context.Background(), appKey, appID)
+	if err != nil {
+		return response.Response(c, fiber.StatusNotFound, err.Error())
+	}
+
+	return response.ResponseSuccess(c, fiber.StatusOK, client)
+}
+
 func NewPaymentMethodHandler(repo *repository.PaymentMethodRepository) *PaymentMethodHandler {
 	return &PaymentMethodHandler{Repo: repo}
 }

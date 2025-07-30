@@ -100,9 +100,9 @@ func GetReport(c *fiber.Ctx) error {
 	// 		bhpUSO = uint(float64(totalMerchant) * 0.0175)
 	// 	}
 
-	// 	if strings.ToLower(settlementConfig.IsBhpuso) == "1" {
-	// 		additionalFee = uint(float64(totalMerchant) * 0.05)
-	// 	}
+	if settlementConfig.AdditionalFee != nil && *settlementConfig.AdditionalFee == 1 {
+		additionalFee = uint(float64(totalMerchant) * 0.05)
+	}
 
 	// 	if settlementConfig.Tax23 != nil && strings.ToLower(*settlementConfig.Tax23) == "1" {
 	// 		tax23 = uint(float64(totalMerchant) * 0.02)
@@ -112,6 +112,7 @@ func GetReport(c *fiber.Ctx) error {
 	if settlementConfig != nil {
 		for i := range summaries {
 			totalAmount := summaries[i].TotalAmount
+			totalTransaction += uint(summaries[i].Count)
 
 			if settlementConfig.ShareRedision != nil {
 				shareRedFloat := float64(totalAmount) * float64(*settlementConfig.ShareRedision) / 100
@@ -133,7 +134,7 @@ func GetReport(c *fiber.Ctx) error {
 			bhpUSO = uint(float64(totalMerchant) * 0.0175)
 		}
 
-		if strings.ToLower(settlementConfig.IsBhpuso) == "1" {
+		if settlementConfig.AdditionalFee != nil && *settlementConfig.AdditionalFee == 1 {
 			additionalFee = uint(float64(totalMerchant) * 0.05)
 		}
 

@@ -1534,6 +1534,13 @@ func GetTransactions(c *fiber.Ctx) error {
 	} else {
 		merchants = []string{}
 	}
+
+	var appIDs []string
+	if appID != "" {
+		appIDs = strings.Split(appID, ",")
+	} else {
+		appIDs = []string{}
+	}
 	denomStr := c.Query("denom")
 	denom, err := strconv.Atoi(denomStr)
 	if err != nil {
@@ -1578,7 +1585,7 @@ func GetTransactions(c *fiber.Ctx) error {
 	// 	excludeMerchants = strings.Split(excludeMerchantStr, ",")
 	// }
 
-	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, appID, userMDN, userId, appName, merchants, paymentMethods, startDate, endDate)
+	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, userMDN, userId, appName, appIDs, merchants, paymentMethods, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

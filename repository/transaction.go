@@ -180,8 +180,8 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 func GetAllTransactions(
 	ctx context.Context,
 	limit, offset, status, denom int,
-	transactionId, merchantTransactionId, appID, userMDN, userId, appName string,
-	merchants, paymentMethods []string,
+	transactionId, merchantTransactionId, userMDN, userId, appName string,
+	appID, merchants, paymentMethods []string,
 	startDate, endDate *time.Time,
 ) ([]model.Transactions, int64, error) {
 
@@ -208,8 +208,8 @@ func GetAllTransactions(
 	if userId != "" {
 		baseQuery = baseQuery.Where("user_id = ?", userId)
 	}
-	if appID != "" {
-		baseQuery = baseQuery.Where("app_id = ?", appID)
+	if len(appID) > 0 {
+		baseQuery = baseQuery.Where("app_id IN ?", appID)
 	}
 	if appName != "" {
 		baseQuery = baseQuery.Where("app_name = ?", appName)

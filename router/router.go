@@ -54,8 +54,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/checkstatus/:id", handler.CheckTransactionStatus)
 	api.Post("/v1/checkstatus", handler.CheckTransactionStatusLegacy)
 
-	api.Get("/summary/transaction", handler.GetTransactionSummary)
-	api.Get("/report/merchant", handler.GetReport)
+	api.Get("/summary/transaction", middleware.Protected(), handler.GetTransactionSummary)
+	api.Get("/report/merchant", middleware.Protected(), middleware.AdminOnly(false), handler.GetReport)
 
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)
 
@@ -79,6 +79,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	merchant := api.Group("/merchant")
 	merchant.Get("/transactions", handler.GetTransactionsMerchant)
 	merchant.Get("/transaction/:id", handler.GetTransactionMerchantByID)
+	merchant.Get("/detail", middleware.Protected(), middleware.AdminOnly(false), handler.GetMerchantByAppID)
 
 	user := api.Group("/user")
 	user.Post("/login", handler.Login)
