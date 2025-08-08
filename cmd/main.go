@@ -8,6 +8,7 @@ import (
 	"app/middleware"
 	"app/repository"
 	"app/router"
+	"app/scheduler"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -53,6 +54,21 @@ func main() {
 
 	db := database.ConnectDB()
 	handler.StartBlockedUserIDCacheRefresher()
+
+	env := config.Config("ENV", "development")
+	if env == "production" {
+		log.Println("Starting transaction scheduler in PRODUCTION environment")
+		transactionScheduler := scheduler.NewTransactionScheduler()
+		transactionScheduler.Start()
+
+		defer func() {
+			log.Println("Stopping transaction scheduler...")
+			transactionScheduler.Stop()
+		}()
+	} else {
+		log.Printf("Skipping transaction scheduler in %s environment", env)
+	}
+
 	go lib.ProcessPendingTransactions()
 	// go repository.ProcessTransactions()
 	go repository.ProccessFailedCallbackWorker()
