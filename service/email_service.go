@@ -48,17 +48,17 @@ func (es *EmailService) SendTransactionReport(transactions []model.Transactions,
 
 	// Email configuration - support untuk webmail
 	emailConfig := EmailConfig{
-		SMTPHost:   config.Config("SMTP_HOST", "redision.com"),
+		SMTPHost:   config.Config("SMTP_HOST", ""),
 		SMTPPort:   config.Config("SMTP_PORT", "587"),
-		SMTPUser:   config.Config("SMTP_USER", "reconcile@redision.com"),
-		SMTPPass:   config.Config("SMTP_PASS", "A{lLjqHa$9Kq"),
-		FromEmail:  config.Config("FROM_EMAIL", "reconcile@redision.com"),
+		SMTPUser:   config.Config("SMTP_USER", ""),
+		SMTPPass:   config.Config("SMTP_PASS", ""),
+		FromEmail:  config.Config("FROM_EMAIL", ""),
 		FromName:   config.Config("FROM_NAME", "Reconcile Redision"),
-		ToEmails:   strings.Split(config.Config("TO_EMAILS", "aldi.madridista.am@gmail.com,john.jojon888@gmail.com,fanny@redision.com,aldi@redision.com"), ","),
+		ToEmails:   strings.Split(config.Config("TO_EMAILS", "zhangshijun@ushareit.com,rinkesh.sharma@payermax.com,fanny@redision.com,juan.rivaldo@ushareit.com,payment_report@payermax.com,huzhihong@payermax.com,huzhihong@ushareit.com,chengjiexin@ushareit.com"), ","),
 		Subject:    "Transaction Bill Detail",
 		Body:       es.generateEmailBody(endDate),
 		Attachment: excelData,
-		FileName:   fmt.Sprintf("PM Max %s.xlsx", startDate.AddDate(0, 0, 1).Format("02 January 2006")), // Format: PM Max 20250808.xlsx
+		FileName:   fmt.Sprintf("PM Max %s.xlsx", startDate.AddDate(0, 0, 1).Format("02 January 2006")),
 	}
 
 	// Validate email config
