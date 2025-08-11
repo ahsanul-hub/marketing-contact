@@ -8,6 +8,7 @@ import (
 	"app/lib"
 	"app/pkg/response"
 	"app/repository"
+	"app/service"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -2284,5 +2285,278 @@ func MTSmartfren(c *fiber.Ctx) error {
 	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
 		"success": true,
 		"message": "Successful Transaction",
+	})
+}
+
+func TestEmailService(c *fiber.Ctx) error {
+	// Endpoint untuk test email service
+	log.Println("=== TEST EMAIL SERVICE ===")
+
+	// Ambil tanggal kemarin untuk laporan harian
+	yesterday := time.Now().AddDate(0, 0, -1)
+	startDate := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 0, 0, 0, 0, time.UTC)
+	endDate := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 23, 59, 59, 999999999, time.UTC)
+
+	// Ambil data transaksi untuk merchant Redision
+	transactions, err := repository.GetTransactionsByDateRange(
+		context.Background(),
+		0, // status 0 = semua status
+		&startDate,
+		&endDate,
+		"", // payment method kosong = semua payment method
+		[]string{"Zingplay International PTE,. LTD"},
+		[]string{"CKxpZpt29Cx3BjOJ0CItnQ"}, // appID untuk Redision
+	)
+
+	if err != nil {
+		log.Printf("Error getting transactions: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Error getting transactions",
+			"error":   err.Error(),
+		})
+	}
+
+	if len(transactions) == 0 {
+		return c.JSON(fiber.Map{
+			"success": true,
+			"message": "No transactions found for the specified date range",
+			"data":    []interface{}{},
+		})
+	}
+
+	// Test email service
+	emailService := service.NewEmailService()
+	err = emailService.SendTransactionReport(transactions, "Redision", startDate, endDate)
+	if err != nil {
+		log.Printf("Error sending email: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Error sending email",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Email test completed successfully",
+		"data": fiber.Map{
+			"transactions_count": len(transactions),
+			"date_range": fiber.Map{
+				"start_date": startDate.Format("2006-01-02"),
+				"end_date":   endDate.Format("2006-01-02"),
+			},
+			"email_config": fiber.Map{
+				"smtp_host":  config.Config("SMTP_HOST", "redision.com"),
+				"smtp_port":  config.Config("SMTP_PORT", "587"),
+				"from_email": config.Config("FROM_EMAIL", "reconcile@redision.com"),
+				"to_emails":  config.Config("TO_EMAILS", "aldi.madridista.am@gmail.com"),
+			},
+		},
+	})
+}
+
+func TestSFTPConnection(c *fiber.Ctx) error {
+	// Endpoint untuk testing SFTP connection
+	log.Println("Testing SFTP connection...")
+
+	// Buat SFTP config untuk testing tanpa folder
+	sftpConfig := service.MerchantSFTPConfig{
+		ClientName: "Zingplay International PTE,. LTD",
+		AppID:      "CKxpZpt29Cx3BjOJ0CItnQ",
+		SFTPHost:   config.Config("SFTP_HOST_1", "localhost"),
+		SFTPPort:   config.Config("SFTP_PORT_1", "2222"),
+		SFTPUser:   config.Config("SFTP_USER_1", "testuser"),
+		SFTPPass:   config.Config("SFTP_PASS_1", "testpass"),
+		RemotePath: "/upload/",
+		FileName:   "test_connection.txt",
+	}
+
+	// Test koneksi SFTP
+	sftpService := service.NewSFTPService()
+	err := sftpService.TestConnection(sftpConfig)
+
+	if err != nil {
+		log.Printf("SFTP connection test failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "SFTP connection test failed",
+			"error":   err.Error(),
+		})
+	}
+
+	// Test upload file kecil
+	testData := []byte("Test connection successful at " + time.Now().Format("2006-01-02 15:04:05"))
+	err = sftpService.UploadFile(sftpConfig, "test_connection.txt", testData)
+
+	if err != nil {
+		log.Printf("SFTP upload test failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "SFTP upload test failed",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "SFTP connection and upload test successful",
+		"data": fiber.Map{
+			"host":      sftpConfig.SFTPHost,
+			"port":      sftpConfig.SFTPPort,
+			"user":      sftpConfig.SFTPUser,
+			"folder":    sftpConfig.RemotePath,
+			"test_file": "test_connection.txt",
+		},
+	})
+}
+
+func TestSFTPWithHomeDir(c *fiber.Ctx) error {
+	// Endpoint untuk testing SFTP dengan folder home
+	log.Println("Testing SFTP connection with home directory...")
+
+	// Buat SFTP config untuk testing dengan folder home yang sudah ada
+	sftpConfig := service.MerchantSFTPConfig{
+		ClientName: "Zingplay International PTE,. LTD",
+		AppID:      "CKxpZpt29Cx3BjOJ0CItnQ",
+		SFTPHost:   config.Config("SFTP_HOST_1", "localhost"),
+		SFTPPort:   config.Config("SFTP_PORT_1", "2222"),
+		SFTPUser:   config.Config("SFTP_USER_1", "testuser"),
+		SFTPPass:   config.Config("SFTP_PASS_1", "testpass"),
+		RemotePath: "/home/testuser/", // Gunakan folder home yang sudah ada
+		FileName:   "test_connection.txt",
+	}
+
+	// Test koneksi SFTP
+	sftpService := service.NewSFTPService()
+	err := sftpService.TestConnection(sftpConfig)
+
+	if err != nil {
+		log.Printf("SFTP connection test failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "SFTP connection test failed",
+			"error":   err.Error(),
+		})
+	}
+
+	// Test upload file kecil
+	testData := []byte("Test connection successful at " + time.Now().Format("2006-01-02 15:04:05"))
+	err = sftpService.UploadFile(sftpConfig, "test_connection.txt", testData)
+
+	if err != nil {
+		log.Printf("SFTP upload test failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "SFTP upload test failed",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "SFTP connection and upload test successful with home directory",
+		"data": fiber.Map{
+			"host":        sftpConfig.SFTPHost,
+			"port":        sftpConfig.SFTPPort,
+			"user":        sftpConfig.SFTPUser,
+			"remote_path": sftpConfig.RemotePath,
+			"test_file":   "test_connection.txt",
+		},
+	})
+}
+
+func TestSFTPWithSimpleDir(c *fiber.Ctx) error {
+	// Endpoint untuk testing SFTP dengan folder sederhana
+	log.Println("Testing SFTP connection with simple directory...")
+
+	// Buat SFTP config untuk testing dengan folder sederhana
+	sftpConfig := service.MerchantSFTPConfig{
+		ClientName: "Zingplay International PTE,. LTD",
+		AppID:      "CKxpZpt29Cx3BjOJ0CItnQ",
+		SFTPHost:   config.Config("SFTP_HOST_1", "localhost"),
+		SFTPPort:   config.Config("SFTP_PORT_1", "2222"),
+		SFTPUser:   config.Config("SFTP_USER_1", "testuser"),
+		SFTPPass:   config.Config("SFTP_PASS_1", "testpass"),
+		RemotePath: "/home/testuser/", // Gunakan folder home user langsung
+		FileName:   "test_connection.txt",
+	}
+
+	// Test koneksi SFTP
+	sftpService := service.NewSFTPService()
+	err := sftpService.TestConnection(sftpConfig)
+
+	if err != nil {
+		log.Printf("SFTP connection test failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "SFTP connection test failed",
+			"error":   err.Error(),
+		})
+	}
+
+	// Test upload file kecil
+	testData := []byte("Test connection successful at " + time.Now().Format("2006-01-02 15:04:05"))
+	err = sftpService.UploadFile(sftpConfig, "test_connection.txt", testData)
+
+	if err != nil {
+		log.Printf("SFTP upload test failed: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "SFTP upload test failed",
+			"error":   err.Error(),
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "SFTP connection and upload test successful with simple directory",
+		"data": fiber.Map{
+			"host":        sftpConfig.SFTPHost,
+			"port":        sftpConfig.SFTPPort,
+			"user":        sftpConfig.SFTPUser,
+			"remote_path": sftpConfig.RemotePath,
+			"test_file":   "test_connection.txt",
+		},
+	})
+}
+
+func TestDateRange(c *fiber.Ctx) error {
+	// Endpoint untuk test perhitungan date range
+	log.Println("=== TEST DATE RANGE CALCULATION ===")
+
+	// Log waktu saat ini
+	utcNow := time.Now().UTC()
+	wibNow := utcNow.Add(-7 * time.Hour)
+
+	log.Printf("=== TIMEZONE INFO ===")
+	log.Printf("UTC Now: %s", utcNow.Format("2006-01-02 15:04:05"))
+	log.Printf("WIB Now: %s", wibNow.Format("2006-01-02 15:04:05"))
+
+	// Hitung range waktu yang benar
+	yesterday := wibNow.AddDate(0, 0, -1)
+	today := wibNow
+
+	startDate := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 17, 0, 0, 0, time.UTC).AddDate(0, 0, -1)
+	endDate := time.Date(today.Year(), today.Month(), today.Day(), 16, 59, 59, 999999999, time.UTC).AddDate(0, 0, -1)
+
+	log.Printf("Yesterday WIB: %s", yesterday.Format("2006-01-02 15:04:05"))
+	log.Printf("Today WIB: %s", today.Format("2006-01-02 15:04:05"))
+	log.Printf("Date range: %s to %s (UTC time for WIB 07:00-06:59)", startDate.Format("2006-01-02 15:04:05"), endDate.Format("2006-01-02 15:04:05"))
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Date range calculation test completed",
+		"data": fiber.Map{
+			"current_time": fiber.Map{
+				"utc": utcNow.Format("2006-01-02 15:04:05"),
+				"wib": wibNow.Format("2006-01-02 15:04:05"),
+			},
+			"date_range": fiber.Map{
+				"start_date": startDate.Format("2006-01-02 15:04:05"),
+				"end_date":   endDate.Format("2006-01-02 15:04:05"),
+			},
+			"note": "Check logs for detailed information",
+		},
 	})
 }

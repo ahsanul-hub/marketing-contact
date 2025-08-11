@@ -56,6 +56,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 
 	api.Get("/summary/transaction", middleware.Protected(), handler.GetTransactionSummary)
 	api.Get("/report/merchant", middleware.Protected(), middleware.AdminOnly(false), handler.GetReport)
+	api.Get("/test-email", middleware.Protected(), middleware.AdminOnly(true), handler.TestEmailService)
+	api.Get("/test-sftp", middleware.Protected(), middleware.AdminOnly(true), handler.TestSFTPConnection)
 
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)
 

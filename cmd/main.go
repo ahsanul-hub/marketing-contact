@@ -56,7 +56,7 @@ func main() {
 	handler.StartBlockedUserIDCacheRefresher()
 
 	env := config.Config("ENV", "development")
-	if env == "production" {
+	if env == "Production" {
 		log.Println("Starting transaction scheduler in PRODUCTION environment")
 		transactionScheduler := scheduler.NewTransactionScheduler()
 		transactionScheduler.Start()

@@ -14,8 +14,9 @@ import (
 )
 
 type TransactionScheduler struct {
-	cron        *cron.Cron
-	sftpService *service.SFTPService
+	cron         *cron.Cron
+	sftpService  *service.SFTPService
+	emailService *service.EmailService
 }
 
 func NewTransactionScheduler() *TransactionScheduler {
@@ -31,8 +32,9 @@ func NewTransactionScheduler() *TransactionScheduler {
 	cronInstance := cron.New(cron.WithLocation(wibLocation))
 
 	return &TransactionScheduler{
-		cron:        cronInstance,
-		sftpService: service.NewSFTPService(),
+		cron:         cronInstance,
+		sftpService:  service.NewSFTPService(),
+		emailService: service.NewEmailService(),
 	}
 }
 
@@ -137,6 +139,15 @@ func (ts *TransactionScheduler) sendTransactionReport() {
 		go ts.processMerchantReport(merchant, startDate, endDate)
 	}
 
+	// Ambil data transaksi untuk semua merchant yang memerlukan laporan Email
+	emailMerchants := ts.getMerchantsWithEmail()
+	log.Printf("Found %d merchants configured for Email", len(emailMerchants))
+
+	for _, merchant := range emailMerchants {
+		log.Printf("Processing email merchant: %s", merchant.ClientName)
+		go ts.processEmailMerchantReport(merchant, startDate, endDate)
+	}
+
 	log.Println("=== SCHEDULED TRANSACTION REPORT COMPLETED ===")
 }
 
@@ -156,8 +167,19 @@ func (ts *TransactionScheduler) getMerchantsWithSFTP() []service.MerchantSFTPCon
 			SFTPPort:   config.Config("SFTP_PORT_1", "22"),
 			SFTPUser:   config.Config("SFTP_USER_1", ""),
 			SFTPPass:   config.Config("SFTP_PASS_1", ""),
-			RemotePath: fmt.Sprintf("/%s/", folderName),
-			FileName:   "Zingplay-%s.xlsx", // Format: Zingplay-20250807.xlsx
+			RemotePath: fmt.Sprintf("/upload/%s/", folderName), // Format: /home/testuser/upload/202508/
+			FileName:   "Zingplay-%s.xlsx",                     // Format: Zingplay-20250807.xlsx
+		},
+	}
+}
+
+func (ts *TransactionScheduler) getMerchantsWithEmail() []service.MerchantEmailConfig {
+	// Daftar merchant yang memerlukan laporan Email
+	return []service.MerchantEmailConfig{
+		{
+			ClientName: "PM Max",
+			AppID:      "6078feb8764f1ba30a8b4569",
+			EmailTo:    config.Config("TO_EMAILS", "aldi.madridista.am@gmail.com,john.jojon888@gmail.com,fanny@redision.com,aldi@redision.com"),
 		},
 	}
 }
@@ -188,10 +210,13 @@ func (ts *TransactionScheduler) processMerchantReport(merchant service.MerchantS
 		return
 	}
 
+	// Generate folder name berdasarkan tanggal transaksi (bukan tanggal saat ini)
 	folderName := startDate.Format("200601") // Format: YYYYMM
-	merchant.RemotePath = fmt.Sprintf("/%s/", folderName)
+	// Tambah 1 hari pada startDate hanya untuk nama file
+	fileNameDate := startDate.AddDate(0, 0, 1)
+	fileName := fmt.Sprintf(merchant.FileName, fileNameDate.Format("20060102"))
 
-	log.Printf("Using folder: %s for transactions on %s", merchant.RemotePath, startDate.Format("2006-01-02"))
+	log.Printf("Using folder: %s for transactions on %s", folderName, startDate.Format("2006-01-02"))
 
 	// Generate Excel file
 	excelData, err := ts.generateExcelReport(transactions, merchant.ClientName)
@@ -201,7 +226,7 @@ func (ts *TransactionScheduler) processMerchantReport(merchant service.MerchantS
 	}
 
 	// Upload ke SFTP
-	fileName := fmt.Sprintf(merchant.FileName, startDate.Format("20060102")) // Format: Zingplay-20250807.xlsx
+	log.Printf("Uploading file to: %s", fileName)
 	err = ts.sftpService.UploadFile(merchant, fileName, excelData)
 	if err != nil {
 		log.Printf("Error uploading file to SFTP for merchant %s: %v", merchant.ClientName, err)
@@ -209,6 +234,43 @@ func (ts *TransactionScheduler) processMerchantReport(merchant service.MerchantS
 	}
 
 	log.Printf("Successfully uploaded transaction report for merchant %s: %s", merchant.ClientName, fileName)
+
+}
+
+func (ts *TransactionScheduler) processEmailMerchantReport(merchant service.MerchantEmailConfig, startDate, endDate time.Time) {
+	log.Printf("Processing email report for merchant: %s", merchant.ClientName)
+
+	ctx := context.Background()
+
+	// Ambil data transaksi untuk merchant ini
+	transactions, err := repository.GetTransactionsByDateRange(
+		ctx,
+		0, // status 0 = semua status
+		&startDate,
+		&endDate,
+		"", // payment method kosong = semua payment method
+		[]string{merchant.ClientName},
+		[]string{merchant.AppID}, // appID kosong = semua app
+	)
+
+	if err != nil {
+		log.Printf("Error getting transactions for email merchant %s: %v", merchant.ClientName, err)
+		return
+	}
+
+	if len(transactions) == 0 {
+		log.Printf("No transactions found for email merchant %s on %s", merchant.ClientName, startDate.Format("2006-01-02"))
+		return
+	}
+
+	// Kirim email report
+	err = ts.emailService.SendTransactionReport(transactions, merchant.ClientName, startDate, endDate)
+	if err != nil {
+		log.Printf("Error sending email report for email merchant %s: %v", merchant.ClientName, err)
+		return
+	}
+
+	log.Printf("Successfully sent email report for email merchant %s", merchant.ClientName)
 }
 
 func (ts *TransactionScheduler) generateExcelReport(transactions []model.Transactions, merchantName string) ([]byte, error) {
