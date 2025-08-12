@@ -179,7 +179,7 @@ func (ts *TransactionScheduler) getMerchantsWithEmail() []service.MerchantEmailC
 		{
 			ClientName: "PM Max",
 			AppID:      "6078feb8764f1ba30a8b4569",
-			EmailTo:    config.Config("TO_EMAILS", "john.jojon888@gmail.com"),
+			EmailTo:    config.Config("TO_EMAILS", "john.jojon888@gmail.com,aldi@redision.com"),
 		},
 	}
 }
