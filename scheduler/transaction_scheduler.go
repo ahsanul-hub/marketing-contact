@@ -48,7 +48,7 @@ func (ts *TransactionScheduler) Start() {
 	log.Printf("Current timezone: %s", now.Location().String())
 
 	// Main scheduler job - berjalan setiap hari jam 09:00 WIB
-	entryID, err := ts.cron.AddFunc("00 09 * * *", func() {
+	entryID, err := ts.cron.AddFunc("42 13 * * *", func() {
 		log.Println("=== MAIN SCHEDULER RUNNING AT 09:00 WIB ===")
 		ts.sendTransactionReport()
 	})
@@ -106,8 +106,8 @@ func (ts *TransactionScheduler) calculateDateRange() (time.Time, time.Time) {
 	// Jika sekarang tanggal 8, maka:
 	// - startDate: 2025-08-05 17:00:00 UTC (kemarin-1 jam 17:00 UTC)
 	// - endDate: 2025-08-06 16:59:59 UTC (kemarin jam 16:59 UTC)
-	startDate := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 17, 0, 0, 0, time.UTC).AddDate(0, 0, -1)
-	endDate := time.Date(today.Year(), today.Month(), today.Day(), 16, 59, 59, 999999999, time.UTC).AddDate(0, 0, -1)
+	startDate := time.Date(yesterday.Year(), yesterday.Month(), yesterday.Day(), 17, 0, 0, 0, time.UTC)
+	endDate := time.Date(today.Year(), today.Month(), today.Day(), 16, 59, 59, 999999999, time.UTC)
 
 	return startDate, endDate
 }
@@ -179,7 +179,7 @@ func (ts *TransactionScheduler) getMerchantsWithEmail() []service.MerchantEmailC
 		{
 			ClientName: "PM Max",
 			AppID:      "6078feb8764f1ba30a8b4569",
-			EmailTo:    config.Config("TO_EMAILS", "zhangshijun@ushareit.com,rinkesh.sharma@payermax.com,fanny@redision.com,juan.rivaldo@ushareit.com,payment_report@payermax.com,huzhihong@payermax.com,huzhihong@ushareit.com,chengjiexin@ushareit.com"),
+			EmailTo:    config.Config("TO_EMAILS", "john.jojon888@gmail.com"),
 		},
 	}
 }
