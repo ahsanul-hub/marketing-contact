@@ -48,7 +48,7 @@ func (ts *TransactionScheduler) Start() {
 	log.Printf("Current timezone: %s", now.Location().String())
 
 	// Main scheduler job - berjalan setiap hari jam 09:00 WIB
-	entryID, err := ts.cron.AddFunc("42 13 * * *", func() {
+	entryID, err := ts.cron.AddFunc("00 09 * * *", func() {
 		log.Println("=== MAIN SCHEDULER RUNNING AT 09:00 WIB ===")
 		ts.sendTransactionReport()
 	})
