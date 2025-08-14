@@ -243,6 +243,11 @@
         <input type="hidden" name="bodysign" value="{{ .BodySign }}" />
         <input type="hidden" name="item_id" value="{{ .ItemId }}" />
         <input type="hidden" name="redirect_url" value="{{ .RedirectURL }}" />
+        <input
+          type="hidden"
+          name="notification_url"
+          value="{{ .NotificationURL }}"
+        />
       </form>
       <p style="color: grey; font-size: 12px; margin-top: 4px">
         Harga termasuk pajak dan biaya layanan.
@@ -285,6 +290,7 @@
             currency: data.currency,
             app_id: data.app_id,
             redirect_url: data.redirect_url,
+            notification_url: data.notification_url,
             token: data.token,
             ...(isVa
               ? { customer_name: data.customer_name }

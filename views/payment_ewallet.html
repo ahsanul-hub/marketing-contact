@@ -163,6 +163,11 @@
         <input type="hidden" name="item_name" value="{{ .ItemName }}" />
         <input type="hidden" name="item_id" value="{{ .ItemId }}" />
         <input type="hidden" name="token" value="{{ .Token }}" />
+        <input
+          type="hidden"
+          name="notification_url"
+          value="{{ .NotificationURL}}"
+        />
         <input type="hidden" name="redirect_url" value="{{ .RedirectURL }}" />
         <input type="hidden" name="customer_name" value="" />
       </form>
@@ -269,6 +274,7 @@
             app_id: data.app_id,
             token: data.token,
             customer_name: data.customer_name || "",
+            notification_url: data.notification_url,
             redirect_url: data.redirect_url,
           };
 

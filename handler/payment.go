@@ -550,6 +550,7 @@ func PaymentPage(c *fiber.Ctx) error {
 				"AppID":            inputReq.AppID,
 				"MtID":             inputReq.MtTid,
 				"UserId":           inputReq.UserId,
+				"NotificationURL":  inputReq.NotificationUrl,
 				"Token":            token,
 				"BodySign":         inputReq.BodySign,
 				"RedirectURL":      inputReq.RedirectURL,
@@ -570,6 +571,7 @@ func PaymentPage(c *fiber.Ctx) error {
 			"MtID":             inputReq.MtTid,
 			"UserId":           inputReq.UserId,
 			"RedirectURL":      inputReq.RedirectURL,
+			"NotificationURL":  inputReq.NotificationUrl,
 			"Token":            token,
 			"BodySign":         inputReq.BodySign,
 		})
