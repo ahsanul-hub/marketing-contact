@@ -240,6 +240,7 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 		"64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
 		"MHSBZnRBLkDQFlYDMSeXFA":   "5HjSLo37LwvIhTAX_zOJkg",
 		"64d07790764f1bbe758b4569": "L66vZHbpCnCyjRzvnJ67wYeBEKPb5k1Q",
+		"5ab32a23764f1b296b8bb386": "QdQpQLCBTbkAJv0OOTYhxAdojWkot5Gk",
 	}
 
 	expectedAppkey, exists := allowedClients[appid]
@@ -592,6 +593,7 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 		"64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
 		"MHSBZnRBLkDQFlYDMSeXFA":   "5HjSLo37LwvIhTAX_zOJkg",
 		"64d07790764f1bbe758b4569": "L66vZHbpCnCyjRzvnJ67wYeBEKPb5k1Q",
+		"5ab32a23764f1b296b8bb386": "QdQpQLCBTbkAJv0OOTYhxAdojWkot5Gk",
 	}
 
 	expectedAppkey, exists := allowedClients[appid]
