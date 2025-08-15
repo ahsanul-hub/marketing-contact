@@ -329,7 +329,7 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 		isEwallet = true
 	}
 
-	if !isEwallet && (input.UserId == "" || input.MtTid == "" || input.PaymentMethod == "" || input.Amount == 0 || input.ItemName == "" || input.UserMDN == "") {
+	if !isEwallet && (input.UserId == "" || input.MtTid == "" || input.PaymentMethod == "" || input.Amount == 0 || input.ItemName == "") {
 
 		return c.JSON(fiber.Map{
 			"success": false,
