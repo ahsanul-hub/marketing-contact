@@ -2186,7 +2186,8 @@ func ManualCallback(c *fiber.Ctx) error {
 
 	if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" ||
 		arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" ||
-		arrClient.ClientName == "TutuReels" || arrClient.ClientSecret == "UPF6qN7b2nP5geg" {
+		arrClient.ClientName == "TutuReels" || arrClient.ClientSecret == "UPF6qN7b2nP5geg" ||
+		arrClient.ClientName == "Redigame2" || arrClient.ClientSecret == "gjq7ygxhztmlkgg" {
 		callbackPayload = model.CallbackDataLegacy{
 			AppID:                  transaction.AppID,
 			ClientAppKey:           transaction.ClientAppKey,
