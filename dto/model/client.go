@@ -43,6 +43,7 @@ type Client struct {
 	ClientSecret       string                `gorm:"size:255;not null;unique" json:"client_secret"`
 	ClientID           string                `gorm:"size:255;not null;unique" json:"client_appid"`
 	AppName            string                `gorm:"size:255;not null" json:"app_name"`
+	Address            string                `gorm:"size:255" json:"address"`
 	Mobile             string                `gorm:"size:50;not null" json:"mobile"`
 	ClientStatus       int                   `gorm:"not null" json:"client_status"`
 	Phone              string                `gorm:"size:255" json:"phone"`
@@ -50,7 +51,7 @@ type Client struct {
 	Testing            int                   `gorm:"size:10;not null" json:"testing"`
 	Lang               string                `gorm:"size:10;not null" json:"lang"`
 	CallbackURL        string                `gorm:"size:255;not null" json:"callback_url"`
-	FailCallback       string                `gorm:"size:10;not null" json:"fail_callback"`
+	FailCallback       string                `gorm:"size:255" json:"fail_callback"`
 	Isdcb              string                `gorm:"size:10;not null" json:"isdcb"`
 	UpdatedAt          time.Time             `gorm:"not null" json:"updated_at"`
 	CreatedAt          time.Time             `gorm:"not null" json:"created_at"`
@@ -84,6 +85,7 @@ type InputClientRequest struct {
 	Lang               *string               `json:"lang"`
 	Phone              *string               `json:"phone"`
 	Email              *string               `json:"email"`
+	Address            *string               `json:"address"`
 	CallbackURL        *string               `json:"callback_url"`
 	FailCallback       *string               `json:"fail_callback"`
 	Isdcb              *string               `json:"isdcb"`
@@ -91,4 +93,51 @@ type InputClientRequest struct {
 	Settlements        []SettlementClient    `json:"settlements"`
 	ClientApp          []ClientApp           `json:"client_app"`
 	ChannelRouteWeight []ChannelRouteWeight  `json:"route_weights"`
+}
+
+type RouteWeight struct {
+	Route  string `json:"route"`
+	Weight int    `json:"weight"`
+}
+
+type SelectedPaymentMethod struct {
+	PaymentMethodSlug string            `json:"payment_method_slug"`
+	SelectedRoutes    []RouteWeight     `json:"selected_routes"`
+	Status            int               `json:"status"`
+	Msisdn            int               `json:"msisdn"`
+	SettlementConfig  *SettlementConfig `json:"settlement_config,omitempty"`
+}
+
+type SettlementConfig struct {
+	IsBhpuso          string   `json:"is_bhpuso"`
+	ServiceCharge     *string  `json:"servicecharge"`
+	Tax23             *string  `json:"tax23"`
+	Ppn               *float32 `json:"ppn"`
+	Mdr               string   `json:"mdr"`
+	MdrType           string   `json:"mdr_type"`
+	AdditionalFee     *uint    `json:"additionalfee"`
+	AdditionalPercent *float32 `json:"additional_percent"`
+	AdditionalFeeType *int     `json:"additionalfee_type"`
+	PaymentType       string   `json:"payment_type"`
+	ShareRedision     *float32 `json:"share_redision"`
+	SharePartner      *float32 `json:"share_partner"`
+	IsDivide1Poin1    string   `json:"is_divide_1poin1"`
+}
+
+type InputClientRequestV2 struct {
+	ClientName             *string                 `json:"client_name"`
+	AppName                *string                 `json:"app_name"`
+	Mobile                 *string                 `json:"mobile,omitempty"`
+	ClientStatus           *int                    `json:"client_status"`
+	Testing                *int                    `json:"testing,omitempty"`
+	Address                *string                 `json:"address"`
+	Lang                   *string                 `json:"lang"`
+	Phone                  *string                 `json:"phone"`
+	Email                  *string                 `json:"email"`
+	CallbackURL            *string                 `json:"callback_url"`
+	FailCallback           *string                 `json:"fail_callback,omitempty"`
+	Isdcb                  *string                 `json:"isdcb"`
+	SelectedPaymentMethods []SelectedPaymentMethod `json:"selected_payment_methods"`
+	ClientApp              []ClientApp             `json:"client_app"`
+	// ChannelRouteWeight     []ChannelRouteWeight    `json:"route_weights"`
 }

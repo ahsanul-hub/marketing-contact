@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -120,6 +121,7 @@ func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 		ClientSecret: clientSecret,
 		ClientID:     clientAppID,
 		AppName:      *input.AppName,
+		Address:      *input.Address,
 		Mobile:       *input.Mobile,
 		ClientStatus: *input.ClientStatus,
 		Testing:      *input.Testing,
@@ -164,6 +166,25 @@ func AddMerchant(ctx context.Context, input *model.InputClientRequest) error {
 			log.Printf("Failed to insert supplier route weight: %+v, error: %v", weight, err)
 			return fmt.Errorf("failed to create supplier route weight: %w", err)
 		}
+	}
+
+	// Add new client to cache for immediate availability
+	var newClient model.Client
+	if err := database.DB.Where("client_id = ?", client.ClientID).
+		Preload("ClientApps").
+		Preload("PaymentMethods").
+		Preload("Settlements").
+		Preload("ChannelRouteWeight").
+		First(&newClient).Error; err != nil {
+		log.Printf("Failed to load new client for cache: %s", err)
+		// Don't return error here, just log it as cache update is not critical
+	} else {
+		// Cache with all possible app_key combinations
+		for _, app := range newClient.ClientApps {
+			cacheKey := fmt.Sprintf("client:%s:%s", app.AppKey, app.AppID)
+			merchantCache.Set(cacheKey, &newClient, cache.DefaultExpiration)
+		}
+		log.Printf("Cache added for new client: %s", client.ClientID)
 	}
 
 	return nil
@@ -246,12 +267,9 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 			if pm.Route != nil {
 				existingPM.Route = pm.Route
 			}
-			if pm.Status != 0 {
-				existingPM.Status = pm.Status
-			}
-			if pm.Msisdn != 0 {
-				existingPM.Msisdn = pm.Msisdn
-			}
+			// Update status and msisdn if provided (including 0 values)
+			existingPM.Status = pm.Status
+			existingPM.Msisdn = pm.Msisdn
 
 			// Save the updated payment method
 			if err := db.Save(&existingPM).Error; err != nil {
@@ -264,33 +282,41 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 	for _, app := range input.ClientApp {
 		var existingApps model.ClientApp
 
-		// Check if the payment method exists
-		if err := db.Where("client_id = ? AND app_id = ?", existingClient.UID, app.AppID).First(&existingApps).Error; err != nil {
+		// Check if app has ID (for existing apps) or find by app_name (for new apps)
+		var query *gorm.DB
+		if app.AppID != "" {
+			// Update existing app by app_id
+			query = db.Where("client_id = ? AND app_id = ?", existingClient.UID, app.AppID)
+		} else {
+			// Find by app_name for new or existing apps
+			query = db.Where("client_id = ? AND app_name = ?", existingClient.UID, app.AppName)
+		}
+
+		if err := query.First(&existingApps).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				// Create new payment method if it doesn't exist
+				// Create new client app if it doesn't exist
 				app.ClientID = existingClient.UID
+				// Clear ID to let database auto-generate
+				app.ID = 0
 				if err := AddClientApps(existingClient.UID, &app); err != nil {
 					log.Printf("Failed to add client app for client %s: %s", existingClient.UID, err)
 					return err
 				}
 			} else {
-				log.Printf("Failed to check existing payment method: %s", err)
+				log.Printf("Failed to check existing client app: %s", err)
 				return err
 			}
 		} else {
-			// Update existing payment method only if properties are provided
+			// Update existing app only if properties are provided
 			if app.AppName != "" {
 				existingApps.AppName = app.AppName
 			}
 			if app.CallbackURL != "" {
 				existingApps.CallbackURL = app.CallbackURL
 			}
-			if app.Testing != 0 {
-				existingApps.Testing = app.Testing
-			}
-			if app.Status != 0 {
-				existingApps.Status = app.Status
-			}
+			// Update testing and status if provided (including 0 values)
+			existingApps.Testing = app.Testing
+			existingApps.Status = app.Status
 			if app.FailCallback != "" {
 				existingApps.FailCallback = app.FailCallback
 			}
@@ -298,7 +324,7 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 				existingApps.Mobile = app.Mobile
 			}
 
-			// Save the updated payment method
+			// Save the updated client app
 			if err := db.Save(&existingApps).Error; err != nil {
 				log.Printf("Failed to update app for client %s: %s", existingClient.UID, err)
 				return err
@@ -390,7 +416,25 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 		}
 	}
 
-	merchantCache.Set(cacheKey, &existingClient, cache.DefaultExpiration)
+	// Refresh cache with updated client data including all related data
+	var updatedClient model.Client
+	if err := db.Where("client_id = ?", clientID).
+		Preload("ClientApps").
+		Preload("PaymentMethods").
+		Preload("Settlements").
+		Preload("ChannelRouteWeight").
+		First(&updatedClient).Error; err != nil {
+		log.Printf("Failed to reload updated client for cache: %s", err)
+		// Don't return error here, just log it as cache refresh is not critical
+	} else {
+		// Clear old cache and set new cache with all app_key combinations
+		merchantCache.Delete(cacheKey)
+		for _, app := range updatedClient.ClientApps {
+			newCacheKey := fmt.Sprintf("client:%s:%s", app.AppKey, app.AppID)
+			merchantCache.Set(newCacheKey, &updatedClient, cache.DefaultExpiration)
+		}
+		log.Printf("Cache refreshed for client: %s", clientID)
+	}
 
 	return nil
 }
@@ -428,18 +472,18 @@ func AddClientApps(clientID string, clients *model.ClientApp) error {
 
 	clientAppKey, err := generateUniqueKey()
 	if err != nil {
-		return fmt.Errorf("failed to generate client app ID: %w", err)
+		return fmt.Errorf("failed to generate client app key: %w", err)
 	}
 
 	clients.ClientID = clientID
 	clients.AppID = clientAppID
 	clients.AppKey = clientAppKey
-
-	// log.Println(settlements)
+	// Ensure ID is 0 for auto-generation
+	clients.ID = 0
 
 	err = database.DB.Create(clients).Error
 	if err != nil {
-		return fmt.Errorf("failed to add  method: %w", err)
+		return fmt.Errorf("failed to add client app: %w", err)
 	}
 
 	return nil
@@ -547,4 +591,540 @@ func (r *PaymentMethodRepository) Delete(slug string) error {
 	}
 
 	return r.DB.Delete(&paymentMethod).Error
+}
+
+func ConvertSelectedPaymentMethods(clientID string, selectedMethods []model.SelectedPaymentMethod) ([]model.PaymentMethodClient, []model.SettlementClient, []model.ChannelRouteWeight, error) {
+	var paymentMethods []model.PaymentMethodClient
+	var settlements []model.SettlementClient
+	var channelRouteWeights []model.ChannelRouteWeight
+
+	repo := PaymentMethodRepository{DB: database.DB}
+
+	for _, selected := range selectedMethods {
+		// Get payment method by slug to get the available routes
+		paymentMethod, err := repo.GetBySlug(selected.PaymentMethodSlug)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("payment method with slug %s not found: %w", selected.PaymentMethodSlug, err)
+		}
+
+		// Validate selected routes against available routes
+		availableRoutes := make(map[string]bool)
+		log.Printf("Payment method %s has routes: %+v", selected.PaymentMethodSlug, paymentMethod.Route)
+		// Convert pq.StringArray to []string for iteration
+		for _, route := range []string(paymentMethod.Route) {
+			availableRoutes[route] = true
+		}
+
+		// Extract route names and validate + create route weights
+		var routeNames []string
+		totalWeight := 0
+
+		for _, routeWeight := range selected.SelectedRoutes {
+			if !availableRoutes[routeWeight.Route] {
+				return nil, nil, nil, fmt.Errorf("route %s is not available for payment method %s", routeWeight.Route, selected.PaymentMethodSlug)
+			}
+
+			routeNames = append(routeNames, routeWeight.Route)
+
+			// Auto-generate ChannelRouteWeight
+			channelWeight := model.ChannelRouteWeight{
+				ClientID:      clientID,
+				PaymentMethod: selected.PaymentMethodSlug,
+				Route:         routeWeight.Route,
+				Weight:        routeWeight.Weight,
+			}
+			channelRouteWeights = append(channelRouteWeights, channelWeight)
+			totalWeight += routeWeight.Weight
+		}
+
+		// Validate total weight (should be 100 for percentage-based systems)
+		if totalWeight != 100 {
+			return nil, nil, nil, fmt.Errorf("total weight for payment method %s must equal 100, got %d", selected.PaymentMethodSlug, totalWeight)
+		}
+
+		// Convert selected route names to JSON for PaymentMethodClient
+		routeJSON, err := json.Marshal(routeNames)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("failed to marshal routes for payment method %s: %w", selected.PaymentMethodSlug, err)
+		}
+
+		paymentMethodClient := model.PaymentMethodClient{
+			Name:     selected.PaymentMethodSlug,
+			Route:    routeJSON,
+			Flexible: paymentMethod.Flexible,
+			Status:   selected.Status,
+			Msisdn:   selected.Msisdn,
+			ClientID: clientID,
+		}
+
+		paymentMethods = append(paymentMethods, paymentMethodClient)
+
+		// Auto-generate settlement for this payment method
+		settlement := model.SettlementClient{
+			ClientID:    clientID,
+			Name:        selected.PaymentMethodSlug, // Settlement name matches payment method slug
+			PaymentType: paymentMethod.Type,         // Use payment method type
+		}
+
+		// Apply settlement config if provided
+		if selected.SettlementConfig != nil {
+			config := selected.SettlementConfig
+			if config.IsBhpuso != "" {
+				settlement.IsBhpuso = config.IsBhpuso
+			}
+			if config.ServiceCharge != nil {
+				settlement.ServiceCharge = config.ServiceCharge
+			}
+			if config.Tax23 != nil {
+				settlement.Tax23 = config.Tax23
+			}
+			if config.Ppn != nil {
+				settlement.Ppn = config.Ppn
+			}
+			if config.Mdr != "" {
+				settlement.Mdr = config.Mdr
+			}
+			if config.MdrType != "" {
+				settlement.MdrType = config.MdrType
+			}
+			if config.AdditionalFee != nil {
+				settlement.AdditionalFee = config.AdditionalFee
+			}
+			if config.AdditionalPercent != nil {
+				settlement.AdditionalPercent = config.AdditionalPercent
+			}
+			if config.AdditionalFeeType != nil {
+				settlement.AdditionalFeeType = config.AdditionalFeeType
+			}
+			if config.PaymentType != "" {
+				settlement.PaymentType = config.PaymentType
+			}
+			if config.ShareRedision != nil {
+				settlement.ShareRedision = config.ShareRedision
+			}
+			if config.SharePartner != nil {
+				settlement.SharePartner = config.SharePartner
+			}
+			if config.IsDivide1Poin1 != "" {
+				settlement.IsDivide1Poin1 = config.IsDivide1Poin1
+			}
+		} else {
+			// Set default values if no config provided
+			settlement.Mdr = "0"
+			settlement.MdrType = "percent"
+		}
+
+		settlements = append(settlements, settlement)
+	}
+
+	return paymentMethods, settlements, channelRouteWeights, nil
+}
+
+func AddMerchantV2(ctx context.Context, input *model.InputClientRequestV2) error {
+	if input.ClientName == nil || input.AppName == nil || input.Mobile == nil ||
+		input.ClientStatus == nil || input.Testing == nil || input.Lang == nil ||
+		input.Phone == nil || input.Email == nil || input.CallbackURL == nil || input.Isdcb == nil {
+		log.Println("Error: Missing required fields in input")
+		return fmt.Errorf("missing required fields in input")
+	}
+
+	clientSecret, err := generateClientSecret()
+	if err != nil {
+		log.Println("Error generating client secret:", err)
+		return fmt.Errorf("failed to generate client secret: %w", err)
+	}
+
+	// Generate keys & UUID
+	clientAppKey, err := generateUniqueKey()
+	if err != nil {
+		log.Println("Error generating client app key:", err)
+		return fmt.Errorf("failed to generate client app key: %w", err)
+	}
+
+	clientAppID, err := generateUniqueKey()
+	if err != nil {
+		log.Println("Error generating client app ID:", err)
+		return fmt.Errorf("failed to generate client app ID: %w", err)
+	}
+
+	uuidClient, err := uuid.NewV7()
+	if err != nil {
+		log.Println("Error generating UUID:", err)
+		return fmt.Errorf("failed to generate UUID: %w", err)
+	}
+
+	var failCallback string
+	if input.FailCallback != nil {
+		failCallback = *input.FailCallback
+	}
+
+	client := model.Client{
+		UID:          uuidClient.String(),
+		ClientName:   *input.ClientName,
+		ClientAppkey: clientAppKey,
+		ClientSecret: clientSecret,
+		ClientID:     clientAppID,
+		AppName:      *input.AppName,
+		Address:      *input.Address,
+		Mobile:       *input.Mobile,
+		ClientStatus: *input.ClientStatus,
+		Testing:      *input.Testing,
+		Lang:         *input.Lang,
+		Phone:        *input.Phone,
+		Email:        *input.Email,
+		CallbackURL:  *input.CallbackURL,
+		FailCallback: failCallback,
+		Isdcb:        *input.Isdcb,
+	}
+
+	if err := database.DB.Create(&client).Error; err != nil {
+		log.Println("Error creating client in database:", err)
+		return fmt.Errorf("unable to create client: %w", err)
+	}
+
+	// Convert selected payment methods to PaymentMethodClient
+	paymentMethods, settlements, channelRouteWeights, err := ConvertSelectedPaymentMethods(client.UID, input.SelectedPaymentMethods)
+	if err != nil {
+		log.Printf("Failed to convert selected payment methods: %s", err)
+		return err
+	}
+
+	// Validate consistency between payment methods and settlements
+	if err := ValidatePaymentMethodSettlementConsistency(paymentMethods, settlements); err != nil {
+		log.Printf("Payment method and settlement consistency validation failed: %s", err)
+		return fmt.Errorf("validation failed: %w", err)
+	}
+
+	// Add payment methods
+	for _, pm := range paymentMethods {
+		if err := AddPaymentMethod(client.UID, &pm); err != nil {
+			log.Printf("Failed to add payment method for client %s: %s", client.UID, err)
+			return err
+		}
+	}
+
+	// Process Settlements
+	for _, settlement := range settlements {
+		if err := AddSettlements(client.UID, &settlement); err != nil {
+			log.Printf("Failed to add settlement for client %s: %s", client.UID, err)
+			return err
+		}
+	}
+
+	for _, weight := range channelRouteWeights {
+		if err := database.DB.Create(&weight).Error; err != nil {
+			log.Printf("Failed to insert supplier route weight: %+v, error: %v", weight, err)
+			return fmt.Errorf("failed to create supplier route weight: %w", err)
+		}
+	}
+
+	for _, clients := range input.ClientApp {
+		if err := AddClientApps(client.UID, &clients); err != nil {
+			log.Printf("Failed to add client app for client %s: %s", client.UID, err)
+			return err
+		}
+	}
+
+	// Add new client to cache for immediate availability
+	var newClient model.Client
+	if err := database.DB.Where("client_id = ?", client.ClientID).
+		Preload("ClientApps").
+		Preload("PaymentMethods").
+		Preload("Settlements").
+		Preload("ChannelRouteWeight").
+		First(&newClient).Error; err != nil {
+		log.Printf("Failed to load new client for cache: %s", err)
+		// Don't return error here, just log it as cache update is not critical
+	} else {
+		// Cache with all possible app_key combinations
+		for _, app := range newClient.ClientApps {
+			cacheKey := fmt.Sprintf("client:%s:%s", app.AppKey, app.AppID)
+			merchantCache.Set(cacheKey, &newClient, cache.DefaultExpiration)
+		}
+		log.Printf("Cache added for new client: %s", client.ClientID)
+	}
+
+	return nil
+}
+
+func UpdateMerchantV2(ctx context.Context, clientID string, input *model.InputClientRequestV2) error {
+	db := database.DB
+
+	var existingClient model.Client
+	if err := db.Where("client_id = ?", clientID).First(&existingClient).Error; err != nil {
+		return fmt.Errorf("client not found: %w", err)
+	}
+
+	cacheKey := fmt.Sprintf("client:%s:%s", existingClient.ClientAppkey, existingClient.ClientID)
+	merchantCache.Delete(cacheKey)
+
+	updateData := map[string]interface{}{}
+
+	if input.ClientName != nil {
+		updateData["client_name"] = *input.ClientName
+	}
+	if input.AppName != nil {
+		updateData["app_name"] = *input.AppName
+	}
+	if input.Address != nil {
+		updateData["address"] = *input.Address
+	}
+	if input.Mobile != nil {
+		updateData["mobile"] = *input.Mobile
+	}
+	if input.ClientStatus != nil {
+		updateData["client_status"] = *input.ClientStatus
+	}
+	if input.Testing != nil {
+		updateData["testing"] = *input.Testing
+	}
+	if input.Lang != nil {
+		updateData["lang"] = *input.Lang
+	}
+	if input.Phone != nil {
+		updateData["phone"] = *input.Phone
+	}
+	if input.Email != nil {
+		updateData["email"] = *input.Email
+	}
+	if input.CallbackURL != nil {
+		updateData["callback_url"] = *input.CallbackURL
+	}
+	if input.FailCallback != nil {
+		updateData["fail_callback"] = *input.FailCallback
+	}
+	if input.Isdcb != nil {
+		updateData["isdcb"] = *input.Isdcb
+	}
+
+	if len(updateData) > 0 {
+		if err := db.Model(&existingClient).Updates(updateData).Error; err != nil {
+			return fmt.Errorf("unable to update client: %w", err)
+		}
+	}
+
+	// Handle payment method updates with route weights
+	if len(input.SelectedPaymentMethods) > 0 {
+		// Convert selected payment methods
+		paymentMethods, settlements, channelRouteWeights, err := ConvertSelectedPaymentMethods(existingClient.UID, input.SelectedPaymentMethods)
+		if err != nil {
+			log.Printf("Failed to convert selected payment methods: %s", err)
+			return err
+		}
+
+		// Update payment methods
+		for _, pm := range paymentMethods {
+			var existingPM model.PaymentMethodClient
+
+			if err := db.Where("client_id = ? AND name = ?", existingClient.UID, pm.Name).First(&existingPM).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					// Create new payment method if it doesn't exist
+					pm.ClientID = existingClient.UID
+					if err := AddPaymentMethod(existingClient.UID, &pm); err != nil {
+						log.Printf("Failed to add payment method for client %s: %s", existingClient.UID, err)
+						return err
+					}
+				} else {
+					log.Printf("Failed to check existing payment method: %s", err)
+					return err
+				}
+			} else {
+				// Update existing payment method
+				existingPM.Route = pm.Route
+				existingPM.Flexible = pm.Flexible
+				existingPM.Status = pm.Status
+				existingPM.Msisdn = pm.Msisdn
+
+				if err := db.Save(&existingPM).Error; err != nil {
+					log.Printf("Failed to update payment method for client %s: %s", existingClient.UID, err)
+					return err
+				}
+			}
+		}
+
+		// Update settlements
+		for _, settlement := range settlements {
+			var existingSettlement model.SettlementClient
+
+			if err := db.Where("client_id = ? AND name = ?", existingClient.UID, settlement.Name).First(&existingSettlement).Error; err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					settlement.ClientID = existingClient.UID
+					if err := AddSettlements(existingClient.UID, &settlement); err != nil {
+						log.Printf("Failed to add settlement for client %s: %s", existingClient.UID, err)
+						return err
+					}
+				} else {
+					log.Printf("Failed to check existing settlement: %s", err)
+					return err
+				}
+			} else {
+				// Update existing settlement
+				if settlement.IsBhpuso != "" {
+					existingSettlement.IsBhpuso = settlement.IsBhpuso
+				}
+				if settlement.ServiceCharge != nil {
+					existingSettlement.ServiceCharge = settlement.ServiceCharge
+				}
+				if settlement.Tax23 != nil {
+					existingSettlement.Tax23 = settlement.Tax23
+				}
+				if settlement.Ppn != nil {
+					existingSettlement.Ppn = settlement.Ppn
+				}
+				if settlement.Mdr != "" {
+					existingSettlement.Mdr = settlement.Mdr
+				}
+				if settlement.MdrType != "" {
+					existingSettlement.MdrType = settlement.MdrType
+				}
+				if settlement.AdditionalFee != nil {
+					existingSettlement.AdditionalFee = settlement.AdditionalFee
+				}
+				if settlement.AdditionalPercent != nil {
+					existingSettlement.AdditionalPercent = settlement.AdditionalPercent
+				}
+				if settlement.AdditionalFeeType != nil {
+					existingSettlement.AdditionalFeeType = settlement.AdditionalFeeType
+				}
+				if settlement.PaymentType != "" {
+					existingSettlement.PaymentType = settlement.PaymentType
+				}
+				if settlement.ShareRedision != nil {
+					existingSettlement.ShareRedision = settlement.ShareRedision
+				}
+				if settlement.SharePartner != nil {
+					existingSettlement.SharePartner = settlement.SharePartner
+				}
+				if settlement.IsDivide1Poin1 != "" {
+					existingSettlement.IsDivide1Poin1 = settlement.IsDivide1Poin1
+				}
+
+				if err := db.Save(&existingSettlement).Error; err != nil {
+					return fmt.Errorf("failed to update settlement for client %s: %w", existingClient.UID, err)
+				}
+			}
+		}
+
+		// Update channel route weights - delete old ones and create new ones
+		for _, weight := range channelRouteWeights {
+			// Delete existing route weights for this payment method
+			if err := db.Where("client_id = ? AND payment_method = ?", existingClient.UID, weight.PaymentMethod).Delete(&model.ChannelRouteWeight{}).Error; err != nil {
+				log.Printf("Failed to delete existing route weights: %s", err)
+				return err
+			}
+		}
+
+		// Create new route weights
+		for _, weight := range channelRouteWeights {
+			if err := db.Create(&weight).Error; err != nil {
+				log.Printf("Failed to create supplier route weight: %+v, error: %v", weight, err)
+				return fmt.Errorf("failed to create supplier route weight: %w", err)
+			}
+		}
+	}
+
+	// Handle client app updates
+	for _, app := range input.ClientApp {
+		var existingApps model.ClientApp
+
+		// Check if app has ID (for existing apps) or find by app_name (for new apps)
+		var query *gorm.DB
+		if app.AppID != "" {
+			// Update existing app by app_id
+			query = db.Where("client_id = ? AND app_id = ?", existingClient.UID, app.AppID)
+		} else {
+			// Find by app_name for new or existing apps
+			query = db.Where("client_id = ? AND app_name = ?", existingClient.UID, app.AppName)
+		}
+
+		if err := query.First(&existingApps).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				// Create new client app if it doesn't exist
+				app.ClientID = existingClient.UID
+				// Clear ID to let database auto-generate
+				app.ID = 0
+				if err := AddClientApps(existingClient.UID, &app); err != nil {
+					log.Printf("Failed to add client app for client %s: %s", existingClient.UID, err)
+					return err
+				}
+			} else {
+				log.Printf("Failed to check existing client app: %s", err)
+				return err
+			}
+		} else {
+			// Update existing app only if properties are provided
+			if app.AppName != "" {
+				existingApps.AppName = app.AppName
+			}
+			if app.CallbackURL != "" {
+				existingApps.CallbackURL = app.CallbackURL
+			}
+			// Update testing and status if provided (including 0 values)
+			existingApps.Testing = app.Testing
+			existingApps.Status = app.Status
+			if app.FailCallback != "" {
+				existingApps.FailCallback = app.FailCallback
+			}
+			if app.Mobile != "" {
+				existingApps.Mobile = app.Mobile
+			}
+
+			// Save the updated client app
+			if err := db.Save(&existingApps).Error; err != nil {
+				log.Printf("Failed to update app for client %s: %s", existingClient.UID, err)
+				return err
+			}
+		}
+	}
+
+	// Refresh cache with updated client data including all related data
+	var updatedClient model.Client
+	if err := db.Where("client_id = ?", clientID).
+		Preload("ClientApps").
+		Preload("PaymentMethods").
+		Preload("Settlements").
+		Preload("ChannelRouteWeight").
+		First(&updatedClient).Error; err != nil {
+		log.Printf("Failed to reload updated client for cache: %s", err)
+		// Don't return error here, just log it as cache refresh is not critical
+	} else {
+		// Clear old cache and set new cache with all app_key combinations
+		merchantCache.Delete(cacheKey)
+		for _, app := range updatedClient.ClientApps {
+			newCacheKey := fmt.Sprintf("client:%s:%s", app.AppKey, app.AppID)
+			merchantCache.Set(newCacheKey, &updatedClient, cache.DefaultExpiration)
+		}
+		log.Printf("Cache refreshed for client: %s", clientID)
+	}
+
+	return nil
+}
+
+func ValidatePaymentMethodSettlementConsistency(paymentMethods []model.PaymentMethodClient, settlements []model.SettlementClient) error {
+	// Create a map of payment method names for quick lookup
+	paymentMethodMap := make(map[string]bool)
+	for _, pm := range paymentMethods {
+		paymentMethodMap[pm.Name] = true
+	}
+
+	// Check that each settlement corresponds to a payment method
+	for _, settlement := range settlements {
+		if !paymentMethodMap[settlement.Name] {
+			return fmt.Errorf("settlement '%s' does not have a corresponding payment method", settlement.Name)
+		}
+	}
+
+	// Check that each payment method has a corresponding settlement
+	settlementMap := make(map[string]bool)
+	for _, settlement := range settlements {
+		settlementMap[settlement.Name] = true
+	}
+
+	for _, pm := range paymentMethods {
+		if !settlementMap[pm.Name] {
+			return fmt.Errorf("payment method '%s' does not have a corresponding settlement", pm.Name)
+		}
+	}
+
+	return nil
 }

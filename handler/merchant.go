@@ -51,7 +51,56 @@ func UpdateMerchant(c *fiber.Ctx) error {
 		})
 	}
 
+	// Validate that at least one field is provided for update
+	if input.ClientName == nil && input.AppName == nil && input.Mobile == nil &&
+		input.ClientStatus == nil && input.Testing == nil && input.Lang == nil &&
+		input.Phone == nil && input.Email == nil && input.CallbackURL == nil &&
+		input.FailCallback == nil && input.Isdcb == nil && len(input.PaymentMethods) == 0 &&
+		len(input.Settlements) == 0 && len(input.ClientApp) == 0 && len(input.ChannelRouteWeight) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "At least one field must be provided for update",
+		})
+	}
+
 	err := repository.UpdateMerchant(context.Background(), clientID, &input)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.ResponseSuccess(c, fiber.StatusOK, "Client updated successfully")
+}
+
+func UpdateMerchantV2(c *fiber.Ctx) error {
+	var input model.InputClientRequestV2
+	if err := c.BodyParser(&input); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	clientID := c.Params("clientID")
+	if clientID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Client ID is required",
+		})
+	}
+
+	// Validate that at least one field is provided for update
+	if input.ClientName == nil && input.AppName == nil && input.Mobile == nil &&
+		input.ClientStatus == nil && input.Testing == nil && input.Lang == nil &&
+		input.Phone == nil && input.Email == nil && input.CallbackURL == nil &&
+		input.FailCallback == nil && input.Isdcb == nil && len(input.SelectedPaymentMethods) == 0 &&
+		len(input.ClientApp) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "At least one field must be provided for update",
+		})
+	}
+
+	err := repository.UpdateMerchantV2(context.Background(), clientID, &input)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -120,6 +169,58 @@ func GetMerchantByAppID(c *fiber.Ctx) error {
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, client)
+}
+
+func GetAvailablePaymentMethods(c *fiber.Ctx) error {
+	repo := repository.PaymentMethodRepository{DB: database.DB}
+	paymentMethods, err := repo.GetAll()
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	// Transform to include only necessary fields for client selection
+	var availableMethods []map[string]interface{}
+	for _, pm := range paymentMethods {
+		method := map[string]interface{}{
+			"id":          pm.ID,
+			"slug":        pm.Slug,
+			"description": pm.Description,
+			"type":        pm.Type,
+			"route":       pm.Route,
+			"flexible":    pm.Flexible,
+			"status":      pm.Status,
+			"min_denom":   pm.MinimumDenom,
+			"denom":       pm.Denom,
+			"prefix":      pm.Prefix,
+		}
+		availableMethods = append(availableMethods, method)
+	}
+
+	return response.ResponseSuccess(c, fiber.StatusOK, availableMethods)
+}
+
+func GetPaymentMethodRoutes(c *fiber.Ctx) error {
+	slug := c.Params("slug")
+	if slug == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Payment method slug is required",
+		})
+	}
+
+	repo := repository.PaymentMethodRepository{DB: database.DB}
+	paymentMethod, err := repo.GetBySlug(slug)
+	if err != nil {
+		return response.Response(c, fiber.StatusNotFound, "Payment method not found")
+	}
+
+	routes := map[string]interface{}{
+		"slug":   paymentMethod.Slug,
+		"routes": paymentMethod.Route,
+		"type":   paymentMethod.Type,
+	}
+
+	return response.ResponseSuccess(c, fiber.StatusOK, routes)
 }
 
 func NewPaymentMethodHandler(repo *repository.PaymentMethodRepository) *PaymentMethodHandler {
@@ -193,4 +294,21 @@ func (h *PaymentMethodHandler) DeletePaymentMethod(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusNoContent).JSON(nil)
+}
+
+func AddMerchantV2(c *fiber.Ctx) error {
+	var requestData model.InputClientRequestV2
+	if err := c.BodyParser(&requestData); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	err := repository.AddMerchantV2(context.Background(), &requestData)
+	if err != nil {
+		return response.Response(c, fiber.StatusInternalServerError, err.Error())
+	}
+
+	return response.ResponseSuccess(c, fiber.StatusOK, nil)
 }

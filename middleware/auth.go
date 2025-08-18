@@ -97,19 +97,29 @@ func RBACMiddleware(neededPermissions []string) fiber.Handler {
 	}
 }
 
-func AdminOnly(allowAdmin bool) fiber.Handler {
+func AdminOnly(superAdminOnly bool) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		role, ok := c.Locals("role").(string)
 		if !ok {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden: You do not have access to this resource."})
 		}
+
+		// Superadmin always has access
 		if role == "superadmin" {
 			return c.Next()
 		}
-		if allowAdmin && role == "admin" {
+
+		// If superAdminOnly is true, only superadmin can access
+		if superAdminOnly {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden: Superadmin access required."})
+		}
+
+		// If superAdminOnly is false, both superadmin and admin can access
+		if role == "admin" {
 			return c.Next()
 		}
 
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden: You do not have access to this resource."})
+		// Merchant cannot access admin endpoints at all
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden: Admin access required."})
 	}
 }
