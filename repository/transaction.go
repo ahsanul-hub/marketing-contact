@@ -191,7 +191,7 @@ func GetAllTransactions(
 	var transactions []model.Transactions
 	var totalItems int64
 
-	baseQuery := database.DB.Model(&model.Transactions{})
+	baseQuery := database.GetReadDB().Model(&model.Transactions{}) // Menggunakan replica untuk read operation
 
 	if transactionId != "" {
 		baseQuery = baseQuery.Where("id = ?", transactionId)
@@ -249,7 +249,7 @@ func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endD
 	defer span.End()
 
 	var transactions []model.Transactions
-	query := database.DB
+	query := database.GetReadDB() // Menggunakan replica untuk read operation
 
 	if status != 0 {
 		query = query.Where("status_code = ?", status)
@@ -283,7 +283,7 @@ func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endD
 
 func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom int, merchantTransactionId, clientName, userMDN, userId, appName string, paymentMethods []string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
 	var transactions []model.Transactions
-	query := database.DB
+	query := database.GetReadDB() // Menggunakan replica untuk read operation
 	var totalItems int64
 
 	if merchantTransactionId != "" {
@@ -355,7 +355,7 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom i
 
 func GetTransactionByID(ctx context.Context, id string) (*model.Transactions, error) {
 	var transaction model.Transactions
-	if err := database.DB.Where("id = ?", id).First(&transaction).Error; err != nil {
+	if err := database.GetReadDB().Where("id = ?", id).First(&transaction).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("transaction not found: %w", err)
 		}
@@ -375,7 +375,7 @@ func GetAppNameFromClient(client *model.Client, clientID string) string {
 
 func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (*model.TransactionMerchantResponse, error) {
 	var transaction model.Transactions
-	if err := database.DB.Where("id = ?", id).First(&transaction).Error; err != nil {
+	if err := database.GetReadDB().Where("id = ?", id).First(&transaction).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, fmt.Errorf("transaction not found: %w", err)
 		}
@@ -455,7 +455,7 @@ func GetTransactionVa(ctx context.Context, vaNumber string) (*model.Transactions
 	timeLimit := time.Now().Add(-70 * time.Minute)
 
 	// Query berdasarkan va_bca dan CreatedAt dalam 70 menit terakhir
-	if err := database.DB.WithContext(ctx).
+	if err := database.GetReadDB().WithContext(ctx).
 		Where("va_bca = ? AND created_at >= ? AND status_code NOT IN ?", vaNumber, timeLimit, []int{1000, 1003}).
 		First(&transaction).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -470,7 +470,7 @@ func GetTransactionVa(ctx context.Context, vaNumber string) (*model.Transactions
 func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp int) (*model.Transactions, error) {
 	var transaction model.Transactions
 
-	err := database.DB.WithContext(ctx).
+	err := database.GetReadDB().WithContext(ctx).
 		Where("user_mdn = ? AND keyword = ? AND otp = ? AND status_code = ?", msisdn, keyword, otp, 1001).
 		First(&transaction).Error
 
@@ -530,7 +530,7 @@ func UpdateTransactionKeyword(ctx context.Context, transactionID string, keyword
 func GetPendingTransactions(ctx context.Context, paymentMethod string) ([]model.Transactions, error) {
 	var transactions []model.Transactions
 
-	query := database.DB.Select("id, merchant_name, status_code, created_at,reference_id").Where("status_code = ?", 1001)
+	query := database.GetReadDB().Select("id, merchant_name, status_code, created_at,reference_id").Where("status_code = ?", 1001)
 
 	if paymentMethod != "" {
 		query = query.Where("payment_method = ?", paymentMethod)
@@ -635,7 +635,7 @@ func ProcessTransactions() {
 
 	var transactions []model.Transactions
 
-	err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code, notification_url, callback_reference_id FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
+	err := database.GetReadDB().Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, appid, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code, notification_url, callback_reference_id FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
 	if err != nil {
 		fmt.Println("Error fetching transactions:", err)
 		return

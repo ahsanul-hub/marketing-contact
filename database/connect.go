@@ -21,17 +21,33 @@ var MongoClient *mongo.Client
 func ConnectDB() *gorm.DB {
 	var err error
 
-	// Construct the Data Source Name (DSN) for PostgreSQL
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+	// Construct the Data Source Name (DSN) for Master PostgreSQL
+	masterDSN := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
 		config.Config("DB_HOST", ""),
 		config.Config("DB_USER", ""),
 		config.Config("DB_PASSWORD", ""),
 		config.Config("DB_NAME", ""),
 		config.Config("DB_PORT", "5432"))
 
-	DB, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	// Connect to Master Database
+	DB, err = gorm.Open(postgres.Open(masterDSN), &gorm.Config{})
 	if err != nil {
-		panic("failed to connect to database")
+		panic("failed to connect to master database")
+	}
+
+	// Construct the Data Source Name (DSN) for Replica PostgreSQL
+	replicaDSN := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
+		config.Config("DB_REPLICA_HOST", config.Config("DB_HOST", "")), // Fallback ke master jika tidak ada replica
+		config.Config("DB_REPLICA_USER", config.Config("DB_USER", "")),
+		config.Config("DB_REPLICA_PASSWORD", config.Config("DB_PASSWORD", "")),
+		config.Config("DB_REPLICA_NAME", config.Config("DB_NAME", "")),
+		config.Config("DB_REPLICA_PORT", config.Config("DB_PORT", "5432")))
+
+	// Connect to Replica Database
+	ReadDB, err = gorm.Open(postgres.Open(replicaDSN), &gorm.Config{})
+	if err != nil {
+		log.Printf("Failed to connect to replica database, using master for reads: %v", err)
+		ReadDB = DB // Fallback ke master database jika replica tidak tersedia
 	}
 
 	// dsnUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
@@ -49,15 +65,21 @@ func ConnectDB() *gorm.DB {
 	// 	log.Fatalf("Failed to run migrations: %v", err)
 	// }
 
-	// Get the underlying sql.DB object to configure connection pool
-	sqlDB, err := DB.DB()
+	// Configure connection pool for Master Database
+	masterSqlDB, err := DB.DB()
 	if err != nil {
-		log.Fatalf("Failed to get database object: %v", err)
+		log.Fatalf("Failed to get master database object: %v", err)
 	}
+	masterSqlDB.SetMaxOpenConns(20)
+	masterSqlDB.SetMaxIdleConns(6)
 
-	sqlDB.SetMaxOpenConns(20)
-
-	sqlDB.SetMaxIdleConns(6)
+	// Configure connection pool for Replica Database
+	replicaSqlDB, err := ReadDB.DB()
+	if err != nil {
+		log.Fatalf("Failed to get replica database object: %v", err)
+	}
+	replicaSqlDB.SetMaxOpenConns(30) // Lebih banyak koneksi untuk read operations
+	replicaSqlDB.SetMaxIdleConns(10)
 
 	err = DB.AutoMigrate(&model.User{}, &model.Client{}, &model.ClientApp{}, &model.Transactions{}, &model.PaymentMethodClient{}, &model.PaymentMethod{}, &model.SettlementClient{}, &model.BlockedMDN{}, &model.BlockedUserId{}, &model.ChannelRouteWeight{})
 	if err != nil {
