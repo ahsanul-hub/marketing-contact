@@ -1711,11 +1711,24 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 		fmt.Println("Error fetching client:", err)
 	}
 
-	// Perbaiki: repository.GetTransactionsByDateRange membutuhkan []string, bukan string
-	clientNames := []string{arrClient.ClientName}
-	appNames := []string{arrClient.AppName}
+	var targetAppID string
+	for _, clientApp := range arrClient.ClientApps {
+		if clientApp.AppKey == appKey && clientApp.AppID == appID {
+			targetAppID = clientApp.AppID
+			break
+		}
+	}
 
-	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, paymentMethod, clientNames, appNames)
+	if targetAppID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "ClientApp not found for given appkey and appid",
+		})
+	}
+
+	clientNames := []string{arrClient.ClientName}
+	appIDs := []string{targetAppID}
+
+	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, paymentMethod, clientNames, appIDs)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

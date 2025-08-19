@@ -81,7 +81,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	merchant := api.Group("/merchant")
 	merchant.Get("/transactions", handler.GetTransactionsMerchant)
 	merchant.Get("/transaction/:id", handler.GetTransactionMerchantByID)
-	merchant.Get("/detail", middleware.Protected(), middleware.AdminOnly(false), handler.GetMerchantByAppID)
+	merchant.Get("/detail", middleware.Protected(), handler.GetMerchantByAppID)
 
 	user := api.Group("/user")
 	user.Post("/login", handler.Login)
