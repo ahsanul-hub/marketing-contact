@@ -191,7 +191,7 @@ func GetAllTransactions(
 	var transactions []model.Transactions
 	var totalItems int64
 
-	baseQuery := database.DB.Model(&model.Transactions{})
+	baseQuery := database.GetReadDB().Model(&model.Transactions{})
 
 	if transactionId != "" {
 		baseQuery = baseQuery.Where("id = ?", transactionId)
@@ -249,7 +249,7 @@ func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endD
 	defer span.End()
 
 	var transactions []model.Transactions
-	query := database.DB
+	query := database.GetReadDB()
 
 	if status != 0 {
 		query = query.Where("status_code = ?", status)
@@ -283,7 +283,7 @@ func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endD
 
 func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom int, merchantTransactionId, clientName, userMDN, userId, appName string, paymentMethods []string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
 	var transactions []model.Transactions
-	query := database.DB
+	query := database.GetReadDB()
 	var totalItems int64
 
 	if merchantTransactionId != "" {
