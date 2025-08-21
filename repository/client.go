@@ -532,6 +532,11 @@ func DeleteMerchant(clientID string) error {
 		return err
 	}
 
+	if err := db.Where("client_id = ?", existingClient.UID).Delete(&model.ChannelRouteWeight{}).Error; err != nil {
+		log.Printf("Failed to delete app for client %s: %s", existingClient.UID, err)
+		return err
+	}
+
 	if err := db.Delete(&existingClient).Error; err != nil {
 		return fmt.Errorf("unable to delete client: %w", err)
 	}
@@ -616,15 +621,18 @@ func ConvertSelectedPaymentMethods(clientID string, selectedMethods []model.Sele
 		}
 
 		// Extract route names and validate + create route weights
-		var routeNames []string
 		totalWeight := 0
+		firstRoute := ""
 
 		for _, routeWeight := range selected.SelectedRoutes {
 			if !availableRoutes[routeWeight.Route] {
 				return nil, nil, nil, fmt.Errorf("route %s is not available for payment method %s", routeWeight.Route, selected.PaymentMethodSlug)
 			}
 
-			routeNames = append(routeNames, routeWeight.Route)
+			// Take only the first route for PaymentMethodClient
+			if firstRoute == "" {
+				firstRoute = routeWeight.Route
+			}
 
 			// Auto-generate ChannelRouteWeight
 			channelWeight := model.ChannelRouteWeight{
@@ -642,10 +650,14 @@ func ConvertSelectedPaymentMethods(clientID string, selectedMethods []model.Sele
 			return nil, nil, nil, fmt.Errorf("total weight for payment method %s must equal 100, got %d", selected.PaymentMethodSlug, totalWeight)
 		}
 
-		// Convert selected route names to JSON for PaymentMethodClient
-		routeJSON, err := json.Marshal(routeNames)
+		// Create route object with empty array for the first route only
+		routeObject := map[string][]string{
+			firstRoute: {},
+		}
+
+		routeJSON, err := json.Marshal(routeObject)
 		if err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to marshal routes for payment method %s: %w", selected.PaymentMethodSlug, err)
+			return nil, nil, nil, fmt.Errorf("failed to marshal route for payment method %s: %w", selected.PaymentMethodSlug, err)
 		}
 
 		paymentMethodClient := model.PaymentMethodClient{
