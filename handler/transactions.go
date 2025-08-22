@@ -246,7 +246,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 	MTIDCache.Set(mtDupKey, true, cache.DefaultExpiration)
 
 	switch selectedRoute {
-	case "xl_airtime":
+	case "xl_airtime", "xl_twt":
 
 		validAmounts, exists := routes["xl_twt"]
 		if !exists {
@@ -283,7 +283,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode": "0000",
 			"message": "Successful Created Transaction",
 		})
-	case "indosat_airtime":
+	case "indosat_airtime", "indosat_triyakom":
 		validAmounts, exists := routes["indosat_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -324,7 +324,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode": "0000",
 			"message": "Successful Created Transaction",
 		})
-	case "three_airtime":
+	case "three_airtime", "three_triyakom":
 		validAmounts, exists := routes["three_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -366,7 +366,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"message": "Successful Created Transaction",
 		})
 
-	case "telkomsel_airtime":
+	case "telkomsel_airtime", "telkomsel_airtime_sms":
 
 		beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
 		_, keyword, otp, err := lib.RequestMoTsel(beautifyMsisdn, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
@@ -394,7 +394,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"message":      "Successful Created Transaction",
 		})
 
-	case "smartfren_airtime":
+	case "smartfren_airtime", "smartfren_triyakom":
 		validAmounts, exists := routes["smartfren_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -441,7 +441,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"message": "Successful Created Transaction",
 		})
 
-	case "shopeepay":
+	case "shopeepay", "shopeepay_midtrans":
 
 		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
@@ -465,7 +465,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"message":  "Successful Created Transaction",
 		})
 
-	case "gopay":
+	case "gopay", "gopay_midtrans":
 		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request gopay failed:", err)
@@ -490,7 +490,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"message":  "Successful Created Transaction",
 		})
 
-	case "qris":
+	case "qris", "qris_midtrans":
 		res, err := lib.RequestChargingQris(createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request qris failed:", err)
@@ -1030,7 +1030,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	transactionAmountStr := fmt.Sprintf("%d", transaction.Amount)
 
 	switch paymentMethod {
-	case "xl_airtime":
+	case "xl_airtime", "xl_twt":
 		validAmounts, exists := routes["xl_twt"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -1067,7 +1067,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"retcode": "0000",
 			"message": "Successful Created Transaction",
 		})
-	case "indosat_airtime":
+	case "indosat_airtime", "indosat_triyakom":
 		validAmounts, exists := routes["indosat_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -1109,7 +1109,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"message": "Successful Created Transaction",
 		})
 
-	case "three_airtime":
+	case "three_airtime", "three_triyakom":
 		validAmounts, exists := routes["three_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -1151,7 +1151,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"message": "Successful Created Transaction",
 		})
 
-	case "smartfren_airtime":
+	case "smartfren_airtime", "smartfren_triyakom":
 		validAmounts, exists := routes["smartfren_triyakom"]
 		if !exists {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
@@ -1193,7 +1193,7 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 			"reff_id": ximpayId,
 			"message": "Successful Created Transaction",
 		})
-	case "telkomsel_airtime":
+	case "telkomsel_airtime", "telkomsel_airtime_sms":
 		beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
 		_, keyword, otp, err := lib.RequestMoTsel(beautifyMsisdn, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
 		if err != nil {
@@ -1279,7 +1279,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 	}
 
 	switch paymentMethod {
-	case "shopeepay":
+	case "shopeepay", "shopeepay_midtrans":
 
 		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
@@ -1303,7 +1303,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
-	case "gopay":
+	case "gopay", "gopay_midtrans":
 		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request gopay failed:", err)
@@ -1328,7 +1328,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
-	case "qris":
+	case "qris", "qris_midtrans":
 		res, err := lib.RequestChargingQris(createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request qris failed:", err)

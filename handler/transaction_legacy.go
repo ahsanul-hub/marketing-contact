@@ -260,7 +260,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 	}
 
 	switch paymentMethod {
-	case "xl_airtime":
+	case "xl_airtime", "xl_twt":
 
 		validAmounts, exists := routes["xl_twt"]
 		if !exists {
@@ -325,7 +325,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"timestamp":               time.Now().Unix(),
 			"merchant_transaction_id": transaction.MtTid,
 		})
-	case "indosat_airtime":
+	case "indosat_airtime", "indosat_triyakom":
 		validAmounts, exists := routes["indosat_triyakom"]
 		if !exists {
 			return c.JSON(fiber.Map{
@@ -394,7 +394,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"merchant_transaction_id": transaction.MtTid,
 		})
 
-	case "three_airtime":
+	case "three_airtime", "three_triyakom":
 		validAmounts, exists := routes["three_triyakom"]
 		if !exists {
 			return c.JSON(fiber.Map{
@@ -462,7 +462,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"merchant_transaction_id": transaction.MtTid,
 		})
 
-	case "telkomsel_airtime":
+	case "telkomsel_airtime", "telkomsel_airtime_sms":
 
 		beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
 		_, keyword, otp, err := lib.RequestMoTsel(beautifyMsisdn, transaction.MtTid, transaction.ItemName, createdTransId, transactionAmountStr)
@@ -505,7 +505,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"merchant_transaction_id": transaction.MtTid,
 		})
 
-	case "smartfren_airtime":
+	case "smartfren_airtime", "smartfren_triyakom":
 		validAmounts, exists := routes["smartfren_triyakom"]
 		if !exists {
 			return c.JSON(fiber.Map{
@@ -573,7 +573,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"merchant_transaction_id": transaction.MtTid,
 		})
 
-	case "shopeepay":
+	case "shopeepay", "shopeepay_midtrans":
 
 		res, err := lib.RequestChargingShopeePay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
@@ -616,7 +616,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"merchant_transaction_id": transaction.MtTid,
 		})
 
-	case "gopay":
+	case "gopay", "gopay_midtrans":
 		res, err := lib.RequestChargingGopay(createdTransId, chargingPrice, transaction.RedirectURL)
 		if err != nil {
 			log.Println("Charging request gopay failed:", err)
@@ -658,7 +658,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			"merchant_transaction_id": transaction.MtTid,
 		})
 
-	case "qris":
+	case "qris", "qris_midtrans":
 		res, err := lib.RequestChargingQris(createdTransId, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request qris failed:", err)

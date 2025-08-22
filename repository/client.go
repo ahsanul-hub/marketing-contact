@@ -624,30 +624,38 @@ func ConvertSelectedPaymentMethods(clientID string, selectedMethods []model.Sele
 		totalWeight := 0
 		firstRoute := ""
 
-		for _, routeWeight := range selected.SelectedRoutes {
-			if !availableRoutes[routeWeight.Route] {
-				return nil, nil, nil, fmt.Errorf("route %s is not available for payment method %s", routeWeight.Route, selected.PaymentMethodSlug)
+		// Only create ChannelRouteWeight if there are multiple routes
+		if len(selected.SelectedRoutes) > 1 {
+			for _, routeWeight := range selected.SelectedRoutes {
+				if !availableRoutes[routeWeight.Route] {
+					return nil, nil, nil, fmt.Errorf("route %s is not available for payment method %s", routeWeight.Route, selected.PaymentMethodSlug)
+				}
+
+				// Take only the first route for PaymentMethodClient
+				if firstRoute == "" {
+					firstRoute = routeWeight.Route
+				}
+
+				channelWeight := model.ChannelRouteWeight{
+					ClientID:      clientID,
+					PaymentMethod: selected.PaymentMethodSlug,
+					Route:         routeWeight.Route,
+					Weight:        routeWeight.Weight,
+				}
+				channelRouteWeights = append(channelRouteWeights, channelWeight)
+				totalWeight += routeWeight.Weight
 			}
 
-			// Take only the first route for PaymentMethodClient
-			if firstRoute == "" {
-				firstRoute = routeWeight.Route
+			// Validate total weight (should be 100 for percentage-based systems)
+			if totalWeight != 100 {
+				return nil, nil, nil, fmt.Errorf("total weight for payment method %s must equal 100, got %d", selected.PaymentMethodSlug, totalWeight)
 			}
-
-			// Auto-generate ChannelRouteWeight
-			channelWeight := model.ChannelRouteWeight{
-				ClientID:      clientID,
-				PaymentMethod: selected.PaymentMethodSlug,
-				Route:         routeWeight.Route,
-				Weight:        routeWeight.Weight,
+		} else {
+			// Single route - no weight validation needed
+			if !availableRoutes[selected.SelectedRoutes[0].Route] {
+				return nil, nil, nil, fmt.Errorf("route %s is not available for payment method %s", selected.SelectedRoutes[0].Route, selected.PaymentMethodSlug)
 			}
-			channelRouteWeights = append(channelRouteWeights, channelWeight)
-			totalWeight += routeWeight.Weight
-		}
-
-		// Validate total weight (should be 100 for percentage-based systems)
-		if totalWeight != 100 {
-			return nil, nil, nil, fmt.Errorf("total weight for payment method %s must equal 100, got %d", selected.PaymentMethodSlug, totalWeight)
+			firstRoute = selected.SelectedRoutes[0].Route
 		}
 
 		// Create route object with empty array for the first route only
