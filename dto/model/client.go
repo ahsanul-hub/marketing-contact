@@ -141,3 +141,11 @@ type InputClientRequestV2 struct {
 	ClientApp              []ClientApp             `json:"client_app"`
 	// ChannelRouteWeight     []ChannelRouteWeight    `json:"route_weights"`
 }
+
+// ClientAppUpdate untuk update client app oleh client sendiri
+type ClientAppUpdate struct {
+	AppID        string  `json:"app_id"`
+	CallbackURL  *string `json:"callback_url,omitempty"`
+	FailCallback *string `json:"fail_callback,omitempty"`
+	Mobile       *string `json:"mobile,omitempty"`
+}
