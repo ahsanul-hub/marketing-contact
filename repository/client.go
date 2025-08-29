@@ -1148,3 +1148,91 @@ func ValidatePaymentMethodSettlementConsistency(paymentMethods []model.PaymentMe
 
 	return nil
 }
+
+// ClearClientCache menghapus cache untuk client tertentu
+func ClearClientCache(cacheKey string) {
+	merchantCache.Delete(cacheKey)
+}
+
+// UpdateClientProfile mengupdate data client (email dan address)
+func UpdateClientProfile(ctx context.Context, clientUID string, updateData map[string]interface{}) error {
+	if len(updateData) == 0 {
+		return nil
+	}
+
+	if err := database.DB.Model(&model.Client{}).Where("uid = ?", clientUID).Updates(updateData).Error; err != nil {
+		return fmt.Errorf("failed to update client data: %w", err)
+	}
+
+	return nil
+}
+
+// GetClientAppByID mengambil client app berdasarkan client_id dan app_id
+func GetClientAppByID(ctx context.Context, clientUID, appID string) (*model.ClientApp, error) {
+	var clientApp model.ClientApp
+	if err := database.DB.Where("client_id = ? AND app_id = ?", clientUID, appID).First(&clientApp).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("client app with AppID %s not found", appID)
+		}
+		return nil, fmt.Errorf("failed to get client app: %w", err)
+	}
+
+	return &clientApp, nil
+}
+
+// UpdateClientApp mengupdate data client app
+func UpdateClientApp(ctx context.Context, clientApp *model.ClientApp) error {
+	if err := database.DB.Save(clientApp).Error; err != nil {
+		return fmt.Errorf("failed to update client app: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateClientAppFields mengupdate field tertentu dari client app
+func UpdateClientAppFields(ctx context.Context, clientUID, appID string, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return nil
+	}
+
+	if err := database.DB.Model(&model.ClientApp{}).Where("client_id = ? AND app_id = ?", clientUID, appID).Updates(updates).Error; err != nil {
+		return fmt.Errorf("failed to update client app fields: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateClientApps mengupdate multiple client apps
+func UpdateClientApps(ctx context.Context, clientUID string, appUpdates []model.ClientAppUpdate) error {
+	for _, appUpdate := range appUpdates {
+		if appUpdate.AppID == "" {
+			return fmt.Errorf("AppID is required for each client app update")
+		}
+
+		// Validasi bahwa app yang diupdate adalah milik client ini
+		clientApp, err := GetClientAppByID(ctx, clientUID, appUpdate.AppID)
+		if err != nil {
+			return err
+		}
+
+		// Update fields yang disediakan
+		if appUpdate.CallbackURL != nil {
+			clientApp.CallbackURL = *appUpdate.CallbackURL
+		}
+
+		if appUpdate.FailCallback != nil {
+			clientApp.FailCallback = *appUpdate.FailCallback
+		}
+
+		if appUpdate.Mobile != nil {
+			clientApp.Mobile = *appUpdate.Mobile
+		}
+
+		// Simpan perubahan
+		if err := UpdateClientApp(ctx, clientApp); err != nil {
+			return fmt.Errorf("failed to update client app %s: %w", appUpdate.AppID, err)
+		}
+	}
+
+	return nil
+}

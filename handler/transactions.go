@@ -2252,6 +2252,252 @@ func ManualCallback(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"success": true, "message": "Callback sent successfully"})
 }
 
+func ManualCallbackClient(c *fiber.Ctx) error {
+	span, spanCtx := apm.StartSpan(c.Context(), "ManualCallbackClient", "handler")
+	defer span.End()
+
+	// Ambil header appkey dan appid
+	appKey := c.Get("appkey")
+	appID := c.Get("appid")
+
+	// Validasi header yang diperlukan
+	if appKey == "" || appID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Missing required headers: appkey and appid",
+		})
+	}
+
+	// Ambil transaction ID dari parameter
+	transactionID := c.Params("id")
+	if transactionID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Missing transaction ID",
+		})
+	}
+
+	transaction, err := repository.GetTransactionByID(spanCtx, transactionID)
+	if err != nil {
+		log.Printf("Error getting transaction %s: %v", transactionID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to get transaction: " + err.Error(),
+		})
+	}
+
+	if transaction == nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Transaction not found",
+		})
+	}
+
+	// Ambil client data berdasarkan header appkey dan appid
+	arrClient, err := repository.FindClient(spanCtx, appKey, appID)
+	if err != nil {
+		log.Printf("Error finding client for transaction %s: %v", transactionID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to get client data: " + err.Error(),
+		})
+	}
+
+	if arrClient == nil {
+		log.Printf("Client not found for appkey=%s, appid=%s", appKey, appID)
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Client not found",
+		})
+	}
+
+	// Verifikasi bahwa client yang ditemukan adalah client yang sama dengan yang memiliki transaction
+	// Kita perlu mencari client yang memiliki transaction ini
+	clientTransaction, err := repository.FindClient(spanCtx, transaction.ClientAppKey, transaction.AppID)
+	if err != nil {
+		log.Printf("Error finding transaction client for transaction %s: %v", transactionID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to get transaction client data: " + err.Error(),
+		})
+	}
+
+	if clientTransaction == nil {
+		log.Printf("Transaction client not found for ClientAppKey=%s, AppID=%s", transaction.ClientAppKey, transaction.AppID)
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Transaction client not found",
+		})
+	}
+
+	// Verifikasi bahwa kedua client adalah client yang sama (berdasarkan UID)
+	if arrClient.UID != clientTransaction.UID {
+		log.Printf("Client mismatch for transaction %s. Header client UID: %s, Transaction client UID: %s",
+			transactionID, arrClient.UID, clientTransaction.UID)
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"message": "Access denied: client mismatch",
+		})
+	}
+
+	// Cari callback URL dari ClientApps berdasarkan appID dari header
+	var callbackURL string
+	for _, app := range arrClient.ClientApps {
+		if app.AppID == transaction.AppID {
+			callbackURL = app.CallbackURL
+			break
+		}
+	}
+
+	if callbackURL == "" {
+		log.Printf("No matching ClientApp found for AppID: %s", appID)
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Callback URL not found for this app",
+		})
+	}
+
+	// Gunakan NotificationUrl jika ada
+	if transaction.NotificationUrl != "" {
+		callbackURL = transaction.NotificationUrl
+	}
+
+	if transaction.StatusCode != 1000 && transaction.StatusCode != 1003 {
+		return response.Response(c, fiber.StatusBadRequest, "Transaction not success")
+	}
+
+	// Siapkan data callback berdasarkan status transaksi
+	var callbackPayload interface{}
+	var paymentMethod string
+
+	paymentMethod = transaction.PaymentMethod
+	if arrClient.ClientName == "HIGO GAME PTE LTD" && transaction.PaymentMethod == "qris" {
+		paymentMethod = "qr"
+	}
+
+	var amount interface{}
+	if arrClient.ClientName == "WEIDIAN TECHNOLOGY CO" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
+		amount = transaction.Amount
+	} else {
+		amount = fmt.Sprintf("%d", transaction.Amount)
+	}
+
+	// Tentukan status dan status code berdasarkan status_code transaksi
+	var status string
+	var statusCode int
+
+	switch transaction.StatusCode {
+	case 1000, 1003:
+		status = "success"
+		statusCode = 1000
+	case 1001:
+		status = "pending"
+		statusCode = 1001
+	case 1005:
+		status = "failed"
+		statusCode = 1005
+	default:
+		status = "unknown"
+		statusCode = transaction.StatusCode
+	}
+
+	// Buat payload callback berdasarkan tipe client
+	if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" ||
+		arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" ||
+		arrClient.ClientName == "TutuReels" || arrClient.ClientSecret == "UPF6qN7b2nP5geg" ||
+		arrClient.ClientName == "Redigame2" || arrClient.ClientSecret == "gjq7ygxhztmlkgg" {
+
+		if status == "failed" {
+			callbackPayload = model.FailedCallbackDataLegacy{
+				AppID:                  transaction.AppID,
+				ClientAppKey:           transaction.ClientAppKey,
+				UserID:                 transaction.UserId,
+				UserIP:                 transaction.UserIP,
+				UserMDN:                transaction.UserMDN,
+				MerchantTransactionID:  transaction.MtTid,
+				TransactionDescription: "",
+				PaymentMethod:          paymentMethod,
+				Currency:               transaction.Currency,
+				Amount:                 transaction.Amount,
+				StatusCode:             fmt.Sprintf("%d", statusCode),
+				Status:                 status,
+				ItemID:                 transaction.ItemId,
+				ItemName:               transaction.ItemName,
+				UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
+				ReferenceID:            transaction.CallbackReferenceId,
+				Testing:                "0",
+				Custom:                 "",
+				FailReason:             status,
+			}
+		} else {
+			callbackPayload = model.CallbackDataLegacy{
+				AppID:                  transaction.AppID,
+				ClientAppKey:           transaction.ClientAppKey,
+				UserID:                 transaction.UserId,
+				UserIP:                 transaction.UserIP,
+				UserMDN:                transaction.UserMDN,
+				MerchantTransactionID:  transaction.MtTid,
+				TransactionDescription: "",
+				PaymentMethod:          paymentMethod,
+				Currency:               transaction.Currency,
+				Amount:                 transaction.Amount,
+				ChargingAmount:         fmt.Sprintf("%d", transaction.Price),
+				StatusCode:             fmt.Sprintf("%d", statusCode),
+				Status:                 status,
+				ItemID:                 transaction.ItemId,
+				ItemName:               transaction.ItemName,
+				UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
+				ReferenceID:            transaction.CallbackReferenceId,
+				Testing:                "0",
+				Custom:                 "",
+			}
+		}
+	} else {
+		payload := repository.CallbackData{
+			UserID:                transaction.UserId,
+			MerchantTransactionID: transaction.MtTid,
+			StatusCode:            statusCode,
+			PaymentMethod:         paymentMethod,
+			Amount:                amount,
+			Status:                status,
+			Currency:              transaction.Currency,
+			ItemName:              transaction.ItemName,
+			ItemID:                transaction.ItemId,
+			ReferenceID:           transaction.ID,
+		}
+
+		if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+			payload.AppID = transaction.AppID
+			payload.ClientAppKey = transaction.ClientAppKey
+		}
+
+		callbackPayload = payload
+	}
+
+	// Kirim callback
+	err = repository.SendCallback(callbackURL, arrClient.ClientSecret, transaction.ID, callbackPayload)
+	if err != nil {
+		log.Printf("Failed to send manual callback for transaction %s: %v", transactionID, err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to send callback: " + err.Error(),
+		})
+	}
+
+	log.Println("manual callback client sent by clientname: ", arrClient.ClientName, "for transaction id: ", transaction.ID)
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Manual callback sent successfully",
+		"data": fiber.Map{
+			"transaction_id": transaction.ID,
+			"callback_url":   callbackURL,
+			"status":         status,
+			"status_code":    statusCode,
+		},
+	})
+}
+
 func CheckTrans(c *fiber.Ctx) error {
 	id := c.Params("id")
 

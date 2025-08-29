@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"app/repository"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -121,5 +122,43 @@ func AdminOnly(superAdminOnly bool) fiber.Handler {
 
 		// Merchant cannot access admin endpoints at all
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden: Admin access required."})
+	}
+}
+
+// ClientAuth middleware untuk validasi client berdasarkan token dan header appkey/appid
+func ClientAuth() fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		// Ambil token dari context yang sudah divalidasi oleh middleware Protected
+		token := c.Locals("user")
+		if token == nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"success": false,
+				"message": "Unauthorized access",
+			})
+		}
+
+		// Ambil header appkey dan appid
+		appKey := c.Get("appkey")
+		appID := c.Get("appid")
+
+		if appKey == "" || appID == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "Missing required headers: appkey and appid",
+			})
+		}
+
+		// Validasi bahwa client dengan appkey dan appid ini ada
+		client, err := repository.FindClient(c.Context(), appKey, appID)
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"success": false,
+				"message": "Client not found",
+			})
+		}
+
+		// Simpan client data ke context untuk digunakan di handler
+		c.Locals("client", client)
+		return c.Next()
 	}
 }

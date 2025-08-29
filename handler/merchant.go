@@ -6,6 +6,7 @@ import (
 	"app/pkg/response"
 	"app/repository"
 	"context"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -311,4 +312,111 @@ func AddMerchantV2(c *fiber.Ctx) error {
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, nil)
+}
+
+// UpdateClientProfile mengizinkan client mengupdate data mereka sendiri (email, alamat, callback URL)
+func UpdateClientProfile(c *fiber.Ctx) error {
+	// Ambil token dari context yang sudah divalidasi oleh middleware
+	token := c.Locals("user")
+	if token == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Unauthorized access",
+		})
+	}
+
+	// Ambil header appkey dan appid untuk identifikasi client
+	appKey := c.Get("appkey")
+	appID := c.Get("appid")
+
+	if appKey == "" || appID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Missing required headers: appkey and appid",
+		})
+	}
+
+	// Parse request body
+	var requestData struct {
+		Email      *string                 `json:"email,omitempty"`
+		Address    *string                 `json:"address,omitempty"`
+		ClientApps []model.ClientAppUpdate `json:"client_apps,omitempty"`
+	}
+
+	if err := c.BodyParser(&requestData); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid request body",
+		})
+	}
+
+	// Validasi bahwa setidaknya ada satu field yang diupdate
+	if requestData.Email == nil && requestData.Address == nil && len(requestData.ClientApps) == 0 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "At least one field must be provided for update",
+		})
+	}
+
+	// Ambil client dari context yang sudah divalidasi oleh middleware ClientAuth
+	clientInterface := c.Locals("client")
+	if clientInterface == nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Unauthorized access",
+		})
+	}
+
+	client, ok := clientInterface.(*model.Client)
+	if !ok {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid client data",
+		})
+	}
+
+	// Update data client
+	updateData := map[string]interface{}{}
+
+	if requestData.Email != nil {
+		updateData["email"] = *requestData.Email
+	}
+
+	if requestData.Address != nil {
+		updateData["address"] = *requestData.Address
+	}
+
+	// Update data client jika ada perubahan
+	if err := repository.UpdateClientProfile(context.Background(), client.UID, updateData); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to update client data: " + err.Error(),
+		})
+	}
+
+	// Update callback URL untuk setiap app yang diupdate
+	if len(requestData.ClientApps) > 0 {
+		if err := repository.UpdateClientApps(context.Background(), client.UID, requestData.ClientApps); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Failed to update client apps: " + err.Error(),
+			})
+		}
+	}
+
+	// Refresh cache untuk client yang diupdate
+	cacheKey := fmt.Sprintf("client:%s:%s", appKey, appID)
+	repository.ClearClientCache(cacheKey)
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Client profile updated successfully",
+		"data": fiber.Map{
+			"client_id":   client.ClientID,
+			"client_name": client.ClientName,
+			"email":       client.Email,
+			"address":     client.Address,
+			"client_apps": client.ClientApps,
+		},
+	})
 }

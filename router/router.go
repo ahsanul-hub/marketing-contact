@@ -31,6 +31,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/export/transactions-merchant", handler.ExportTransactionsMerchant)
 	api.Get("/transaction/:id", middleware.Protected(), middleware.AdminOnly(false), handler.GetTransactionByID)
 	api.Post("/manual-callback/:id", middleware.Protected(), middleware.AdminOnly(false), handler.ManualCallback)
+	api.Post("/merchant/manual-callback/:id", handler.ManualCallbackClient)
 	// api.Get("/mark-paid/:id", handler.MakePaid)
 	// api.Get("/mark-failed/:id", handler.MakeFailed)
 	api.Get("/check/:id", handler.CheckTrans)
@@ -56,6 +57,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 
 	api.Get("/summary/transaction", middleware.Protected(), handler.GetTransactionSummary)
 	api.Get("/report/merchant", middleware.Protected(), middleware.AdminOnly(false), handler.GetReport)
+	//api.Get("/report/merchant/margin", middleware.Protected(), middleware.AdminOnly(false), handler.GetReportMargin)
 	api.Get("/test-email", middleware.Protected(), middleware.AdminOnly(true), handler.TestEmailService)
 	api.Get("/test-sftp", middleware.Protected(), middleware.AdminOnly(true), handler.TestSFTPConnection)
 
@@ -82,6 +84,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	merchant.Get("/transactions", handler.GetTransactionsMerchant)
 	merchant.Get("/transaction/:id", handler.GetTransactionMerchantByID)
 	merchant.Get("/detail", middleware.Protected(), handler.GetMerchantByAppID)
+	merchant.Put("/profile", middleware.Protected(), middleware.ClientAuth(), handler.UpdateClientProfile)
 
 	user := api.Group("/user")
 	user.Post("/login", handler.Login)
