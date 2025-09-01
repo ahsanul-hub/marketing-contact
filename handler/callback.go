@@ -266,29 +266,31 @@ func MoTelkomsel(c *fiber.Ctx) error {
 
 	receiveCallbackDate := &now
 
+	// log.Println("Mt request status for id ", transaction.ID, "is", res.Status)
+
 	switch res.Status {
 	case "1":
 		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &trxId, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 		}
 	case "3:3:21":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Not enough credit"); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1005, &trxId, nil, "Not enough credit", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
 		}
 	case "5:997":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Invalid trx_id"); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1005, &trxId, nil, "Invalid trx_id", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
 		}
 	case "3:101":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Charging timeout"); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1005, &trxId, nil, "Charging timeout", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
 		}
 	case "2":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Authentication Failed"); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1005, &trxId, nil, "Authentication Failed", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
 		}
 	case "4:4:2":
-		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "The provided “tid” by CP is not allowed"); err != nil {
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1005, &trxId, nil, "The provided “tid” by CP is not allowed", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
 		}
 	}
