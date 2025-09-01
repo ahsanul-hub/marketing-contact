@@ -267,6 +267,10 @@ func MoTelkomsel(c *fiber.Ctx) error {
 	receiveCallbackDate := &now
 
 	switch res.Status {
+	case "1":
+		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &trxId, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
+		}
 	case "3:3:21":
 		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "Not enough credit"); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
@@ -287,10 +291,6 @@ func MoTelkomsel(c *fiber.Ctx) error {
 		if err := repository.UpdateTransactionStatusExpired(context.Background(), transaction.ID, 1005, "", "The provided “tid” by CP is not allowed"); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", transaction.ID, err)
 		}
-	}
-
-	if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &trxId, nil, "", receiveCallbackDate); err != nil {
-		log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
 	}
 
 	return c.JSON(fiber.Map{

@@ -15,8 +15,9 @@ import (
 )
 
 type MOResponseTsel struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	Status     string `json:"status"`
+	StatusCode int    `json:"status_code"`
+	Message    string `json:"message"`
 }
 
 func generateXSignature(apiKey, secret string) string {
@@ -185,13 +186,14 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 
 	resBody := string(body)
 
-	if resBody != "1" && resp.StatusCode != 202 {
-		return MOResponseTsel{}, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)
-	}
+	// if resBody != "1" && resp.StatusCode != 202 {
+	// 	return MOResponseTsel{}, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)
+	// }
 
 	response = MOResponseTsel{
-		Status:  resBody,
-		Message: "success",
+		Status:     resBody,
+		StatusCode: resp.StatusCode,
+		Message:    "success",
 	}
 
 	return response, nil
