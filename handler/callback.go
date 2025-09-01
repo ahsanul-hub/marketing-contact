@@ -159,7 +159,7 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 
 	// ximpaytoken := c.Query("ximpaytoken")
 	failcode := c.Query("failcode")
-	transactionId := cbParam[1:]
+	transactionId := cbParam[2:]
 
 	// log.Println("cbParam", cbParam)
 	// log.Println("ximpayStatus", ximpayStatus)
