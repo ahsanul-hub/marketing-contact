@@ -697,7 +697,7 @@ func ProcessUpdateTransactionPending() {
 			}
 
 			createdAt := transaction.CreatedAt
-			timeLimit := time.Now().Add(-15 * time.Minute)
+			timeLimit := time.Now().Add(-20 * time.Minute)
 
 			expired := createdAt.Before(timeLimit)
 
