@@ -20,7 +20,7 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 	arrayOptions := config.Options["production"].(map[string]interface{})
 
 	partnerID := arrayOptions["partnerid"].(string)
-	cbParam := fmt.Sprintf("r%s", transactionId)
+	cbParam := fmt.Sprintf("ri%s", transactionId)
 
 	loc, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {

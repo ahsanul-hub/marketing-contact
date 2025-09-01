@@ -21,7 +21,7 @@ func RequestChargingTriTriyakom(msisdn, itemName, transactionId, amount string) 
 	keyword := config.Denom[amount]
 
 	partnerID := arrayOptions["partnerid"].(string)
-	cbParam := fmt.Sprintf("r%s", transactionId)
+	cbParam := fmt.Sprintf("rt%s", transactionId)
 	itemId := keyword["keyword"]
 
 	loc, err := time.LoadLocation("Asia/Jakarta")

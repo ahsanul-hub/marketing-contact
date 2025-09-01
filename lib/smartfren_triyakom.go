@@ -52,7 +52,7 @@ func RequestChargingSfTriyakom(msisdn, itemName, transactionId string, amount ui
 	arrayOptions := config.Options["production"].(map[string]interface{})
 
 	partnerID := arrayOptions["partnerid"].(string)
-	cbParam := fmt.Sprintf("r%s", transactionId)
+	cbParam := fmt.Sprintf("rs%s", transactionId)
 	loc, err := time.LoadLocation("Asia/Jakarta")
 	if err != nil {
 		return "", fmt.Errorf("failed to load timezone: %v", err)
