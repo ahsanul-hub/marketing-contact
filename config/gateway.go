@@ -155,7 +155,7 @@ func GetGatewayConfig(gatewayName string) (GatewayConfig, error) {
 			DirView: "telkomsel",
 			Driver:  "Telkomsel",
 			Denom: map[string]map[string]string{
-				"350": {"keyword": "REDS350", "sid": "GAMGENRRGREDS350_IOD", "denom": "350", "price": "555", "tid": "141"},
+				"500": {"keyword": "REDS350", "sid": "GAMGENRRGREDS350_IOD", "denom": "350", "price": "555", "tid": "141"},
 				// "1100":   {"keyword": "REDS770", "sid": "GAMGENRRGREDS770_IOD", "denom": "770", "price": "1221", "tid": ""},
 				// "1300":   {"keyword": "REDS910", "sid": "GAMGENRRGREDS910_IOD", "denom": "910", "price": "1443", "tid": ""},
 				// "1500":   {"keyword": "REDS1050", "sid": "GAMGENRRGREDS1050_IOD", "denom": "1050", "price": "1665", "tid": ""},
