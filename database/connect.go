@@ -16,6 +16,7 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var MongoClient *mongo.Client
@@ -52,19 +53,19 @@ func SetupSQLLogfile() io.Writer {
 func ConnectDB() *gorm.DB {
 	var err error
 
-	// if logWriter == nil {
-	// 	logWriter = SetupSQLLogfile()
-	// }
+	if logWriter == nil {
+		logWriter = SetupSQLLogfile()
+	}
 
-	// newLogger := logger.New(
-	// 	log.New(logWriter, "\r\n", log.LstdFlags),
-	// 	logger.Config{
-	// 		SlowThreshold:             1000 * time.Millisecond,
-	// 		LogLevel:                  logger.Warn,
-	// 		IgnoreRecordNotFoundError: true,
-	// 		Colorful:                  false,
-	// 	},
-	// )
+	newLogger := logger.New(
+		log.New(logWriter, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             1000 * time.Millisecond,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
 
 	// Construct the Data Source Name (DSN) for Master PostgreSQL
 	masterDSN := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
@@ -75,7 +76,9 @@ func ConnectDB() *gorm.DB {
 		config.Config("DB_PORT", "5432"))
 
 	// Connect to Master Database
-	DB, err = gorm.Open(postgres.Open(masterDSN), &gorm.Config{})
+	DB, err = gorm.Open(postgres.Open(masterDSN), &gorm.Config{
+		Logger: newLogger,
+	})
 	if err != nil {
 		panic("failed to connect to master database")
 	}
