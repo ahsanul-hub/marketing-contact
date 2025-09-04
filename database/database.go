@@ -1,15 +1,13 @@
 package database
 
 import (
-	"io"
-
 	"gorm.io/gorm"
 )
 
 var (
-	DB        *gorm.DB // Master database untuk write operations
-	ReadDB    *gorm.DB // Replica database untuk read operations
-	logWriter io.Writer
+	DB     *gorm.DB // Master database untuk write operations
+	ReadDB *gorm.DB // Replica database untuk read operations
+	// logWriter io.Writer
 )
 
 // GetWriteDB returns the master database for write operations
