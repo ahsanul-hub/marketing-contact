@@ -470,7 +470,18 @@ func GetTransactionVa(ctx context.Context, vaNumber string) (*model.Transactions
 func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp int) (*model.Transactions, error) {
 	var transaction model.Transactions
 
-	err := database.DB.WithContext(ctx).
+	// 1. Cek Redis dulu
+	cacheKey := fmt.Sprintf("tx:%s:%s:%d", msisdn, keyword, otp)
+	val, err := database.RedisClient.Get(ctx, cacheKey).Result()
+	if err == nil {
+		// Ada di cache → decode JSON
+		if err := json.Unmarshal([]byte(val), &transaction); err == nil {
+			return &transaction, nil
+		}
+	}
+
+	// 2. Kalau tidak ada → query DB
+	err = database.DB.WithContext(ctx).
 		Where("user_mdn = ? AND keyword = ? AND otp = ? AND status_code = ?", msisdn, keyword, otp, 1001).
 		First(&transaction).Error
 
@@ -480,6 +491,10 @@ func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp 
 		}
 		return nil, err
 	}
+
+	// 3. Simpan ke Redis (TTL misalnya 5 menit)
+	data, _ := json.Marshal(transaction)
+	_ = database.RedisClient.Set(ctx, cacheKey, data, 5*time.Minute).Err()
 
 	return &transaction, nil
 }

@@ -2,9 +2,11 @@ package lib
 
 import (
 	"app/config"
+	"app/database"
 	"app/repository"
 	"context"
 	"crypto/md5"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -106,6 +108,26 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	if err != nil {
 		log.Printf("Error updating request timestamp for transaction %s: %s", transactionId, err)
 	}
+
+	// Insert ke Redis
+	ctx := context.Background()
+	cacheKey := fmt.Sprintf("tsel:tx:%s:%s:%d", msisdn, keyword, otp)
+
+	cacheData := map[string]interface{}{
+		"transaction_id": transactionId,
+		"msisdn":         msisdn,
+		"keyword":        keyword,
+		"amount":         denom,
+		"otp":            otp,
+		"created_at":     now.Unix(),
+	}
+	jsonData, _ := json.Marshal(cacheData)
+
+	// TTL 5 menit
+	if err := database.RedisClient.Set(ctx, cacheKey, jsonData, 10*time.Minute).Err(); err != nil {
+		log.Printf("Error saving transaction %s to Redis: %s", transactionId, err)
+	}
+
 	// Decode response body
 	var response MOResponseTsel
 
