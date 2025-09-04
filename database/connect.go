@@ -4,9 +4,11 @@ import (
 	"app/config"
 	"app/dto/model"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/golang-migrate/migrate/v4"
 
@@ -14,12 +16,56 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 )
 
 var MongoClient *mongo.Client
 
+func SetupSQLLogfile() io.Writer {
+	logDir := "../logs/sql"
+	err := os.MkdirAll(logDir, 0755)
+	if err != nil {
+		fmt.Printf("Failed to create log directory: %v\n", err)
+		os.Exit(1)
+	}
+
+	currentTime := time.Now()
+	year, month, _ := currentTime.Date()
+	_, week := currentTime.ISOWeek()
+
+	logFilename := filepath.Join(logDir,
+		fmt.Sprintf("dcb-new-sql-%d-%02d-week%d.log", year, month, week))
+
+	logFile, err := os.OpenFile(logFilename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+	if err != nil {
+		fmt.Printf("Failed to open log file: %v\n", err)
+		os.Exit(1)
+	}
+
+	log.SetOutput(logFile)
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	log.Println("Logging initialized")
+
+	return logFile
+}
+
 func ConnectDB() *gorm.DB {
 	var err error
+
+	if logWriter == nil {
+		logWriter = SetupSQLLogfile()
+	}
+
+	newLogger := logger.New(
+		log.New(logWriter, "\r\n", log.LstdFlags),
+		logger.Config{
+			SlowThreshold:             1000 * time.Millisecond,
+			LogLevel:                  logger.Warn,
+			IgnoreRecordNotFoundError: true,
+			Colorful:                  false,
+		},
+	)
 
 	// Construct the Data Source Name (DSN) for Master PostgreSQL
 	masterDSN := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable",
@@ -30,7 +76,9 @@ func ConnectDB() *gorm.DB {
 		config.Config("DB_PORT", "5432"))
 
 	// Connect to Master Database
-	DB, err = gorm.Open(postgres.Open(masterDSN), &gorm.Config{})
+	DB, err = gorm.Open(postgres.Open(masterDSN), &gorm.Config{
+		Logger: newLogger,
+	})
 	if err != nil {
 		panic("failed to connect to master database")
 	}
