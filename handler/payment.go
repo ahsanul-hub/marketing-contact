@@ -213,7 +213,6 @@ func CreateOrder(c *fiber.Ctx) error {
 	input.BodySign = receivedBodysign
 
 	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
-	MTIDCache.Set(mtDupKey, true, cache.DefaultExpiration)
 
 	data := map[string]interface{}{
 		"token": transactionID,
@@ -434,8 +433,6 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 	if appid == "MHSBZnRBLkDQFlYDMSeXFA" {
 		TransactionCache.Set(input.MtTid, input, cache.DefaultExpiration)
 	}
-
-	MTIDCache.Set(mtDupKey, true, cache.DefaultExpiration)
 
 	data := map[string]interface{}{
 		"token": transactionID,

@@ -53,6 +53,7 @@ func main() {
 	middleware.PrometheusInit()
 
 	db := database.ConnectDB()
+	database.InitRedis()
 	handler.StartBlockedUserIDCacheRefresher()
 
 	env := config.Config("ENV", "development")

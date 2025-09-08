@@ -910,6 +910,16 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		})
 	}
 
+	mtDupKey := fmt.Sprintf("dup:%s:%s", appkey, transaction.MtTid)
+
+	if _, found := MTIDCache.Get(mtDupKey); found {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0023",
+			"message": "Duplicate merchant_transaction_id",
+		})
+	}
+
 	var paymentMethod string
 	switch transaction.PaymentMethod {
 	case "telkomsel_airtime_sms":
@@ -1007,6 +1017,8 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
+
+	MTIDCache.Set(mtDupKey, true, cache.DefaultExpiration)
 
 	paymentMethodMap := make(map[string]model.PaymentMethodClient)
 	for _, pm := range arrClient.PaymentMethods {
@@ -1241,6 +1253,16 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		})
 	}
 
+	mtDupKey := fmt.Sprintf("dup:%s:%s", appkey, transaction.MtTid)
+
+	if _, found := MTIDCache.Get(mtDupKey); found {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0023",
+			"message": "Duplicate merchant_transaction_id",
+		})
+	}
+
 	var isMidtrans bool
 
 	var paymentMethod string
@@ -1277,6 +1299,8 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		log.Println("err", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Internal Server Error", "response": "error create transaction", "data": err})
 	}
+
+	MTIDCache.Set(mtDupKey, true, cache.DefaultExpiration)
 
 	switch paymentMethod {
 	case "shopeepay", "shopeepay_midtrans":

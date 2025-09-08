@@ -124,8 +124,10 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	jsonData, _ := json.Marshal(cacheData)
 
 	// TTL 5 menit
-	if err := database.RedisClient.Set(ctx, cacheKey, jsonData, 10*time.Minute).Err(); err != nil {
-		log.Printf("Error saving transaction %s to Redis: %s", transactionId, err)
+	if database.RedisClient != nil {
+		if err := database.RedisClient.Set(ctx, cacheKey, jsonData, 10*time.Minute).Err(); err != nil {
+			log.Printf("Error saving transaction %s to Redis: %s", transactionId, err)
+		}
 	}
 
 	// Decode response body
