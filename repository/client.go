@@ -658,9 +658,9 @@ func ConvertSelectedPaymentMethods(clientID string, selectedMethods []model.Sele
 			firstRoute = selected.SelectedRoutes[0].Route
 		}
 
-		// Create route object with empty array for the first route only
+		// Create route object with denom array for the first route
 		routeObject := map[string][]string{
-			firstRoute: {},
+			firstRoute: paymentMethod.Denom,
 		}
 
 		routeJSON, err := json.Marshal(routeObject)
