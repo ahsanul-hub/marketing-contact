@@ -267,7 +267,7 @@ func MoTelkomsel(c *fiber.Ctx) error {
 
 	receiveCallbackDate := &now
 
-	// log.Println("Mt request status for id ", transaction.ID, "is", res.Status)
+	log.Println("Mt request status for id ", transaction.ID, "is", res.Status)
 
 	switch res.Status {
 	case "1":
