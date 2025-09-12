@@ -169,3 +169,77 @@ func GetReport(c *fiber.Ctx) error {
 
 	return c.JSON(result)
 }
+
+func GetReportMargin(c *fiber.Ctx) error {
+	ctx := c.Context()
+
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+	clientUID := c.Query("client_uid")
+	appID := c.Query("app_id")
+
+	var startDate, endDate *time.Time
+
+	if startDateStr != "" {
+		parsedStart, err := time.Parse(time.RFC1123, startDateStr)
+		if err == nil {
+			startDate = &parsedStart
+		}
+	}
+
+	if endDateStr != "" {
+		parsedEnd, err := time.Parse(time.RFC1123, endDateStr)
+		if err == nil {
+			endDate = &parsedEnd
+		}
+	}
+
+	// log.Printf("Final parsed dates - startDate: %v, endDate: %v", startDate, endDate)
+	// log.Printf("=== END DATE PARSING DEBUG ===")
+
+	merchantNameStr := c.Query("merchant_name")
+	var merchants []string
+	if merchantNameStr != "" {
+		merchants = strings.Split(merchantNameStr, ",")
+	} else {
+		merchants = []string{}
+	}
+	paymentMethods := c.Query("payment_method")
+
+	summaries, err := repository.GetTransactionReportWithMargin(ctx, startDate, endDate, merchants, appID, clientUID, paymentMethods)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	var (
+		totalMargin        uint64
+		totalShareRedision uint64
+		totalTransaction   uint
+		totalAmount        uint64
+	)
+
+	// Calculate totals
+	for _, summary := range summaries {
+		// log.Printf("Processing summary %d: Count=%d, TotalAmount=%d, TotalAmountTax=%d",
+		// 	i+1, summary.Count, summary.TotalAmount, summary.TotalAmountTax)
+
+		totalMargin += uint64(summary.Margin)
+		totalShareRedision += uint64(summary.ShareRedision)
+		totalTransaction += uint(summary.Count)
+		totalAmount += summary.TotalAmount
+	}
+
+	result := fiber.Map{
+		"summaries":    summaries,
+		"total_amount": totalAmount,
+		// "total_transaction":      totalTransaction,
+		"total_margin": totalMargin,
+		// "total_share_redision":   totalShareRedision,
+		"calculation_formula":    "margin = shareRedision - (shareRedision * fee / 100)",
+		"share_redision_formula": "shareRedision = amount - (amount * shareMerchantPercentage / 100)",
+	}
+
+	return c.JSON(result)
+}

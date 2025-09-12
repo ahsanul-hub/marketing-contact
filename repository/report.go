@@ -6,6 +6,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"math"
+	"strings"
 	"time"
 )
 
@@ -247,4 +249,270 @@ func MapStatusCodeToString(statusCode int) string {
 	default:
 		return fmt.Sprintf("unknown (%d)", statusCode)
 	}
+}
+
+func GetRouteFee(ctx context.Context, clientID, paymentMethod, route string) (float64, error) {
+	// log.Printf("=== GET ROUTE FEE DEBUG ===")
+	// log.Printf("Parameters - clientID: %s, paymentMethod: %s, route: '%s'", clientID, paymentMethod, route)
+
+	// Check if route is empty
+	if route == "" {
+		// log.Printf("Route is empty, trying to get fee from PaymentMethodClient")
+		var paymentMethodClient model.PaymentMethodClient
+		err := database.DB.Where("client_id = ? AND name = ?", clientID, paymentMethod).First(&paymentMethodClient).Error
+		if err != nil {
+			log.Printf("Failed to get PaymentMethodClient: %v", err)
+			return 0, err
+		}
+		return paymentMethodClient.Fee, nil
+	}
+
+	// Try to get from ChannelRouteWeight first
+	var routeWeight model.ChannelRouteWeight
+	err := database.DB.Where("client_id = ? AND payment_method = ? AND route = ?",
+		clientID, paymentMethod, route).First(&routeWeight).Error
+
+	if err != nil {
+		// Jika tidak ada ChannelRouteWeight, coba ambil dari PaymentMethodClient sebagai fallback
+		var paymentMethodClient model.PaymentMethodClient
+		err2 := database.DB.Where("client_id = ? AND name = ?",
+			clientID, paymentMethod).First(&paymentMethodClient).Error
+
+		if err2 != nil {
+			log.Printf("PaymentMethodClient fallback also failed: %v", err2)
+			return 0, err2
+		}
+
+		//log.Printf("Using PaymentMethodClient fallback fee: %.2f", paymentMethodClient.Fee)
+		return paymentMethodClient.Fee, nil
+	}
+
+	return routeWeight.Fee, nil
+}
+
+// GetTransactionReportWithMargin mendapatkan report transaksi dengan perhitungan margin
+func GetTransactionReportWithMargin(ctx context.Context, startDate, endDate *time.Time, merchants []string, appID, clientUID, paymentMethods string) ([]model.TransactionMarginReport, error) {
+	var summaries []model.TransactionMarginReport
+
+	// log.Printf("=== NEW TRANSACTION REPORT WITH MARGIN ===")
+	// log.Printf("Filters - merchants: %v, appID: %s, paymentMethods: %s, clientUID: %s", merchants, appID, paymentMethods, clientUID)
+	// log.Printf("Date parameters - startDate: %v, endDate: %v", startDate, endDate)
+
+	query := database.DB.Model(&model.Transactions{}).
+		Select(`
+			merchant_name,
+			payment_method,
+			route,
+			clients.uid AS client_uid,
+			COUNT(*) as count,
+			SUM(amount) as total_amount,
+			SUM(price) as total_amount_tax
+		`).
+		Joins("JOIN client_apps ON client_apps.app_id = transactions.app_id").
+		Joins("JOIN clients ON clients.uid = client_apps.client_id").
+		Where("status_code = ?", 1000).
+		Group("merchant_name, payment_method, route, clients.uid").
+		Having("COUNT(*) > 0")
+
+	if startDate != nil && endDate != nil {
+		query = query.Where("transactions.created_at BETWEEN ? AND ?", *startDate, *endDate)
+	}
+
+	if len(merchants) > 0 {
+		query = query.Where("merchant_name IN ?", merchants)
+		// log.Printf("Merchant filter: %v", merchants)
+	} else if appID != "" {
+		query = query.Where("app_id = ?", appID)
+		// log.Printf("AppID filter: %s", appID)
+	}
+
+	if paymentMethods != "" {
+		query = query.Where("payment_method = ?", paymentMethods)
+		log.Printf("Payment method filter: %s", paymentMethods)
+	}
+
+	// Debug: Print the SQL query
+	// sql := query.ToSQL(func(tx *gorm.DB) *gorm.DB {
+	// 	return tx.Find(&[]model.Transactions{})
+	// })
+
+	// log.Printf("Generated SQL: %s", sql)
+
+	var totalCount int64
+	database.DB.Model(&model.Transactions{}).Count(&totalCount)
+	// log.Printf("Total transactions in table: %d", totalCount)
+
+	var successCount int64
+	database.DB.Model(&model.Transactions{}).Where("status_code = ?", 1000).Count(&successCount)
+
+	// Execute query
+	if err := query.Scan(&summaries).Error; err != nil {
+		return nil, fmt.Errorf("failed to get transaction summary: %w", err)
+	}
+
+	// log.Printf("Found %d transaction summaries", len(summaries))
+	// for i, summary := range summaries {
+	// 	log.Printf("Summary %d: Merchant=%s, PaymentMethod=%s, Route=%s, Count=%d, TotalAmount=%d, TotalAmountTax=%d",
+	// 		i+1, summary.MerchantName, summary.PaymentMethod, summary.Route, summary.Count, summary.TotalAmount, summary.TotalAmountTax)
+	// }
+
+	configsByClient := make(map[string][]model.SettlementClient)
+	uniqueClients := make(map[string]struct{})
+	for _, s := range summaries {
+		if s.ClientUID != "" {
+			uniqueClients[s.ClientUID] = struct{}{}
+		}
+	}
+	for uid := range uniqueClients {
+		settlementConfigs, err := GetSettlementConfig(uid)
+		if err != nil {
+			// log.Printf("Warning: Failed to get settlement config for client %s: %v", uid, err)
+			continue
+		}
+		configsByClient[uid] = settlementConfigs
+		// log.Printf("Loaded %d settlement configs for client %s", len(settlementConfigs), uid)
+	}
+
+	// Calculate margin for each summary
+	for i := range summaries {
+		// log.Printf("Processing summary %d: %s - %s - %s", i+1, summaries[i].MerchantName, summaries[i].PaymentMethod, summaries[i].Route)
+
+		// Debug: Check what routes exist for this payment method (per client row)
+		var existingRoutes []model.ChannelRouteWeight
+		database.DB.Where("client_id = ? AND payment_method = ?", summaries[i].ClientUID, summaries[i].PaymentMethod).Find(&existingRoutes)
+		// log.Printf("Existing routes for %s: %v", summaries[i].PaymentMethod, existingRoutes)
+
+		// Get fee for this payment method and route
+		fee, err := GetRouteFee(ctx, summaries[i].ClientUID, summaries[i].PaymentMethod, summaries[i].Route)
+		if err != nil {
+			fee = 0
+			log.Printf("Fee not found for %s-%s, using 0", summaries[i].PaymentMethod, summaries[i].Route)
+		}
+
+		// Find settlement config for this specific payment method and client in this row
+		var settlementConfig *model.SettlementClient
+		var shareMerchantPercentage float32
+		clientConfigs := configsByClient[summaries[i].ClientUID]
+		for _, settlement := range clientConfigs {
+			if settlement.Name == summaries[i].PaymentMethod {
+				settlementConfig = &settlement
+				if settlement.SharePartner != nil {
+					shareMerchantPercentage = *settlement.SharePartner
+				}
+				break
+			}
+		}
+
+		if settlementConfig == nil {
+			log.Printf("No settlement config found for client %s and payment method %s, using 0%%", summaries[i].ClientUID, summaries[i].PaymentMethod)
+		}
+
+		// Calculate share redision using new formula: amount - (amount * shareMerchant)
+		shareRedision := calculateShareRedisionNew(summaries[i].TotalAmount, shareMerchantPercentage)
+
+		// Calculate share merchant amount
+		shareMerchantAmountGross := summaries[i].TotalAmount - shareRedision
+
+		// Set ShareRedisionPercentage safely
+		var shareRedisionPercentage float32
+		if settlementConfig != nil && settlementConfig.ShareRedision != nil {
+			shareRedisionPercentage = *settlementConfig.ShareRedision
+		}
+
+		var (
+			additionalFee uint
+			bhpUSO        uint
+			tax23         uint
+			shareSupplier uint
+		)
+		if strings.ToLower(settlementConfig.IsBhpuso) == "1" {
+			bhpUSO = uint(float64(shareMerchantAmountGross) * 0.0175)
+		}
+
+		if settlementConfig.AdditionalFee != nil && *settlementConfig.AdditionalFee == 1 {
+			additionalFee = uint(float64(shareMerchantAmountGross) * 0.05)
+		}
+
+		if settlementConfig.Tax23 != nil && strings.ToLower(*settlementConfig.Tax23) == "1" {
+			tax23 = uint(float64(shareMerchantAmountGross) * 0.02)
+		}
+
+		// Perbaiki tipe data agar tidak terjadi mismatched types (uint64 dan float64)
+		shareSupplier = uint(summaries[i].TotalAmount - uint64(math.Round(float64(summaries[i].TotalAmount)*fee/100)))
+		// shareSupplierInc adalah shareSupplier ditambah 11%
+		shareSupplierInc := shareSupplier + (shareSupplier*11)/100
+
+		// Perhitungan BHP USO supplier dan PPH supplier berdasarkan payment method
+		var bhpUsoSupplier uint
+		var pphSupplier uint
+
+		paymentMethod := strings.ToLower(summaries[i].PaymentMethod)
+
+		// Untuk telkomsel_airtime dan xl_airtime: gunakan BHP USO supplier + PPH supplier
+		if paymentMethod == "telkomsel_airtime" || paymentMethod == "xl_airtime" {
+			// bhpUsoSupplier: 1.75% dari shareSupplier -> (shareSupplier * 175) / 10000
+			bhpUsoSupplier = (shareSupplier * 175) / 10000
+			// pphSupplier: 2% dari shareSupplier -> (shareSupplier * 2) / 100
+			pphSupplier = (shareSupplier * 2) / 100
+		} else if paymentMethod == "smartfren_airtime" || paymentMethod == "indosat_airtime" || paymentMethod == "three_airtime" {
+			// Untuk smartfren_airtime, indosat_airtime, dan three_airtime: hanya BHP USO supplier
+			bhpUsoSupplier = (shareSupplier * 175) / 10000
+			pphSupplier = 0
+		} else {
+			// Untuk payment method lainnya: tidak menggunakan keduanya
+			bhpUsoSupplier = 0
+			pphSupplier = 0
+		}
+
+		shareSupplierNett := shareSupplierInc - bhpUsoSupplier - pphSupplier
+		shareSupplierNettExc := (shareSupplierNett * 100) / 111
+		shareMerchantAmountNett := uint(shareMerchantAmountGross) - bhpUSO - additionalFee - tax23
+
+		// Izinkan margin negatif: simpan sebagai int64
+		margin := int64(shareSupplierNettExc) - int64(shareMerchantAmountNett)
+		summaries[i].Margin = margin
+		summaries[i].ShareSupplier = shareSupplier
+		summaries[i].ShareSupplierInc = shareSupplierInc
+		summaries[i].BhpUsoSupplier = bhpUsoSupplier
+		summaries[i].PphSupplier = pphSupplier
+		summaries[i].ShareSupplierNett = shareSupplierNett
+		summaries[i].ShareRedision = uint(shareRedision)
+		summaries[i].ShareRedisionPercentage = shareRedisionPercentage
+		summaries[i].ShareMerchantPercentage = shareMerchantPercentage
+		summaries[i].ShareMerchant = uint(shareMerchantAmountNett)
+		summaries[i].Fee = fee
+
+	}
+
+	return summaries, nil
+}
+
+// calculateShareRedision menghitung share redision berdasarkan amount dan share percentage
+func calculateShareRedision(amount uint64, shareRedisionPercentage float32) uint64 {
+	if shareRedisionPercentage <= 0 {
+		return amount
+	}
+
+	shareRedision := float64(amount) - (float64(amount) * float64(shareRedisionPercentage) / 100)
+	return uint64(math.Round(shareRedision))
+}
+
+// calculateShareRedisionNew menghitung share redision menggunakan formula baru: amount - (amount * shareMerchant)
+func calculateShareRedisionNew(amount uint64, shareMerchantPercentage float32) uint64 {
+	if shareMerchantPercentage <= 0 {
+		return amount
+	}
+
+	shareRedision := float64(amount) - (float64(amount) * float64(shareMerchantPercentage) / 100)
+	return uint64(math.Round(shareRedision))
+}
+
+// calculateMargin menghitung margin berdasarkan share redision dan fee
+func calculateMargin(shareRedision uint64, fee float64) uint64 {
+	if fee <= 0 {
+		return shareRedision
+	}
+
+	margin := float64(shareRedision) - (float64(shareRedision) * fee / 100)
+	return uint64(math.Round(margin))
 }

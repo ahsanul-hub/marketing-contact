@@ -636,11 +636,16 @@ func ConvertSelectedPaymentMethods(clientID string, selectedMethods []model.Sele
 					firstRoute = routeWeight.Route
 				}
 
+				// Lookup default fee per route
+				var routeFee model.PaymentMethodRouteFee
+				_ = database.DB.Where("payment_method_slug = ? AND route = ?", selected.PaymentMethodSlug, routeWeight.Route).First(&routeFee).Error
+
 				channelWeight := model.ChannelRouteWeight{
 					ClientID:      clientID,
 					PaymentMethod: selected.PaymentMethodSlug,
 					Route:         routeWeight.Route,
 					Weight:        routeWeight.Weight,
+					Fee:           routeFee.Fee,
 				}
 				channelRouteWeights = append(channelRouteWeights, channelWeight)
 				totalWeight += routeWeight.Weight
@@ -656,6 +661,10 @@ func ConvertSelectedPaymentMethods(clientID string, selectedMethods []model.Sele
 				return nil, nil, nil, fmt.Errorf("route %s is not available for payment method %s", selected.SelectedRoutes[0].Route, selected.PaymentMethodSlug)
 			}
 			firstRoute = selected.SelectedRoutes[0].Route
+
+			// Lookup default fee for single route (for downstream usage)
+			var routeFee model.PaymentMethodRouteFee
+			_ = database.DB.Where("payment_method_slug = ? AND route = ?", selected.PaymentMethodSlug, firstRoute).First(&routeFee).Error
 		}
 
 		// Create route object with denom array for the first route

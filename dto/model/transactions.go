@@ -135,9 +135,10 @@ type InputPaymentRequestLegacy struct {
 }
 
 type TransactionReport struct {
-	UserID         string `json:"user_id"`
-	MerchantName   string `json:"merchant_name"`
-	PaymentMethod  string `json:"payment_method"`
+	UserID        string `json:"user_id"`
+	MerchantName  string `json:"merchant_name"`
+	PaymentMethod string `json:"payment_method"`
+	// Route                   string  `json:"route"`
 	Amount         uint   `json:"amount"`
 	AmountTax      uint   `json:"amount_tax"`
 	Count          int64  `json:"count"`
@@ -145,6 +146,29 @@ type TransactionReport struct {
 	TotalAmountTax uint64 `json:"total_amount_tax"`
 	ShareRedision  uint   `json:"share_redision"`
 	ShareMerchant  uint   `json:"share_merchant"`
+	// Margin                  uint    `json:"margin"`
+	// ShareRedisionPercentage float32 `json:"share_redision_percentage"`
+}
+
+type TransactionMarginReport struct {
+	MerchantName            string  `json:"merchant_name"`
+	PaymentMethod           string  `json:"payment_method"`
+	ClientUID               string  `json:"client_uid"`
+	Route                   string  `json:"route"`
+	Fee                     float64 `json:"fee"`
+	Count                   int64   `json:"count"`
+	TotalAmount             uint64  `json:"total_amount"`
+	TotalAmountTax          uint64  `json:"total_amount_tax"`
+	ShareRedision           uint    `json:"share_redision"`
+	ShareMerchant           uint    `json:"share_merchant"`
+	Margin                  int64   `json:"margin"`
+	ShareSupplier           uint    `json:"share_supplier"`
+	ShareSupplierInc        uint    `json:"share_supplier_inc"`
+	BhpUsoSupplier          uint    `json:"bhp_uso_supplier"`
+	PphSupplier             uint    `json:"pph_supplier"`
+	ShareSupplierNett       uint    `json:"share_supplier_nett"`
+	ShareMerchantPercentage float32 `json:"share_merchant_percentage"`
+	ShareRedisionPercentage float32 `json:"share_redision_percentage"`
 }
 
 type TransactionDailySummary struct {

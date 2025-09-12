@@ -75,9 +75,53 @@ func GetPrice(prefix string, amount float32) (float32, error) {
 	return 0, fmt.Errorf("amount %.2f not found in denominated values for prefix: %s", amount, prefix)
 }
 
-// Helper function to convert denom key (string) to float64
+func GetChannelRouteWeight(clientID, paymentMethod string) ([]model.ChannelRouteWeight, error) {
+	var weights []model.ChannelRouteWeight
+	err := database.DB.
+		Where("client_id = ? AND payment_method = ?", clientID, paymentMethod).
+		Find(&weights).Error
+	return weights, err
+}
+
+func InsertSupplierRouteWeight(route *model.ChannelRouteWeight) error {
+	return database.DB.Create(route).Error
+}
+
+func GetTotalWeightByClientAndSlug(clientID, paymentSlug string) (int, error) {
+	var total int
+	err := database.DB.Model(&model.ChannelRouteWeight{}).
+		Where("client_id = ? AND payment_method = ?", clientID, paymentSlug).
+		Select("COALESCE(SUM(weight), 0)").Scan(&total).Error
+	return total, err
+}
+
 func convertDenomToFloat(denom string) float32 {
 	var denomFloat float32
 	fmt.Sscanf(denom, "%f", &denomFloat)
 	return denomFloat
+}
+
+// Route fee CRUD
+func CreateRouteFee(fee *model.PaymentMethodRouteFee) error {
+	return database.DB.Create(fee).Error
+}
+
+func UpdateRouteFee(id uint, updates map[string]interface{}) error {
+	return database.DB.Model(&model.PaymentMethodRouteFee{}).Where("id = ?", id).Updates(updates).Error
+}
+
+func DeleteRouteFee(id uint) error {
+	return database.DB.Where("id = ?", id).Delete(&model.PaymentMethodRouteFee{}).Error
+}
+
+func ListRouteFees(slug string) ([]model.PaymentMethodRouteFee, error) {
+	var fees []model.PaymentMethodRouteFee
+	q := database.DB.Model(&model.PaymentMethodRouteFee{})
+	if slug != "" {
+		q = q.Where("payment_method_slug = ?", slug)
+	}
+	if err := q.Find(&fees).Error; err != nil {
+		return nil, err
+	}
+	return fees, nil
 }

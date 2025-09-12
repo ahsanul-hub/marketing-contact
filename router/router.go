@@ -57,7 +57,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 
 	api.Get("/summary/transaction", middleware.Protected(), handler.GetTransactionSummary)
 	api.Get("/report/merchant", middleware.Protected(), middleware.AdminOnly(false), handler.GetReport)
-	//api.Get("/report/merchant/margin", middleware.Protected(), middleware.AdminOnly(false), handler.GetReportMargin)
+	api.Get("/report/merchant/margin", middleware.Protected(), middleware.AdminOnly(false), handler.GetReportMargin)
 	api.Get("/test-email", middleware.Protected(), middleware.AdminOnly(true), handler.TestEmailService)
 	api.Get("/test-sftp", middleware.Protected(), middleware.AdminOnly(true), handler.TestSFTPConnection)
 
@@ -105,6 +105,12 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 
 	admin.Get("/payment-methods", middleware.AdminOnly(false), handler.GetAvailablePaymentMethods)
 	admin.Get("/payment-method-routes/:slug", middleware.AdminOnly(false), handler.GetPaymentMethodRoutes)
+
+	// Route fee CRUD
+	admin.Post("/route-fees", middleware.AdminOnly(true), handler.CreateRouteFee)
+	admin.Put("/route-fees/:id", middleware.AdminOnly(true), handler.UpdateRouteFee)
+	admin.Get("/route-fees", middleware.AdminOnly(false), handler.ListRouteFees)
+	admin.Delete("/route-fees/:id", middleware.AdminOnly(true), handler.DeleteRouteFee)
 
 	// admin.Post("/bodysign/generate", middleware.AdminOnly(false), handler.GenerateBodySign)
 	// admin.Post("/bodysign/validate", middleware.AdminOnly(false), handler.ValidateBodySign)

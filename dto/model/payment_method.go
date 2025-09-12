@@ -37,6 +37,16 @@ type ChannelRouteWeight struct {
 	PaymentMethod string    `gorm:"not null" json:"payment_method"`
 	Route         string    `gorm:"not null" json:"route"`
 	Weight        int       `gorm:"not null" json:"weight"`
+	Fee           float64   `gorm:"type:DECIMAL(10,2);default:0" json:"fee"`
 	CreatedAt     time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt     time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+}
+
+type PaymentMethodRouteFee struct {
+	ID                uint      `gorm:"primaryKey" json:"id"`
+	PaymentMethodSlug string    `gorm:"type:VARCHAR(255);not null" json:"payment_method_slug"`
+	Route             string    `gorm:"type:VARCHAR(255);not null" json:"route"`
+	Fee               float64   `gorm:"type:DECIMAL(10,2);not null;default:0" json:"fee"`
+	CreatedAt         time.Time `gorm:"not null" json:"created_at"`
+	UpdatedAt         time.Time `gorm:"not null" json:"updated_at"`
 }

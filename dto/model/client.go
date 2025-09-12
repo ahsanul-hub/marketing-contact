@@ -13,6 +13,7 @@ type PaymentMethodClient struct {
 	Status   int             `json:"status"`
 	Msisdn   int             `json:"msisdn"`
 	ClientID string          `gorm:"size:50;not null" json:"client_id"`
+	Fee      float64         `gorm:"type:decimal(10,2);default:0.00" json:"fee"`
 }
 
 type SettlementClient struct {
@@ -96,8 +97,9 @@ type InputClientRequest struct {
 }
 
 type RouteWeight struct {
-	Route  string `json:"route"`
-	Weight int    `json:"weight"`
+	Route  string  `json:"route"`
+	Weight int     `json:"weight"`
+	Fee    float64 `json:"fee"`
 }
 
 type SelectedPaymentMethod struct {

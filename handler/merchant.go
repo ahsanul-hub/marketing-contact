@@ -7,6 +7,7 @@ import (
 	"app/repository"
 	"context"
 	"fmt"
+	"log"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -75,6 +76,7 @@ func UpdateMerchant(c *fiber.Ctx) error {
 func UpdateMerchantV2(c *fiber.Ctx) error {
 	var input model.InputClientRequestV2
 	if err := c.BodyParser(&input); err != nil {
+		log.Println("Error parsing request body:", err)
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
 			"message": "Invalid input",
@@ -222,6 +224,64 @@ func GetPaymentMethodRoutes(c *fiber.Ctx) error {
 	}
 
 	return response.ResponseSuccess(c, fiber.StatusOK, routes)
+}
+
+// CRUD Payment Method Route Fees
+func CreateRouteFee(c *fiber.Ctx) error {
+	var in struct {
+		PaymentMethodSlug string  `json:"payment_method_slug"`
+		Route             string  `json:"route"`
+		Fee               float64 `json:"fee"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+	}
+	fee := model.PaymentMethodRouteFee{PaymentMethodSlug: in.PaymentMethodSlug, Route: in.Route, Fee: in.Fee}
+	if err := repository.CreateRouteFee(&fee); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusCreated).JSON(fee)
+}
+
+func UpdateRouteFee(c *fiber.Ctx) error {
+	var in struct {
+		Fee *float64 `json:"fee"`
+	}
+	if err := c.BodyParser(&in); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
+	}
+	var id uint
+	if _, err := fmt.Sscan(c.Params("id"), &id); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid id"})
+	}
+	updates := map[string]interface{}{}
+	if in.Fee != nil {
+		updates["fee"] = *in.Fee
+	}
+	if err := repository.UpdateRouteFee(id, updates); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(fiber.Map{"success": true})
+}
+
+func DeleteRouteFee(c *fiber.Ctx) error {
+	var id uint
+	if _, err := fmt.Sscan(c.Params("id"), &id); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid id"})
+	}
+	if err := repository.DeleteRouteFee(id); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
+func ListRouteFees(c *fiber.Ctx) error {
+	slug := c.Query("slug")
+	fees, err := repository.ListRouteFees(slug)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(fees)
 }
 
 func NewPaymentMethodHandler(repo *repository.PaymentMethodRepository) *PaymentMethodHandler {

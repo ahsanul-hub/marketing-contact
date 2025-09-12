@@ -129,7 +129,7 @@ func ConnectDB() *gorm.DB {
 	replicaSqlDB.SetMaxOpenConns(30) // Lebih banyak koneksi untuk read operations
 	replicaSqlDB.SetMaxIdleConns(10)
 
-	err = DB.AutoMigrate(&model.User{}, &model.Client{}, &model.ClientApp{}, &model.Transactions{}, &model.PaymentMethodClient{}, &model.PaymentMethod{}, &model.SettlementClient{}, &model.BlockedMDN{}, &model.BlockedUserId{}, &model.ChannelRouteWeight{})
+	err = DB.AutoMigrate(&model.User{}, &model.Client{}, &model.ClientApp{}, &model.Transactions{}, &model.PaymentMethodClient{}, &model.PaymentMethod{}, &model.SettlementClient{}, &model.BlockedMDN{}, &model.BlockedUserId{}, &model.ChannelRouteWeight{}, &model.PaymentMethodRouteFee{})
 	if err != nil {
 		log.Fatalf("Failed to migrate database: %v", err)
 	}
