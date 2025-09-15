@@ -408,6 +408,11 @@ func GetTransactionReportWithMargin(ctx context.Context, startDate, endDate *tim
 		}
 
 		// Calculate share redision using new formula: amount - (amount * shareMerchant)
+		// Special case: for specific clients using gopay, use TotalAmountTax as base amount
+		baseAmount := summaries[i].TotalAmount
+		if (summaries[i].ClientUID == "0195b1ba-bb22-7393-b3c0-9baa8b438fff" || summaries[i].ClientUID == "0195a2be-7b9c-719e-9b79-1568714beedd") && strings.ToLower(summaries[i].PaymentMethod) == "gopay" {
+			baseAmount = summaries[i].TotalAmountTax
+		}
 		shareRedision := calculateShareRedisionNew(summaries[i].TotalAmount, shareMerchantPercentage)
 
 		// Calculate share merchant amount
@@ -438,7 +443,7 @@ func GetTransactionReportWithMargin(ctx context.Context, startDate, endDate *tim
 		}
 
 		// Perbaiki tipe data agar tidak terjadi mismatched types (uint64 dan float64)
-		shareSupplier = uint(summaries[i].TotalAmount - uint64(math.Round(float64(summaries[i].TotalAmount)*fee/100)))
+		shareSupplier = uint(baseAmount - uint64(math.Round(float64(baseAmount)*fee/100)))
 		// shareSupplierInc adalah shareSupplier ditambah 11%
 		shareSupplierInc := shareSupplier + (shareSupplier*11)/100
 
