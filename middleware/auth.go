@@ -110,6 +110,10 @@ func AdminOnly(superAdminOnly bool) fiber.Handler {
 			return c.Next()
 		}
 
+		if role == "business" {
+			return c.Next()
+		}
+
 		// If superAdminOnly is true, only superadmin can access
 		if superAdminOnly {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"message": "Forbidden: Superadmin access required."})
