@@ -32,6 +32,50 @@ import (
 
 var processedTransactions sync.Map
 
+// beautifyIDNumber menormalkan format nomor telepon
+func beautifyIDNumber(mdn string, zero bool) string {
+	check := true
+
+	if mdn == "" {
+		return ""
+	}
+
+	for check {
+		check = false
+
+		// Remove non-numeric prefix
+		if len(mdn) > 0 && !isNumeric(string(mdn[0])) {
+			mdn = mdn[1:]
+			check = true
+		}
+
+		// Remove '62' prefix
+		if strings.HasPrefix(mdn, "62") {
+			mdn = mdn[2:]
+			check = true
+		}
+
+		// Remove leading '0's
+		for strings.HasPrefix(mdn, "0") {
+			mdn = mdn[1:]
+			check = true
+		}
+	}
+
+	if zero {
+		mdn = "0" + mdn
+	} else {
+		mdn = "62" + mdn
+	}
+
+	return mdn
+}
+
+// isNumeric checks if a string is numeric
+func isNumeric(str string) bool {
+	return str >= "0" && str <= "9"
+}
+
 func CheckTransaction(transactionID, appKey, appID string) (*model.Transactions, error) {
 	ctx := context.Background()
 
@@ -470,9 +514,12 @@ func GetTransactionVa(ctx context.Context, vaNumber string) (*model.Transactions
 func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp int) (*model.Transactions, error) {
 	var transaction model.Transactions
 
+	// Samakan format MSISDN dengan yang disimpan di RequestMoTsel
+	beautifyMsisdn := beautifyIDNumber(msisdn, true)
+
 	// 1. Cek Redis dulu (jika tersedia)
 	if database.RedisClient != nil {
-		cacheKey := fmt.Sprintf("tsel:tx:%s:%s:%d", msisdn, keyword, otp)
+		cacheKey := fmt.Sprintf("tsel:tx:%s:%s:%d", beautifyMsisdn, keyword, otp)
 		log.Println("cacheKey getMo ", cacheKey)
 		val, err := database.RedisClient.Get(ctx, cacheKey).Result()
 		if err == nil {
@@ -483,7 +530,7 @@ func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp 
 		}
 	}
 
-	log.Printf("data tidak ada di redis untuk nomor: %s  otp:%d ", msisdn, otp)
+	log.Printf("data tidak ada di redis untuk nomor: %s (beautify: %s) otp:%d ", msisdn, beautifyMsisdn, otp)
 
 	// 2. Kalau tidak ada → query DB
 	err := database.DB.WithContext(ctx).
