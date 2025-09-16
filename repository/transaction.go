@@ -523,10 +523,36 @@ func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp 
 		log.Println("cacheKey getMo ", cacheKey)
 		val, err := database.RedisClient.Get(ctx, cacheKey).Result()
 		if err == nil {
-			// Ada di cache → decode JSON
-			if err := json.Unmarshal([]byte(val), &transaction); err == nil {
-				return &transaction, nil
+			// log.Printf("✅ Cache HIT untuk key: %s", cacheKey)
+			log.Printf("📦 Data dari Redis: %s", val)
+
+			// Decode sebagai cacheData dari RequestMoTsel
+			var cacheData struct {
+				TransactionID string `json:"transaction_id"`
+				Msisdn        string `json:"msisdn"`
+				Keyword       string `json:"keyword"`
+				Amount        string `json:"amount"`
+				Otp           int    `json:"otp"`
+				CreatedAt     int64  `json:"created_at"`
 			}
+
+			if err := json.Unmarshal([]byte(val), &cacheData); err == nil && cacheData.TransactionID != "" {
+
+				// Buat transaction object dari cache data tanpa query DB
+				transaction = model.Transactions{
+					ID:         cacheData.TransactionID,
+					UserMDN:    cacheData.Msisdn,
+					Keyword:    cacheData.Keyword,
+					Otp:        cacheData.Otp,
+					StatusCode: 1001, // Status pending
+				}
+
+				return &transaction, nil
+			} else {
+				log.Printf("❌ Gagal decode cacheData: %v", err)
+			}
+		} else {
+			log.Printf("❌ Cache MISS untuk key: %s, error: %v", cacheKey, err)
 		}
 	}
 
