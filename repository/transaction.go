@@ -473,6 +473,7 @@ func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp 
 	// 1. Cek Redis dulu (jika tersedia)
 	if database.RedisClient != nil {
 		cacheKey := fmt.Sprintf("tsel:tx:%s:%s:%d", msisdn, keyword, otp)
+		log.Println("cacheKey getMo ", cacheKey)
 		val, err := database.RedisClient.Get(ctx, cacheKey).Result()
 		if err == nil {
 			// Ada di cache → decode JSON
@@ -481,6 +482,8 @@ func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp 
 			}
 		}
 	}
+
+	log.Printf("data tidak ada di redis untuk nomor: %s  otp:%d ", msisdn, otp)
 
 	// 2. Kalau tidak ada → query DB
 	err := database.DB.WithContext(ctx).

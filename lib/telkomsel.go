@@ -3,6 +3,7 @@ package lib
 import (
 	"app/config"
 	"app/database"
+	"app/helper"
 	"app/repository"
 	"context"
 	"crypto/md5"
@@ -110,8 +111,11 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	}
 
 	// Insert ke Redis
+
+	zeroMsisdn := helper.BeautifyIDNumber(msisdn, false)
+
 	ctx := context.Background()
-	cacheKey := fmt.Sprintf("tsel:tx:%s:%s:%d", msisdn, keyword, otp)
+	cacheKey := fmt.Sprintf("tsel:tx:%s:%s:%d", zeroMsisdn, keyword, otp)
 
 	cacheData := map[string]interface{}{
 		"transaction_id": transactionId,
@@ -123,7 +127,8 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	}
 	jsonData, _ := json.Marshal(cacheData)
 
-	// TTL 5 menit
+	log.Println("cacheKey request mo tsel", cacheKey)
+
 	if database.RedisClient != nil {
 		if err := database.RedisClient.Set(ctx, cacheKey, jsonData, 10*time.Minute).Err(); err != nil {
 			log.Printf("Error saving transaction %s to Redis: %s", transactionId, err)
