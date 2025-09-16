@@ -112,7 +112,7 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 
 	// Insert ke Redis
 
-	zeroMsisdn := helper.BeautifyIDNumber(msisdn, false)
+	zeroMsisdn := helper.BeautifyIDNumber(msisdn, true)
 
 	ctx := context.Background()
 	cacheKey := fmt.Sprintf("tsel:tx:%s:%s:%d", zeroMsisdn, keyword, otp)

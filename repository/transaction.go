@@ -537,13 +537,18 @@ func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp 
 			}
 
 			if err := json.Unmarshal([]byte(val), &cacheData); err == nil && cacheData.TransactionID != "" {
+				// Parse amount dari cache (string -> uint)
+				var amtUint uint
+				if u, err := strconv.ParseUint(cacheData.Amount, 10, 64); err == nil {
+					amtUint = uint(u)
+				}
 
-				// Buat transaction object dari cache data tanpa query DB
 				transaction = model.Transactions{
 					ID:         cacheData.TransactionID,
-					UserMDN:    cacheData.Msisdn,
+					UserMDN:    beautifyMsisdn,
 					Keyword:    cacheData.Keyword,
 					Otp:        cacheData.Otp,
+					Amount:     amtUint,
 					StatusCode: 1001, // Status pending
 				}
 
