@@ -6,9 +6,9 @@ import (
 	"app/handler"
 	"app/lib"
 	"app/middleware"
-	"app/repository"
 	"app/router"
 	"app/scheduler"
+	"app/worker"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -27,7 +27,14 @@ import (
 
 func main() {
 	config.SetupEnvFile()
-	config.SetupLogfile()
+	// config.SetupLogfile()
+
+	if err := config.InitLoggers(); err != nil {
+		log.Fatalf("Failed to initialize loggers: %v", err)
+	}
+	config.SetDefaultLoggerOutput()
+
+	config.LogWithLevel("INFO", "Server starting...")
 
 	app := fiber.New(fiber.Config{
 		Prefork:       true,
@@ -71,9 +78,8 @@ func main() {
 	}
 
 	go lib.ProcessPendingTransactions()
-	// go repository.ProcessTransactions()
-	go repository.ProccessFailedCallbackWorker()
-	go repository.ProcessCallbackQueue()
+	go worker.ProccessFailedCallbackWorker()
+	go worker.ProcessCallbackQueue()
 	go handler.ProcessUpdateTransactionPending()
 
 	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))

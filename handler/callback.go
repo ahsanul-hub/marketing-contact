@@ -256,11 +256,13 @@ func MoTelkomsel(c *fiber.Ctx) error {
 		})
 	}
 
+	// log.Println("transaction", transaction)
+
 	denom := fmt.Sprintf("%d", transaction.Amount)
 	res, err := lib.RequestMtTsel(transaction.UserMDN, trxId, denom)
 	if err != nil {
 		log.Println("Mt request failed:", err)
-		return fmt.Errorf("Mt request failed:", err)
+		return fmt.Errorf("Mt request failed: %s", err)
 	}
 
 	now := time.Now()
@@ -324,6 +326,8 @@ func MoTelkomsel(c *fiber.Ctx) error {
 
 func MidtransCallback(c *fiber.Ctx) error {
 	var req MidtransCallbackRequest
+	ipClient := c.IP()
+
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
@@ -338,14 +342,29 @@ func MidtransCallback(c *fiber.Ctx) error {
 		})
 	}
 
-	var transactionID string
-
-	transactionID = *req.OrderID
+	transactionID := *req.OrderID
 
 	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
 	if err != nil || transaction == nil {
 		return nil
 	}
+
+	statusCallback := true
+
+	strAmount := fmt.Sprintf("%d.00", transaction.Amount)
+
+	if req.GrossAmount == nil || strAmount != *req.GrossAmount {
+		statusCallback = false
+	}
+
+	helper.QrisLogger.LogCallback(transactionID, statusCallback,
+		map[string]interface{}{
+			"transaction_id":   transactionID,
+			"ip":               ipClient,
+			"message":          "amount doesn't match",
+			"request_callback": req,
+		},
+	)
 
 	now := time.Now()
 

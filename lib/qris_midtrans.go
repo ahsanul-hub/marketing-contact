@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"app/helper"
 	"app/repository"
 	"bytes"
 	"context"
@@ -39,6 +40,7 @@ func RequestChargingQris(transactionID string, chargingPrice uint) (*MidtransRes
 	}
 
 	// Membuat HTTP request
+
 	req, err := http.NewRequest("POST", "https://api.midtrans.com/v2/charge", bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("error creating request: %v", err)
@@ -48,6 +50,7 @@ func RequestChargingQris(transactionID string, chargingPrice uint) (*MidtransRes
 	req.Header.Set("Authorization", "Basic TWlkLXNlcnZlci1MU2puUUNiMW0zcDhsSzEyVm9mbF9tZF86")
 
 	client := &http.Client{}
+	start := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error sending request: %v", err)
@@ -59,12 +62,30 @@ func RequestChargingQris(transactionID string, chargingPrice uint) (*MidtransRes
 		return nil, fmt.Errorf("error reading response body: %v", err)
 	}
 
+	helper.QrisLogger.LogAPICall(
+		"https://api.midtrans.com/v2/charge",
+		"POST",
+		time.Since(start),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionID,
+			"amount":         chargingPrice,
+			"acquirer":       "gopay",
+			"request_body":   string(jsonBody),
+		},
+		map[string]interface{}{
+			"body": string(body),
+		},
+	)
+
 	var midtransResp MidtransResponse
 	if err := json.Unmarshal(body, &midtransResp); err != nil {
 		log.Println("res", string(body))
 		return nil, fmt.Errorf("error decoding response: %v", err)
 	}
 	now := time.Now()
+
+	log.Println("test main log")
 
 	requestDate := &now
 
