@@ -211,6 +211,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	input.ClientAppKey = appkey
 	input.AppName = arrClient.ClientName
 	input.BodySign = receivedBodysign
+	input.UserIP = c.IP()
 
 	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
 
@@ -552,6 +553,7 @@ func PaymentPage(c *fiber.Ctx) error {
 				"Token":            token,
 				"BodySign":         inputReq.BodySign,
 				"RedirectURL":      inputReq.RedirectURL,
+				"UserIP":           inputReq.UserIP,
 			})
 		}
 
@@ -572,6 +574,7 @@ func PaymentPage(c *fiber.Ctx) error {
 			"NotificationURL":  inputReq.NotificationUrl,
 			"Token":            token,
 			"BodySign":         inputReq.BodySign,
+			"UserIP":           inputReq.UserIP,
 		})
 
 	}

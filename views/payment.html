@@ -243,6 +243,7 @@
         <input type="hidden" name="bodysign" value="{{ .BodySign }}" />
         <input type="hidden" name="item_id" value="{{ .ItemId }}" />
         <input type="hidden" name="redirect_url" value="{{ .RedirectURL }}" />
+        <input type="hidden" name="UserIP" value="{{ .UserIP }}" />
         <input
           type="hidden"
           name="notification_url"
@@ -292,13 +293,14 @@
             redirect_url: data.redirect_url,
             notification_url: data.notification_url,
             token: data.token,
+            UserIP: data.UserIP,
             ...(isVa
               ? { customer_name: data.customer_name }
               : { customer_name: "" }),
           };
 
           const apiUrl = isVa ? "/api/payment-va" : "/api/payment";
-
+          
           fetch(apiUrl, {
             method: "POST",
             headers: {

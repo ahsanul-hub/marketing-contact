@@ -1009,7 +1009,6 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	transaction.BodySign = bodysign
 	arrClient.AppName = appName
 	transaction.PaymentMethod = paymentMethod
-	transaction.UserIP = c.IP()
 
 	if err != nil {
 		return response.Response(c, fiber.StatusBadRequest, "E0001")
@@ -1295,7 +1294,6 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	transaction.BodySign = bodysign
 	arrClient.AppName = appName
-	transaction.UserIP = c.IP()
 
 	createdTransId, chargingPrice, err := repository.CreateTransaction(spanCtx, &transaction, arrClient, appkey, appid, nil)
 	if err != nil {

@@ -163,6 +163,7 @@
         <input type="hidden" name="item_name" value="{{ .ItemName }}" />
         <input type="hidden" name="item_id" value="{{ .ItemId }}" />
         <input type="hidden" name="token" value="{{ .Token }}" />
+        <input type="hidden" name="UserIP" value="{{ .UserIP }}" />
         <input
           type="hidden"
           name="notification_url"
@@ -276,6 +277,7 @@
             customer_name: data.customer_name || "",
             notification_url: data.notification_url,
             redirect_url: data.redirect_url,
+            UserIP: data.UserIP
           };
 
           fetch("/api/payment/notelco", {
