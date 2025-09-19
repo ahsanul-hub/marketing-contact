@@ -182,5 +182,5 @@ var (
 	HarsyaLogger       = NewPaymentHelpers(config.PAYMENT_HARSYA)
 	FaspayLogger       = NewPaymentHelpers(config.PAYMENT_FASPAY)
 	TriyakomLogger     = NewPaymentHelpers(config.PAYMENT_TRIYAKOM)
-	NotificationLogger = NewPaymentHelpers("notification")
+	NotificationLogger = NewPaymentHelpers(config.PAYMENT_NOTIFICATION)
 )

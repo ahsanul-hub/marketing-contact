@@ -48,27 +48,28 @@ var (
 
 // Payment method constants
 const (
-	PAYMENT_TELKOMSEL   = "telkomsel"
-	PAYMENT_XL          = "xl"
-	PAYMENT_INDOSAT     = "indosat"
-	PAYMENT_TRI         = "tri"
-	PAYMENT_SMARTFREN   = "smartfren"
-	PAYMENT_DANA        = "dana"
-	PAYMENT_OVO         = "ovo"
-	PAYMENT_GOPAY       = "gopay"
-	PAYMENT_SHOPEEPAY   = "shopeepay"
-	PAYMENT_QRIS        = "qris"
-	PAYMENT_VA_BCA      = "va_bca"
-	PAYMENT_VA_BNI      = "va_bni"
-	PAYMENT_VA_BRI      = "va_bri"
-	PAYMENT_VA_MANDIRI  = "va_mandiri"
-	PAYMENT_VA_PERMATA  = "va_permata"
-	PAYMENT_VA_SINARMAS = "va_sinarmas"
-	PAYMENT_MIDTRANS    = "midtrans"
-	PAYMENT_HARSYA      = "harsya"
-	PAYMENT_FASPAY      = "faspay"
-	PAYMENT_TRIYAKOM    = "triyakom"
-	PAYMENT_CALLBACK    = "callback"
+	PAYMENT_TELKOMSEL    = "telkomsel"
+	PAYMENT_XL           = "xl"
+	PAYMENT_INDOSAT      = "indosat"
+	PAYMENT_TRI          = "tri"
+	PAYMENT_SMARTFREN    = "smartfren"
+	PAYMENT_DANA         = "dana"
+	PAYMENT_OVO          = "ovo"
+	PAYMENT_GOPAY        = "gopay"
+	PAYMENT_SHOPEEPAY    = "shopeepay"
+	PAYMENT_QRIS         = "qris"
+	PAYMENT_VA_BCA       = "va_bca"
+	PAYMENT_VA_BNI       = "va_bni"
+	PAYMENT_VA_BRI       = "va_bri"
+	PAYMENT_VA_MANDIRI   = "va_mandiri"
+	PAYMENT_VA_PERMATA   = "va_permata"
+	PAYMENT_VA_SINARMAS  = "va_sinarmas"
+	PAYMENT_MIDTRANS     = "midtrans"
+	PAYMENT_HARSYA       = "harsya"
+	PAYMENT_FASPAY       = "faspay"
+	PAYMENT_TRIYAKOM     = "triyakom"
+	PAYMENT_CALLBACK     = "callback"
+	PAYMENT_NOTIFICATION = "notification"
 )
 
 // InitPaymentLoggers initializes all payment method loggers
@@ -83,7 +84,7 @@ func InitPaymentLoggers() error {
 		PAYMENT_DANA, PAYMENT_OVO, PAYMENT_GOPAY, PAYMENT_SHOPEEPAY, PAYMENT_QRIS,
 		PAYMENT_VA_BCA, PAYMENT_VA_BNI, PAYMENT_VA_BRI, PAYMENT_VA_MANDIRI,
 		PAYMENT_VA_PERMATA, PAYMENT_VA_SINARMAS, PAYMENT_MIDTRANS, PAYMENT_HARSYA,
-		PAYMENT_FASPAY, PAYMENT_TRIYAKOM, PAYMENT_CALLBACK, "admin", "auth",
+		PAYMENT_FASPAY, PAYMENT_TRIYAKOM, PAYMENT_CALLBACK, PAYMENT_NOTIFICATION, "admin", "auth",
 	}
 
 	for _, method := range paymentMethods {

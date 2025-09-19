@@ -375,7 +375,7 @@ func SendCallbackWithLogger(merchantURL, secret string, transactionID string, da
 	req.Header.Set("bodysign", bodySign)
 
 	client := &http.Client{}
-	start := time.Now()
+	callbackDate := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
 		log.Printf("failed to send callback: %v", err)
@@ -395,34 +395,31 @@ func SendCallbackWithLogger(merchantURL, secret string, transactionID string, da
 		callbackResult = "ok"
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("send callback id : %s failed with status: %s , bodySign: %s", transactionID, resp.Status, bodySign)
-		return responseBody, fmt.Errorf("callback failed with status: %s , url: %s", resp.Status, merchantURL)
-	}
-
-	ctx := context.Background()
-	callbackDate := time.Now()
-
-	// Log menggunakan logger jika tersedia
 	if logger != nil {
 		logger.LogAPICall(
 			merchantURL,
 			"POST",
-			time.Since(start),
+			time.Since(callbackDate),
 			resp.StatusCode,
 			map[string]interface{}{
-				"transaction_id": transactionID,
-				"type":           "callback success",
-				"request_body":   bodyJSONString,
+				"transaction_id":  transactionID,
+				"type":            "callback success",
+				"header_bodysign": bodySign,
+				"request_body":    bodyJSONString,
 			},
 			map[string]interface{}{
 				"body": responseBody,
 			},
 		)
 	} else {
-		// Fallback ke standard logging
 		log.Printf("Callback response for transaction %s: status=%d, body=%+v", transactionID, resp.StatusCode, responseBody)
 	}
+
+	if resp.StatusCode != http.StatusOK {
+		return responseBody, fmt.Errorf("callback failed with status: %s , url: %s", resp.Status, merchantURL)
+	}
+
+	ctx := context.Background()
 
 	if err := repository.UpdateTransactionCallbackTimestamps(ctx, transactionID, 1000, &callbackDate, callbackResult); err != nil {
 		return responseBody, fmt.Errorf("failed to update transaction callback timestamps: %v", err)
@@ -439,6 +436,7 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 
 	bodyJSONString := string(jsonData)
 	// log.Println("jsonData Callback Failed", bodyJSONString)
+	callbackDate := time.Now()
 
 	bodySign, _ := repository.GenerateBodySign(bodyJSONString, secret)
 
@@ -462,7 +460,7 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 
 	var responseBody map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
-		// log.Printf("failed to decode response body: %v", err)
+		log.Printf("failed to decode response body: %v", err)
 	}
 
 	var callbackResult string
@@ -472,28 +470,27 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 		callbackResult = "ok"
 	}
 
-	if resp.StatusCode != http.StatusOK {
-		log.Printf("callback failed with status: %s , bodySign: %s, transactionId: %s", resp.Status, bodySign, transactionID)
-		return fmt.Errorf("callback failed with status: %s , bodySign: %s, transactionId: %s", resp.Status, bodySign, transactionID)
-	}
-
-	ctx := context.Background()
-	callbackDate := time.Now()
-
 	helper.NotificationLogger.LogAPICall(
 		merchantURL,
 		"POST",
 		time.Since(callbackDate),
 		resp.StatusCode,
 		map[string]interface{}{
-			"transaction_id": transactionID,
-			"type":           "callback failed",
-			"request_body":   bodyJSONString,
+			"transaction_id":  transactionID,
+			"type":            "callback failed",
+			"header_bodysign": bodySign,
+			"request_body":    bodyJSONString,
 		},
 		map[string]interface{}{
 			"body": responseBody,
 		},
 	)
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("callback failed with status: %s , bodySign: %s, transactionId: %s", resp.Status, bodySign, transactionID)
+	}
+
+	ctx := context.Background()
 
 	var statusCode int
 	switch v := data.(type) {
