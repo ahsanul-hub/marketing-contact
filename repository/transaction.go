@@ -551,12 +551,10 @@ func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp 
 			} else {
 				log.Printf("❌ Gagal decode cacheData: %v", err)
 			}
-		} else {
-			log.Printf("❌ Cache MISS untuk key: %s, error: %v", cacheKey, err)
 		}
 	}
 
-	log.Printf("data tidak ada di redis untuk nomor: %s (beautify: %s) otp:%d ", msisdn, beautifyMsisdn, otp)
+	// log.Printf("data tidak ada di redis untuk nomor: %s (beautify: %s) otp:%d ", msisdn, beautifyMsisdn, otp)
 
 	// 2. Kalau tidak ada → query DB
 	err := database.DB.WithContext(ctx).
