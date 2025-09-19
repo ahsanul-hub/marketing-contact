@@ -9,6 +9,7 @@ import (
 	"app/pkg/response"
 	"app/repository"
 	"app/service"
+	"app/worker"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -2248,7 +2249,7 @@ func ManualCallback(c *fiber.Ctx) error {
 			Custom:                 "",
 		}
 	} else {
-		payload := repository.CallbackData{
+		payload := worker.CallbackData{
 			UserID:                transaction.UserId,
 			MerchantTransactionID: transaction.MtTid,
 			StatusCode:            statusCode,
@@ -2269,7 +2270,8 @@ func ManualCallback(c *fiber.Ctx) error {
 		callbackPayload = payload
 	}
 
-	err = repository.SendCallback(callbackURL, arrClient.ClientSecret, transaction.ID, callbackPayload)
+	_, err = worker.SendCallbackWithLogger(callbackURL, arrClient.ClientSecret, transaction.ID, callbackPayload, helper.NotificationLogger)
+
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -2478,7 +2480,7 @@ func ManualCallbackClient(c *fiber.Ctx) error {
 			}
 		}
 	} else {
-		payload := repository.CallbackData{
+		payload := worker.CallbackData{
 			UserID:                transaction.UserId,
 			MerchantTransactionID: transaction.MtTid,
 			StatusCode:            statusCode,
@@ -2499,8 +2501,8 @@ func ManualCallbackClient(c *fiber.Ctx) error {
 		callbackPayload = payload
 	}
 
-	// Kirim callback
-	err = repository.SendCallback(callbackURL, arrClient.ClientSecret, transaction.ID, callbackPayload)
+	// Kirim callback dengan logging
+	responseBody, err := worker.SendCallbackWithLogger(callbackURL, arrClient.ClientSecret, transaction.ID, callbackPayload, helper.NotificationLogger)
 	if err != nil {
 		log.Printf("Failed to send manual callback for transaction %s: %v", transactionID, err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -2518,6 +2520,7 @@ func ManualCallbackClient(c *fiber.Ctx) error {
 			"transaction_id": transaction.ID,
 			"callback_url":   callbackURL,
 			"status":         status,
+			"response":       responseBody,
 			"status_code":    statusCode,
 		},
 	})

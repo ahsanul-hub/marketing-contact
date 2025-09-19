@@ -22,7 +22,7 @@ import (
 var MongoClient *mongo.Client
 
 func SetupSQLLogfile() io.Writer {
-	logDir := "../logs/sql"
+	logDir := "../logs"
 	err := os.MkdirAll(logDir, 0755)
 	if err != nil {
 		fmt.Printf("Failed to create log directory: %v\n", err)
@@ -34,7 +34,7 @@ func SetupSQLLogfile() io.Writer {
 	_, week := currentTime.ISOWeek()
 
 	logFilename := filepath.Join(logDir,
-		fmt.Sprintf("dcb-new-sql-%d-%02d-week%d.log", year, month, week))
+		fmt.Sprintf("dcb-new-%d-%02d-week%d.log", year, month, week))
 
 	logFile, err := os.OpenFile(logFilename, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
 	if err != nil {

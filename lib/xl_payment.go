@@ -5,6 +5,7 @@ import (
 	"app/dto/model"
 	"app/helper"
 	"app/repository"
+	"app/worker"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -295,7 +296,7 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 		return ChargingResponse{}, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	log.Printf("Charging requested with id: %s, msisdn no: %s , chargingPrice %d", transactionId, msisdn, chargingPrice)
+	// log.Printf("Charging requested with id: %s, msisdn no: %s , chargingPrice %d", transactionId, msisdn, chargingPrice)
 
 	return responseMap.ChargingResponse, nil
 }
@@ -399,8 +400,8 @@ func CheckTransactionStatus(transaction model.Transactions) {
 func ProcessPendingTransactions() {
 
 	for {
-		go repository.ProcessTransactions()
-		go repository.ProcessFailedTransactions()
+		go worker.ProcessTransactions()
+		go worker.ProcessFailedTransactions()
 		transactions, err := repository.GetPendingTransactions(context.Background(), "xl_airtime")
 
 		if err != nil {
