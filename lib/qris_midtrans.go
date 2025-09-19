@@ -69,8 +69,6 @@ func RequestChargingQris(transactionID string, chargingPrice uint) (*MidtransRes
 		resp.StatusCode,
 		map[string]interface{}{
 			"transaction_id": transactionID,
-			"amount":         chargingPrice,
-			"acquirer":       "gopay",
 			"request_body":   string(jsonBody),
 		},
 		map[string]interface{}{
@@ -85,7 +83,7 @@ func RequestChargingQris(transactionID string, chargingPrice uint) (*MidtransRes
 	}
 	now := time.Now()
 
-	log.Println("test main log")
+	// log.Println("test main log")
 
 	requestDate := &now
 
