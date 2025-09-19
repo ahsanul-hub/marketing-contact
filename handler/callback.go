@@ -353,15 +353,18 @@ func MidtransCallback(c *fiber.Ctx) error {
 
 	strAmount := fmt.Sprintf("%d.00", transaction.Amount)
 
+	message := "success"
+
 	if req.GrossAmount == nil || strAmount != *req.GrossAmount {
 		statusCallback = false
+		message = "amount doesn't match"
 	}
 
 	helper.QrisLogger.LogCallback(transactionID, statusCallback,
 		map[string]interface{}{
 			"transaction_id":   transactionID,
 			"ip":               ipClient,
-			"message":          "amount doesn't match",
+			"message":          message,
 			"request_callback": req,
 		},
 	)
