@@ -232,6 +232,7 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 
 	appid := c.Get("appid")
 	appkey := c.Get("appkey")
+	clientIP := c.IP()
 
 	receivedBodysign := c.Get("bodysign")
 
@@ -428,6 +429,7 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 	input.Price = uint(amountFloat + math.Round(float64(*selectedSettlement.AdditionalPercent)/100*amountFloat))
 	input.BodySign = receivedBodysign
 	input.AppName = arrClient.AppName
+	input.UserIP = clientIP
 
 	TransactionCache.Set(transactionID, input, cache.DefaultExpiration)
 
@@ -717,6 +719,7 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 				"Token":            token,
 				"BodySign":         inputReq.BodySign,
 				"RedirectURL":      inputReq.RedirectURL,
+				"UserIP":           inputReq.UserIP,
 			})
 		}
 
@@ -736,6 +739,7 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 			"RedirectURL":      inputReq.RedirectURL,
 			"Token":            token,
 			"BodySign":         inputReq.BodySign,
+			"UserIP":           inputReq.UserIP,
 		})
 
 	}
