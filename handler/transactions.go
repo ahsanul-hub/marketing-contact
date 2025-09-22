@@ -236,6 +236,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		selectedRoute = helper.ChooseRouteByWeight(channelRoute)
 	}
 
+	transaction.UserIP = c.IP()
 	transaction.Route = selectedRoute
 
 	createdTransId, chargingPrice, err := repository.CreateTransaction(context.Background(), &transaction, arrClient, appkey, appid, &vaNumber)
