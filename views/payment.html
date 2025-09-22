@@ -6,12 +6,10 @@
     <title>Payment Page</title>
     <link
       href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
+      rel="stylesheet" />
     <link
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap"
-      rel="stylesheet"
-    />
+      rel="stylesheet" />
     <style>
       /* Untuk browser berbasis WebKit (Chrome, Safari, Edge) */
       #userMdn {
@@ -152,8 +150,7 @@
             "
             name="customer_name"
             placeholder="Masukan nama"
-            required
-          />
+            required />
         </div>
         {{ else }}
         <!-- <div></div> -->
@@ -176,8 +173,7 @@
             "
             name="user_mdn"
             placeholder="081234567899"
-            required
-          />
+            required />
         </div>
         <div
           style="
@@ -185,8 +181,7 @@
             display: flex;
             gap: 12px;
             margin-top: 12px;
-          "
-        >
+          ">
           <!-- <button
             type="button"
             class="btn btn-secondary btn-custom btn-back"
@@ -202,16 +197,14 @@
             type="button"
             style="width: 50% !important; font-size: 14px"
             class="btn btn-outline !w-50"
-            onclick="window.history.back();"
-          >
+            onclick="window.history.back();">
             Kembali
           </button>
           <button
             type="submit"
             style="width: 50% !important; font-size: 14px"
             id="btn-submit"
-            class="btn btn-next btn-submit"
-          >
+            class="btn btn-next btn-submit">
             Lanjut
           </button>
         </div>
@@ -221,21 +214,18 @@
         <input
           type="hidden"
           name="payment_method"
-          value="{{ .PaymentMethod }}"
-        />
+          value="{{ .PaymentMethod }}" />
 
         <input type="hidden" name="app_name" value="{{ .AppName }}" />
         <input
           type="hidden"
           name="merchant_transaction_id"
-          value="{{ .MtID }}"
-        />
+          value="{{ .MtID }}" />
         <input type="hidden" name="user_id" value="{{ .UserId }}" />
         <input
           type="hidden"
           name="merchant_transaction_id"
-          value="{{ .MtID }}"
-        />
+          value="{{ .MtID }}" />
         <input type="hidden" name="item_name" value="{{ .ItemName }}" />
         <input type="hidden" name="curency" value="{{ .Currency }}" />
         <input type="hidden" name="app_id" value="{{ .AppID }}" />
@@ -247,8 +237,7 @@
         <input
           type="hidden"
           name="notification_url"
-          value="{{ .NotificationURL }}"
-        />
+          value="{{ .NotificationURL }}" />
       </form>
       <p style="color: grey; font-size: 12px; margin-top: 4px">
         Harga termasuk pajak dan biaya layanan.
@@ -293,14 +282,14 @@
             redirect_url: data.redirect_url,
             notification_url: data.notification_url,
             token: data.token,
-            UserIP: data.UserIP,
+            user_ip: data.UserIP,
             ...(isVa
               ? { customer_name: data.customer_name }
               : { customer_name: "" }),
           };
 
           const apiUrl = isVa ? "/api/payment-va" : "/api/payment";
-          
+
           fetch(apiUrl, {
             method: "POST",
             headers: {
