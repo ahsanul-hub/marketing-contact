@@ -148,7 +148,6 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 		return "", 0, err
 	}
 
-	fmt.Println("input:", input.UserIP)
 	settlementConfig, err := GetSettlementConfig(client.UID)
 	if err != nil {
 		log.Println("Error GetSettlementConfig:", err)
