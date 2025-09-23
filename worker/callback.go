@@ -9,9 +9,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -384,8 +386,24 @@ func SendCallbackWithLogger(merchantURL, secret string, transactionID string, da
 	defer resp.Body.Close()
 
 	var responseBody map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
-		log.Printf("failed to decode response body: %v", err)
+	// Read entire body to handle non-JSON responses safely
+	bodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		log.Printf("failed to read response body: %v", readErr)
+	} else {
+		contentType := resp.Header.Get("Content-Type")
+		if strings.Contains(strings.ToLower(contentType), "application/json") {
+			if err := json.Unmarshal(bodyBytes, &responseBody); err != nil {
+				log.Printf("failed to decode response body as JSON: %v", err)
+				responseBody = map[string]interface{}{"raw_body": string(bodyBytes)}
+			}
+		} else {
+			// Non-JSON response (e.g., text/html, text/plain)
+			responseBody = map[string]interface{}{
+				"raw_body":     string(bodyBytes),
+				"content_type": contentType,
+			}
+		}
 	}
 
 	var callbackResult string
@@ -459,8 +477,22 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 	defer resp.Body.Close()
 
 	var responseBody map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
-		log.Printf("failed to decode response body: %v", err)
+	bodyBytes, readErr := io.ReadAll(resp.Body)
+	if readErr != nil {
+		log.Printf("failed to read response body: %v", readErr)
+	} else {
+		contentType := resp.Header.Get("Content-Type")
+		if strings.Contains(strings.ToLower(contentType), "application/json") {
+			if err := json.Unmarshal(bodyBytes, &responseBody); err != nil {
+				log.Printf("failed to decode response body as JSON: %v", err)
+				responseBody = map[string]interface{}{"raw_body": string(bodyBytes)}
+			}
+		} else {
+			responseBody = map[string]interface{}{
+				"raw_body":     string(bodyBytes),
+				"content_type": contentType,
+			}
+		}
 	}
 
 	var callbackResult string
