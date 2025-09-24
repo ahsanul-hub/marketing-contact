@@ -2,6 +2,7 @@ package lib
 
 import (
 	"app/config"
+	"app/helper"
 	"app/repository"
 	"bytes"
 	"context"
@@ -106,16 +107,29 @@ func QrisHarsyaCharging(transactionId string, amount uint) (*HarsyaChargingRespo
 	}
 	defer resp.Body.Close()
 
+	var chargingResp HarsyaChargingResponse
+	if err := json.NewDecoder(resp.Body).Decode(&chargingResp); err != nil {
+		log.Printf("failed to decode response: %v", err)
+	}
+	now := time.Now()
+
+	helper.QrisLogger.LogAPICall(
+		"https://api.harsya.com/v2/payments",
+		"POST",
+		time.Since(now),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   body,
+		},
+		map[string]interface{}{
+			"body": chargingResp,
+		},
+	)
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		return nil, fmt.Errorf("request failed with status: %s", resp.Status)
 	}
-
-	var chargingResp HarsyaChargingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&chargingResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	now := time.Now()
 
 	requestDate := &now
 

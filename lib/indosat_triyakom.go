@@ -2,6 +2,7 @@ package lib
 
 import (
 	"app/config"
+	"app/helper"
 	"app/repository"
 	"bytes"
 	"context"
@@ -75,6 +76,20 @@ func RequestChargingIsatTriyakom(msisdn, itemName, transactionId string, chargin
 	// log.Println("resp:", string(body))
 
 	defer resp.Body.Close()
+
+	helper.IndosatLogger.LogAPICall(
+		requestURL,
+		"POST",
+		time.Since(currentTime),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   jsonBody,
+		},
+		map[string]interface{}{
+			"body": string(body),
+		},
+	)
 
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("received non-200 response status: %s", resp.Status)

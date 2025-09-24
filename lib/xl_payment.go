@@ -211,7 +211,7 @@ func GetAccessTokenXl(clientID, clientSecret string) (string, error) {
 }
 
 func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingPrice uint) (ChargingResponse, error) {
-
+	now := time.Now()
 	config, _ := config.GetGatewayConfig("xl_twt")
 	arrayOptions := config.Options["development"].(map[string]interface{})
 	url := arrayOptions["chargingurl"].(string)
@@ -259,7 +259,6 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 		return ChargingResponse{}, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set the HTTP headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
@@ -273,12 +272,24 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 	}
 	defer resp.Body.Close()
 
+	helper.XLLogger.LogAPICall(
+		url,
+		"POST",
+		time.Since(now),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   body,
+		},
+		map[string]interface{}{
+			"body": resp,
+		},
+	)
+
 	// Check if response status is OK
 	if resp.StatusCode != http.StatusOK {
 		return ChargingResponse{}, fmt.Errorf("request failed with status: %s", resp.Status)
 	}
-
-	now := time.Now()
 
 	requestDate := &now
 
@@ -295,8 +306,6 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 	if err := json.NewDecoder(resp.Body).Decode(&responseMap); err != nil {
 		return ChargingResponse{}, fmt.Errorf("failed to decode response: %w", err)
 	}
-
-	// log.Printf("Charging requested with id: %s, msisdn no: %s , chargingPrice %d", transactionId, msisdn, chargingPrice)
 
 	return responseMap.ChargingResponse, nil
 }

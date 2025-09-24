@@ -157,16 +157,31 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 	// ximpayId := c.Query("ximpayid")
 	ximpayStatus := c.Query("ximpaystatus")
 	cbParam := c.Query("cbparam")
+	ipChannel := c.IP()
 
 	// ximpaytoken := c.Query("ximpaytoken")
 	failcode := c.Query("failcode")
 	transactionId := cbParam[2:]
+
+	// Capture all query parameters
+	req := make(map[string]string)
+	for key, value := range c.Queries() {
+		req[key] = value
+	}
 
 	// log.Println("cbParam", cbParam)
 	// log.Println("ximpayStatus", ximpayStatus)
 	now := time.Now()
 
 	receiveCallbackDate := &now
+
+	helper.TriyakomLogger.LogCallback(transactionId, true,
+		map[string]interface{}{
+			"transaction_id":   transactionId,
+			"ip":               ipChannel,
+			"request_callback": req,
+		},
+	)
 
 	switch ximpayStatus {
 	case "1":
@@ -262,14 +277,14 @@ func MoTelkomsel(c *fiber.Ctx) error {
 	res, err := lib.RequestMtTsel(transaction.UserMDN, trxId, denom)
 	if err != nil {
 		log.Println("Mt request failed:", err)
-		return fmt.Errorf("Mt request failed: %s", err)
+		return fmt.Errorf("mt request failed: %v", err)
 	}
 
 	now := time.Now()
 
 	receiveCallbackDate := &now
 
-	log.Println("Mt request status for id ", transaction.ID, "is", res.Status)
+	// log.Println("Mt request status for id ", transaction.ID, "is", res.Status)
 
 	switch res.Status {
 	case "1":
@@ -400,9 +415,9 @@ func MidtransCallback(c *fiber.Ctx) error {
 }
 
 func DanaCallback(c *fiber.Ctx) error {
-	body := c.Body()
 	// log.Println("Raw Request Body:\n", string(body))
 	loc := time.FixedZone("IST", 5*60*60+30*60)
+	ipChannel := c.IP()
 
 	var req CallbackDanaPayload
 	if err := c.BodyParser(&req); err != nil {
@@ -443,6 +458,14 @@ func DanaCallback(c *fiber.Ctx) error {
 	// reqJSON, _ := json.MarshalIndent(req, "", "  ")
 	// log.Println("Parsed Request JSON:\n", string(reqJSON))
 
+	helper.DanaLogger.LogCallback(transactionID, true,
+		map[string]interface{}{
+			"transaction_id":   transactionID,
+			"ip":               ipChannel,
+			"request_callback": req,
+		},
+	)
+
 	status := req.Request.Body.AcquirementStatus
 	referenceId := req.Request.Body.AcquirementID
 	now := time.Now()
@@ -451,17 +474,14 @@ func DanaCallback(c *fiber.Ctx) error {
 
 	switch status {
 	case "SUCCESS":
-		log.Println("Success Request Body:\n", string(body))
 		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, &referenceId, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
 		}
 	case "CLOSED":
-		log.Println("CLOSED Request Body:\n", string(body))
 		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, &referenceId, nil, "order is closed", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
 		}
 	case "CANCELLED":
-		log.Println("CANCELLED Request Body:\n", string(body))
 		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, &referenceId, nil, "order is cancelled", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
 		}
@@ -507,6 +527,7 @@ func DanaCallback(c *fiber.Ctx) error {
 
 func DanaFaspayCallback(c *fiber.Ctx) error {
 	body := c.Body()
+	ipChannel := c.IP()
 
 	var req DanaFaspayPaymentNotification
 	if err := c.BodyParser(&req); err != nil {
@@ -525,6 +546,14 @@ func DanaFaspayCallback(c *fiber.Ctx) error {
 
 	status := req.PaymentStatusCode
 	now := time.Now()
+
+	helper.FaspayLogger.LogCallback(transactionID, true,
+		map[string]interface{}{
+			"transaction_id":   transactionID,
+			"ip":               ipChannel,
+			"request_callback": req,
+		},
+	)
 
 	receiveCallbackDate := &now
 
@@ -587,6 +616,8 @@ func DanaFaspayCallback(c *fiber.Ctx) error {
 
 func CallbackHarsya(c *fiber.Ctx) error {
 	apiKey := c.Get("X-API-Key")
+	ipChannel := c.IP()
+
 	if apiKey == "" {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"status":  "error",
@@ -628,6 +659,14 @@ func CallbackHarsya(c *fiber.Ctx) error {
 
 	transactionID := req.Data.ClientReferenceID
 
+	helper.HarsyaLogger.LogCallback(transactionID, true,
+		map[string]interface{}{
+			"transaction_id":   transactionID,
+			"ip":               ipChannel,
+			"request_callback": req,
+		},
+	)
+
 	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
 	if err != nil || transaction == nil {
 		log.Printf("Transaction not found: %s", transactionID)
@@ -646,7 +685,6 @@ func CallbackHarsya(c *fiber.Ctx) error {
 		if err != nil {
 			log.Printf("Error updating transaction %s to PROCESSING: %s", transactionID, err)
 		}
-
 	case "PAID":
 		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "Payment completed", receiveCallbackDate)
 		if err != nil {

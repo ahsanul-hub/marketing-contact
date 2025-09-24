@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"app/helper"
 	"app/repository"
 	"bytes"
 	"context"
@@ -184,6 +185,20 @@ func ChargingOVO(transactionID string, amount uint, usermsisdn string) (*OVOResp
 	}
 
 	requestDate := &nowDate
+
+	helper.OvoLogger.LogAPICall(
+		url,
+		"POST",
+		time.Since(nowDate),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionID,
+			"request_body":   jsonBody,
+		},
+		map[string]interface{}{
+			"body": ovoResp,
+		},
+	)
 
 	err = repository.UpdateTransactionTimestamps(context.Background(), transactionID, requestDate, nil, nil)
 	if err != nil {

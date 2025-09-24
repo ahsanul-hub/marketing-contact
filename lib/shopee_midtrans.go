@@ -1,6 +1,7 @@
 package lib
 
 import (
+	"app/helper"
 	"app/repository"
 	"bytes"
 	"context"
@@ -90,6 +91,21 @@ func RequestChargingShopeePay(transactionID string, chargingPrice uint, redirect
 	if err != nil {
 		return nil, fmt.Errorf("error reading response body: %v", err)
 	}
+
+	start := time.Now()
+	helper.ShopeepayLogger.LogAPICall(
+		"https://api.midtrans.com/v2/charge",
+		"POST",
+		time.Since(start),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionID,
+			"request_body":   jsonBody,
+		},
+		map[string]interface{}{
+			"body": string(body),
+		},
+	)
 
 	var midtransResp MidtransResponse
 	if err := json.Unmarshal(body, &midtransResp); err != nil {

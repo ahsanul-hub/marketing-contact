@@ -2,6 +2,7 @@ package lib
 
 import (
 	"app/config"
+	"app/helper"
 	"app/repository"
 	"bytes"
 	"context"
@@ -78,6 +79,20 @@ func RequestChargingGopay(transactionID string, chargingPrice uint, redirectUrl 
 	}
 
 	now := time.Now()
+
+	helper.GopayLogger.LogAPICall(
+		"https://api.midtrans.com/v2/charge",
+		"POST",
+		time.Since(now),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionID,
+			"request_body":   jsonBody,
+		},
+		map[string]interface{}{
+			"body": string(body),
+		},
+	)
 
 	requestDate := &now
 

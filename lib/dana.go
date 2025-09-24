@@ -338,7 +338,20 @@ func RequestChargingDana(transactionId, itemName, price, redirectUrl string) (st
 		log.Println("Error reading response")
 	}
 
-	// log.Println("res", string(body))
+	start := time.Now()
+	helper.DanaLogger.LogAPICall(
+		"https://api.saas.dana.id/dana/acquiring/order/createOrder.htm",
+		"POST",
+		time.Since(start),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   requestBody,
+		},
+		map[string]interface{}{
+			"body": string(body),
+		},
+	)
 
 	var danaResponse DanaResponse
 	err = json.Unmarshal(body, &danaResponse)

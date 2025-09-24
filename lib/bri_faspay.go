@@ -134,11 +134,25 @@ func RequestChargingVaFaspay(transactionId, itemName, price, redirectUrl, custom
 		log.Println("Error reading response")
 	}
 
-	var danaResponse FaspayVaResponse
-	err = json.Unmarshal(body, &danaResponse)
+	helper.FaspayLogger.LogAPICall(
+		"https://web.faspay.co.id/cvr/300011/10",
+		"POST",
+		time.Since(now),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   requestBody,
+		},
+		map[string]interface{}{
+			"body": body,
+		},
+	)
+
+	var FaspayResponse FaspayVaResponse
+	err = json.Unmarshal(body, &FaspayResponse)
 	if err != nil {
 		log.Println("Error decoding response")
 	}
 
-	return &danaResponse, expiredDate, nil
+	return &FaspayResponse, expiredDate, nil
 }

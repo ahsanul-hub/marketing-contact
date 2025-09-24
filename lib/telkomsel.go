@@ -211,9 +211,21 @@ func RequestMtTsel(msisdn, transactionId string, denom string) (MOResponseTsel, 
 		return MOResponseTsel{}, fmt.Errorf("error reading response body: %v", err)
 	}
 
-	// log.Println("res mt Tsel", string(body))
+	start := time.Now()
 
 	resBody := string(body)
+	helper.TelkomselLogger.LogAPICall(
+		fullURL,
+		"POST",
+		time.Since(start),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+		},
+		map[string]interface{}{
+			"body": resBody,
+		},
+	)
 
 	// if resBody != "1" && resp.StatusCode != 202 {
 	// 	return MOResponseTsel{}, fmt.Errorf("HTTP error: %s, Response body: %s", resp.Status, body)

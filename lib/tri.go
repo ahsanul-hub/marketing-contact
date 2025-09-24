@@ -2,6 +2,7 @@ package lib
 
 import (
 	"app/config"
+	"app/helper"
 	"app/repository"
 	"bytes"
 	"context"
@@ -76,6 +77,20 @@ func RequestChargingTriTriyakom(msisdn, itemName, transactionId, amount string) 
 
 	defer resp.Body.Close()
 
+	helper.TriLogger.LogAPICall(
+		requestURL,
+		"POST",
+		time.Since(currentTime),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   jsonBody,
+		},
+		map[string]interface{}{
+			"body": string(body),
+		},
+	)
+
 	var response XimpayResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		return "", fmt.Errorf("error decoding response: %v", err)
@@ -98,33 +113,6 @@ func RequestChargingTriTriyakom(msisdn, itemName, transactionId, amount string) 
 		log.Printf("Error updating request timestamp for transaction %s: %s", transactionId, err)
 	}
 
-	// var responseCode string
-	// switch v := responseCodeInterface.(type) {
-	// case string:
-	// 	responseCode = v // Jika sudah string, langsung gunakan
-	// case float64:
-	// 	responseCode = fmt.Sprintf("%.0f", v) // Konversi float64 ke string
-	// default:
-	// 	return fmt.Errorf("unexpected type for responsecode: %T", v), nil // Tangani tipe yang tidak terduga
-	// }
-
 	return ximpayID, nil
-	// "phone_number": data.UserMDN,
-}
 
-// if responseCode == "1" {
-// 	// Handle success
-// 	return nil, map[string]interface{}{
-// 		"success": true,
-// 		"response": map[string]interface{}{
-// 			"responsecode": responseCode,
-// 			"code":         "00",
-// 			"message":      "success",
-// 			// "transaction_id": data.,
-// 		},
-// 		"phone_number": data.UserMDN,
-// 	}
-// } else {
-// 	// Handle failure
-// 	return fmt.Errorf("transaction failed with response code: %s", responseCodeInterface), nil
-// }
+}

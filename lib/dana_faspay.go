@@ -176,6 +176,20 @@ func RequestChargingDanaFaspay(transactionId, itemName, price, redirectUrl, cust
 		log.Println("Error reading response")
 	}
 
+	helper.DanaLogger.LogAPICall(
+		"https://web.faspay.co.id/cvr/300011/10",
+		"POST",
+		time.Since(now),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   requestBody,
+		},
+		map[string]interface{}{
+			"body": string(body),
+		},
+	)
+
 	var danaResponse FaspayDanaResponse
 	err = json.Unmarshal(body, &danaResponse)
 	if err != nil {

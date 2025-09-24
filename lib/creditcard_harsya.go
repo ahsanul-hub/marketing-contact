@@ -2,6 +2,7 @@ package lib
 
 import (
 	"app/config"
+	"app/helper"
 	"app/repository"
 	"bytes"
 	"context"
@@ -64,6 +65,7 @@ func CardHarsyaCharging(transactionId, customerName, userMdn string, amount uint
 		return nil, fmt.Errorf("failed to get access token: %w", err)
 	}
 
+	now := time.Now()
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 	timeNow := time.Now().In(loc)
 	expiryAt := timeNow.Add(60 * time.Minute)
@@ -125,8 +127,26 @@ func CardHarsyaCharging(transactionId, customerName, userMdn string, amount uint
 	}
 	defer resp.Body.Close()
 
+	var chargingResp HarsyaChargingResponse
+	if err := json.NewDecoder(resp.Body).Decode(&chargingResp); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	helper.HarsyaLogger.LogAPICall(
+		requestUrl,
+		"POST",
+		time.Since(now),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   requestBody,
+		},
+		map[string]interface{}{
+			"body": chargingResp,
+		},
+	)
+
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		// Baca response body untuk error detail
 		responseBody, err := io.ReadAll(resp.Body)
 		if err != nil {
 			log.Printf("Error reading response body: %v", err)
@@ -136,12 +156,6 @@ func CardHarsyaCharging(transactionId, customerName, userMdn string, amount uint
 		return nil, fmt.Errorf("request failed with status: %s", resp.Status)
 	}
 
-	var chargingResp HarsyaChargingResponse
-	if err := json.NewDecoder(resp.Body).Decode(&chargingResp); err != nil {
-		return nil, fmt.Errorf("failed to decode response: %w", err)
-	}
-
-	now := time.Now()
 	requestDate := &now
 
 	err = repository.UpdateTransactionTimestamps(context.Background(), transactionId, requestDate, nil, nil)
