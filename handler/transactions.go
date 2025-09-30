@@ -1860,7 +1860,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions, se
 		case "va_bca":
 			price = transaction.Price
 			paymentMethod = transaction.PaymentMethod
-			if currentSettlement != nil && currentSettlement.FixFee != nil {
+			if currentSettlement != nil {
 				fee = *currentSettlement.FixFee
 			} else {
 				fee = 0
@@ -1973,7 +1973,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions, 
 		case "va_bca":
 			price = transaction.Price
 			paymentMethod = transaction.PaymentMethod
-			if currentSettlement != nil && currentSettlement.FixFee != nil {
+			if currentSettlement != nil {
 				fee = *currentSettlement.FixFee
 			} else {
 				fee = 0
