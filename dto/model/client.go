@@ -25,7 +25,7 @@ type SettlementClient struct {
 	Tax23             *string   `json:"tax23"`
 	Ppn               *float32  `json:"ppn"`
 	Mdr               string    `json:"mdr"`
-	FixFee            uint      `json:"fix_fee"`
+	FixFee            *uint     `json:"fix_fee"`
 	MdrType           string    `json:"mdr_type"`
 	AdditionalFee     *uint     `json:"additionalfee"`
 	AdditionalPercent *float32  `json:"additional_percent"`
