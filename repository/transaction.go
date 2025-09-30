@@ -219,7 +219,7 @@ func CreateTransaction(ctx context.Context, input *model.InputPaymentRequest, cl
 func GetAllTransactions(
 	ctx context.Context,
 	limit, offset, status, denom int,
-	transactionId, merchantTransactionId, userMDN, userId, appName string,
+	transactionId, merchantTransactionId, userMDN, userId, appName, keywordTsel string, otpTsel int,
 	appID, merchants, paymentMethods []string,
 	startDate, endDate *time.Time,
 ) ([]model.Transactions, int64, error) {
@@ -252,6 +252,12 @@ func GetAllTransactions(
 	}
 	if appName != "" {
 		baseQuery = baseQuery.Where("app_name = ?", appName)
+	}
+	if keywordTsel != "" {
+		baseQuery = baseQuery.Where("keyword = ?", keywordTsel)
+	}
+	if otpTsel != 0 {
+		baseQuery = baseQuery.Where("otp = ?", otpTsel)
 	}
 	if len(merchants) > 0 {
 		baseQuery = baseQuery.Where("merchant_name IN ?", merchants)

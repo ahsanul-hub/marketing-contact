@@ -1553,6 +1553,14 @@ func GetTransactions(c *fiber.Ctx) error {
 	userId := c.Query("user_id")
 	transactionId := c.Query("transaction_id")
 	merchantTransactionId := c.Query("merchant_transaction_id")
+	keywordTsel := c.Query("keyword")
+	otpStr := c.Query("otp")
+	var otpTsel int
+	if otpStr != "" {
+		if parsedOtp, err := strconv.Atoi(otpStr); err == nil {
+			otpTsel = parsedOtp
+		}
+	}
 	appName := c.Query("app_name")
 	merchantNameStr := c.Query("merchant_name")
 	var merchants []string
@@ -1612,7 +1620,7 @@ func GetTransactions(c *fiber.Ctx) error {
 	// 	excludeMerchants = strings.Split(excludeMerchantStr, ",")
 	// }
 
-	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, userMDN, userId, appName, appIDs, merchants, paymentMethods, startDate, endDate)
+	transactions, totalItems, err := repository.GetAllTransactions(spanCtx, limit, offset, status, denom, transactionId, merchantTransactionId, userMDN, userId, appName, keywordTsel, otpTsel, appIDs, merchants, paymentMethods, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -1683,11 +1691,11 @@ func ExportTransactions(c *fiber.Ctx) error {
 	}
 
 	if exportCSV == "true" {
-		return exportTransactionsToCSV(c, transactions)
+		return exportTransactionsToCSV(c, transactions, nil)
 	}
 
 	if exportExcel == "true" {
-		return exportTransactionsToExcel(c, transactions)
+		return exportTransactionsToExcel(c, transactions, nil)
 	}
 
 	return nil
@@ -1759,19 +1767,25 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
+	settlement, err := repository.GetSettlementConfig(arrClient.UID)
+	if err != nil {
+		log.Printf("ExportTransactionsMerchant: gagal ambil settlement config untuk client %s: %v\n", arrClient.UID, err)
+		settlement = []model.SettlementClient{}
+	}
+
 	if exportCSV == "true" {
-		return exportTransactionsToCSV(c, transactions)
+		return exportTransactionsToCSV(c, transactions, &settlement)
 	}
 
 	if exportExcel == "true" {
-		return exportTransactionsToExcel(c, transactions)
+		return exportTransactionsToExcel(c, transactions, &settlement)
 	}
 
 	return nil
 
 }
 
-func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) error {
+func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions, settlementConfig *[]model.SettlementClient) error {
 	log.Println("export transaction csv hit")
 
 	c.Set("Content-Type", "text/csv")
@@ -1808,6 +1822,13 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 			status = "success"
 		}
 
+		currentSettlement := helper.FindSettlementByPaymentMethod(settlementConfig, transaction.PaymentMethod)
+		if currentSettlement == nil {
+			log.Printf("export CSV: settlement not found for method=%s\n", transaction.PaymentMethod)
+		} else {
+			log.Printf("export CSV: settlement found for method=%s mdr=%s type=%s\n", transaction.PaymentMethod, currentSettlement.Mdr, currentSettlement.MdrType)
+		}
+
 		switch transaction.PaymentMethod {
 		case "qris":
 			feeFloat := float64(transaction.Amount) * 0.008
@@ -1836,6 +1857,15 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 		case "smartfren_airtime":
 			paymentMethod = "Smartfren"
 			price = transaction.Price
+		case "va_bca":
+			price = transaction.Price
+			paymentMethod = transaction.PaymentMethod
+			if currentSettlement != nil && currentSettlement.FixFee != nil {
+				fee = *currentSettlement.FixFee
+			} else {
+				fee = 0
+			}
+			netAmount = price - fee
 		default:
 			price = transaction.Price
 			paymentMethod = transaction.PaymentMethod
@@ -1874,7 +1904,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions) er
 	return nil
 }
 
-func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) error {
+func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions, settlementConfig *[]model.SettlementClient) error {
 
 	log.Println("export transaction excel hit")
 	f := excelize.NewFile()
@@ -1911,6 +1941,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 			status = "success"
 		}
 
+		currentSettlement := helper.FindSettlementByPaymentMethod(settlementConfig, transaction.PaymentMethod)
 		switch transaction.PaymentMethod {
 		case "qris":
 			price = transaction.Amount
@@ -1939,6 +1970,15 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions) 
 		case "smartfren_airtime":
 			paymentMethod = "Smartfren"
 			price = transaction.Price
+		case "va_bca":
+			price = transaction.Price
+			paymentMethod = transaction.PaymentMethod
+			if currentSettlement.FixFee != nil {
+				fee = *currentSettlement.FixFee
+			} else {
+				fee = 0
+			}
+			netAmount = price - fee
 		default:
 			price = transaction.Price
 			paymentMethod = transaction.PaymentMethod
@@ -2104,12 +2144,14 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
 
+	settlementConfig := arrClient.Settlements
+
 	if exportCSV == "true" {
-		return exportTransactionsToCSV(c, convertToExportFormat(transactions))
+		return exportTransactionsToCSV(c, convertToExportFormat(transactions), &settlementConfig)
 	}
 
 	if exportExcel == "true" {
-		return exportTransactionsToExcel(c, convertToExportFormat(transactions))
+		return exportTransactionsToExcel(c, convertToExportFormat(transactions), &settlementConfig)
 	}
 
 	totalPages := int64(math.Ceil(float64(totalItems) / float64(limit)))
