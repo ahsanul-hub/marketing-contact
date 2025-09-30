@@ -1973,7 +1973,7 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions, 
 		case "va_bca":
 			price = transaction.Price
 			paymentMethod = transaction.PaymentMethod
-			if currentSettlement.FixFee != nil {
+			if currentSettlement != nil && currentSettlement.FixFee != nil {
 				fee = *currentSettlement.FixFee
 			} else {
 				fee = 0
