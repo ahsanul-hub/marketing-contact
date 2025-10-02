@@ -485,7 +485,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		// log.Println("redirect: ", res.Actions[0].URL)
 		return c.JSON(fiber.Map{
 			"success":  true,
-			"redirect": res.Actions[1].URL,
+			"redirect": res.Actions[2].URL,
 			"qrisUrl":  res.Actions[0].URL,
 			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
@@ -1348,7 +1348,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		TransactionCache.Delete(transaction.MtTid)
 		return c.JSON(fiber.Map{
 			"success":  true,
-			"redirect": res.Actions[1].URL,
+			"redirect": res.Actions[2].URL,
 			"qrisUrl":  res.Actions[0].URL,
 			"back_url": transaction.RedirectURL,
 			"retcode":  "0000",
