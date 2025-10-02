@@ -91,7 +91,9 @@
             {{ end }}
           </ol>
         </div>
-        {{ end }}
+        {{ end }} {{ if .ExPicture }}
+        <h5 class="font-semibold text-lg text-gray-800">Panduan balas sms:</h5>
+        <img src="{{.ExPicture }}" alt="Guide" /> {{ end }}
       </div>
 
       <!-- Back Button -->

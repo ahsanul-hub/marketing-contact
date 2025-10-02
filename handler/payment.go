@@ -811,6 +811,7 @@ func SuccessPage(c *fiber.Ctx) error {
 		inputReq := cachedData.(model.InputPaymentRequest)
 		var StrPaymentMethod string
 		var steps []string
+		var examplePic string
 
 		currency := inputReq.Currency
 		if currency == "" {
@@ -826,8 +827,16 @@ func SuccessPage(c *fiber.Ctx) error {
 				"Pastikan pulsa cukup sesuai nominal transaksi",
 				"Transaksi akan diproses setelah OTP dikirim.",
 			}
+			examplePic = "/assets/xl-sms.jpeg"
 		case "telkomsel_airtime":
 			StrPaymentMethod = "Telkomsel"
+			examplePic = "/assets/telkomsel-sms.jpeg"
+		case "indosat_airtime":
+			StrPaymentMethod = "Indosat"
+			examplePic = "/assets/indosat-sms.jpeg"
+		case "three_airtime":
+			StrPaymentMethod = "Three"
+			examplePic = "/assets/three-sms.jpeg"
 		case "ovo":
 			StrPaymentMethod = "OVO"
 			steps = []string{
@@ -850,6 +859,7 @@ func SuccessPage(c *fiber.Ctx) error {
 		return c.Render("success_payment_new", fiber.Map{
 			"PaymentMethodStr": StrPaymentMethod,
 			"Msisdn":           msisdn,
+			"ExPicture":        examplePic,
 			"PaymentMethod":    inputReq.PaymentMethod,
 			"RedirectURL":      inputReq.RedirectURL,
 			"Steps":            steps,
@@ -869,6 +879,7 @@ func SuccessPageLegacy(c *fiber.Ctx) error {
 		inputReq := cachedData.(model.InputPaymentRequestLegacy)
 		var StrPaymentMethod string
 		var steps []string
+		var examplePic string
 
 		currency := inputReq.Currency
 		if currency == "" {
@@ -878,6 +889,7 @@ func SuccessPageLegacy(c *fiber.Ctx) error {
 		switch inputReq.PaymentMethod {
 		case "xl_airtime":
 			StrPaymentMethod = "XL"
+			examplePic = "/assets/xl-sms.jpeg"
 			steps = []string{
 				"Cek SMS yang masuk ke nomor anda dari nomor 99899",
 				"Cek kembali informasi yang diterima di sms, kemudian balas sms dengan kode OTP yang diterima ke nomor 99899",
@@ -886,6 +898,13 @@ func SuccessPageLegacy(c *fiber.Ctx) error {
 			}
 		case "telkomsel_airtime":
 			StrPaymentMethod = "Telkomsel"
+			examplePic = "/assets/telkomsel-sms.jpeg"
+		case "indosat_airtime":
+			StrPaymentMethod = "Indosat"
+			examplePic = "/assets/indosat-sms.jpeg"
+		case "three_airtime":
+			StrPaymentMethod = "Telkomsel"
+			examplePic = "/assets/three-sms.jpeg"
 		case "ovo":
 			StrPaymentMethod = "OVO"
 			steps = []string{
@@ -908,6 +927,7 @@ func SuccessPageLegacy(c *fiber.Ctx) error {
 		return c.Render("success_payment_new", fiber.Map{
 			"PaymentMethodStr": StrPaymentMethod,
 			"Msisdn":           msisdn,
+			"ExPicture":        examplePic,
 			"RedirectURL":      inputReq.RedirectURL,
 			"Steps":            steps,
 		})

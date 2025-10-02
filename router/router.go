@@ -1,6 +1,7 @@
 package router
 
 import (
+	"app/config"
 	"app/handler"
 	"app/middleware"
 	"app/repository"
@@ -12,6 +13,8 @@ import (
 )
 
 func SetupRoutes(app *fiber.App, db *gorm.DB) {
+	dirAsset := config.Config("DIR_ASSETS", "/Users/apple/Documents/dcb/dcb-be/assets")
+	app.Static("/assets", dirAsset)
 
 	api := app.Group("/api", logger.New())
 
