@@ -704,7 +704,7 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 
 		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" {
 			vat := inputReq.Price - amount
-			return c.Render("payment_ewallet", fiber.Map{
+			return c.Render("payment_ewallet_new", fiber.Map{
 				"AppName":          inputReq.AppName,
 				"PaymentMethod":    paymentMethod,
 				"PaymentMethodStr": StrPaymentMethod,
@@ -725,7 +725,7 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 			})
 		}
 
-		return c.Render("payment", fiber.Map{
+		return c.Render("payment_new", fiber.Map{
 			"AppName":          inputReq.AppName,
 			"PaymentMethod":    paymentMethod,
 			"PaymentMethodStr": StrPaymentMethod,
