@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pembayaran E-Wallet {{ .PaymentMethodStr}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet" />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #e2e8f0; /* bg-slate-200 */
+      }
+      /* Hide number input arrows */
+      input[type="number"]::-webkit-outer-spin-button,
+      input[type="number"]::-webkit-inner-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      input[type="number"] {
+        -moz-appearance: textfield;
+      }
+      /* Style for the button content to ensure good alignment when loading */
+      .btn-content {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <!-- The external logo is removed and replaced by the integrated header banner -->
+
+    <div class="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden">
+      <!-- Header Section (Redesigned Banner) -->
+      <div
+        class="bg-blue-600 text-white p-6 rounded-t-xl flex justify-between items-center">
+        <div class="flex items-center space-x-3">
+          <!-- Icon representing the payment method -->
+          <!-- <div class="text-white bg-white/20 p-2 rounded-lg">
+            <svg
+              class="w-6 h-6"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+              xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M10 2a8 8 0 100 16 8 8 0 000-16zM5.105 5.105A1 1 0 016.5 4a6 6 0 011.666 1.332 6 6 0 012.375 3.593v.005a2 2 0 100 4v.005a6 6 0 01-2.375 3.593A6 6 0 016.5 16a1 1 0 110-2c.866 0 1.937-.245 2.871-.978A8 8 0 0010 2a8 8 0 00-4 1.05v-1a1 1 0 11-2 0v2.05z"></path>
+            </svg>
+          </div> -->
+          <div>
+            <h1 class="text-xl font-semibold">{{ .PaymentMethodStr }}</h1>
+            <p class="text-sm font-light opacity-80 mt-1">
+              Pembayaran: Redigame - {{ .ItemName }}
+            </p>
+          </div>
+        </div>
+        <div class="text-right">
+          <p class="text-lg font-bold">
+            {{ .Currency }} {{ .FormattedAmount }}
+          </p>
+        </div>
+      </div>
+
+      <div class="p-6 space-y-6">
+        <!-- Transaction Summary Section -->
+        <div class="space-y-4 pt-2">
+          <h2 class="text-md font-semibold text-gray-800">
+            Ringkasan Transaksi
+          </h2>
+          <div class="space-y-2 text-sm text-gray-600">
+            <!-- Display breakdown based on payment type -->
+            {{ if and (ne .PaymentMethod "qris") (ne .PaymentMethod "qrph") }}
+            <div class="flex justify-between items-center">
+              <span>Sub Total</span>
+              <span class="font-semibold text-gray-800"
+                >{{ .Currency }} {{ .FormattedAmount }}</span
+              >
+            </div>
+            <div class="flex justify-between items-center">
+              <span>Pajak (VAT)</span>
+              <span class="font-semibold text-gray-800"
+                >{{ .Currency }} {{ .VAT }}</span
+              >
+            </div>
+            {{ else }}
+            <!-- For QRIS/QRPH, display the Amount as the base item price -->
+            <div class="flex justify-between items-center">
+              <span>Harga Item</span>
+              <span class="font-semibold text-gray-800"
+                >{{ .Currency }} {{ .FormattedAmount }}</span
+              >
+            </div>
+            {{ end }}
+
+            <div class="flex justify-between items-center">
+              <span>Biaya Admin</span>
+              <span class="font-semibold"
+                >{{ if gt .VAT 0 }} Termasuk Pajak {{ else }} Gratis {{ end
+                }}</span
+              >
+            </div>
+          </div>
+          <hr class="border-t border-gray-200" />
+          <div class="flex justify-between items-center font-bold text-xl">
+            <span>Total Pembayaran</span>
+            <span class="text-blue-600"
+              >{{ .Currency }} {{ .FormattedAmount }}</span
+            >
+          </div>
+        </div>
+
+        <!-- Main Form (OVO, Gopay Push, etc.) -->
+        <form action="" method="post" class="space-y-4" id="paymentForm">
+          {{ if eq .PaymentMethod "ovo" }}
+          <!-- Phone Number Input for OVO -->
+          <div class="relative pt-3">
+            <label
+              for="userMdn"
+              class="absolute -top-1 left-3 bg-white px-1 text-sm text-gray-500"
+              >Nomor HP OVO</label
+            >
+            <input
+              type="number"
+              id="userMdn"
+              name="user_mdn"
+              placeholder="081234567899"
+              class="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              required />
+            <p class="text-xs text-gray-400 mt-2">
+              Pastikan nomor ini terdaftar dan aktif di aplikasi OVO Anda.
+            </p>
+          </div>
+          {{end}}
+
+          <!-- Hidden Inputs -->
+          <input type="hidden" name="price" value="{{ .Price }}" />
+          <input type="hidden" name="amount" value="{{ .Amount }}" />
+          <input
+            type="hidden"
+            name="payment_method"
+            value="{{ .PaymentMethod }}" />
+          <input type="hidden" name="user_id" value="{{ .UserId }}" />
+          <input
+            type="hidden"
+            name="merchant_transaction_id"
+            value="{{ .MtID }}" />
+          <input
+            type="hidden"
+            name="client_appkey"
+            value="{{ .ClientAppKey }}" />
+          <input type="hidden" name="app_id" value="{{ .AppID }}" />
+          <input type="hidden" name="bodysign" value="{{ .BodySign }}" />
+          <input type="hidden" name="item_name" value="{{ .ItemName }}" />
+          <input type="hidden" name="item_id" value="{{ .ItemId }}" />
+          <input type="hidden" name="token" value="{{ .Token }}" />
+          <input type="hidden" name="UserIP" value="{{ .UserIP }}" />
+          <input
+            type="hidden"
+            name="notification_url"
+            value="{{ .NotificationURL}}" />
+          <input type="hidden" name="redirect_url" value="{{ .RedirectURL }}" />
+          <input
+            type="hidden"
+            name="customer_name"
+            value=""
+            id="customerNameForm" />
+
+          <!-- Action Buttons for OVO/LinkAja/Dana Push (not QRIS/QRPH) -->
+          {{ if and (ne .PaymentMethod "qris") (ne .PaymentMethod "qrph") }}
+          <div class="flex space-x-4 pt-2">
+            <button
+              type="button"
+              onclick="window.history.back();"
+              class="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 font-semibold transition-colors duration-200 hover:bg-gray-100">
+              Kembali
+            </button>
+            <button
+              type="submit"
+              id="btn-submit"
+              class="btn-submit flex-1 px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold flex items-center justify-center space-x-2 transition-colors duration-200 hover:bg-blue-700">
+              <span class="btn-content">
+                {{ if eq .PaymentMethod "ovo" }} Bayar {{ else }} Bayar dengan
+                {{ .PaymentMethodStr }}* {{ end }}
+              </span>
+            </button>
+          </div>
+          <p class="text-center text-xs text-gray-400 pt-2">
+            *Selanjutnya akan membuka aplikasi {{ .PaymentMethodStr}}.<br />
+          </p>
+          {{ end }}
+        </form>
+
+        <!-- QR Code/Secondary Payment Form (Gopay QR, QRIS, QRPH) -->
+        {{ if or (eq .PaymentMethod "gopay") (eq .PaymentMethod "qris") (eq
+        .PaymentMethod "qrph") }} {{ if and (ne .PaymentMethod "qris") (ne
+        .PaymentMethod "qrph") }}
+        <p
+          class="text-center text-sm text-gray-500 mt-4 border-t pt-4 border-gray-200">
+          Atau Gunakan QR Code
+        </p>
+        {{ else }}
+        <p class="text-sm text-gray-500 mt-4 border-t pt-4 border-gray-200"></p>
+        {{ end }}
+
+        <form
+          action=""
+          method="post"
+          id="paymentQrForm"
+          class="mt-3 space-y-4 text-center">
+          {{ if eq .PaymentMethod "qrph" }}
+          <!-- Name Input for QRPH -->
+          <div class="relative text-left pt-3">
+            <label
+              for="customer_name_qr"
+              class="absolute -top-1 left-3 bg-white px-1 text-sm text-gray-500"
+              >Nama Pelanggan (QRPH)</label
+            >
+            <input
+              type="text"
+              id="customer_name_qr"
+              class="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              name="customer_name_qr"
+              placeholder="Masukan nama lengkap"
+              required />
+          </div>
+          {{ else }}
+          <!-- Placeholder for customer_name if not QRPH, to be handled by JS -->
+          <input
+            type="hidden"
+            id="customer_name_qr"
+            name="customer_name_qr"
+            value="" />
+          {{ end }} {{ if eq .PaymentMethod "qris" }}
+          <button
+            type="submit"
+            id="btn-submit-qr"
+            class="btn-submit w-full px-4 py-3 rounded-xl bg-blue-50 text-white bg-blue-600 font-semibold flex items-center justify-center space-x-2 transition-colors duration-200 hover:bg-blue-700">
+            <span class="btn-content"
+              >Bayar dengan {{ .PaymentMethodStr}} (QR Code)**</span
+            >
+          </button>
+          {{ else }}
+          <!-- Placeholder for customer_name if not QRPH, to be handled by JS -->
+          <button
+            type="submit"
+            id="btn-submit-qr"
+            class="btn-submit w-full px-4 py-3 rounded-xl bg-blue-50 text-blue-600 border border-blue-600 font-semibold flex items-center justify-center space-x-2 transition-colors duration-200 hover:bg-blue-100">
+            <span class="btn-content"
+              >Bayar dengan {{ .PaymentMethodStr}} (QR Code)**</span
+            >
+          </button>
+          {{ end }}
+
+          <p class="text-center text-xs text-gray-400 pt-2">
+            **Selanjutnya akan menampilkan QR code.
+          </p>
+        </form>
+        {{ end }}
+
+        <div
+          class="bg-blue-50 text-blue-700 p-4 rounded-lg flex items-start space-x-4">
+          <svg
+            class="w-6 h-6 mt-1"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              fill-rule="evenodd"
+              d="M10 2a8 8 0 100 16 8 8 0 000-16zM5 10a5 5 0 1110 0 5 5 0 01-10 0zm4-4a1 1 0 00-1 1v2a1 1 0 001 1h2a1 1 0 001-1V7a1 1 0 00-1-1H9z"
+              clip-rule="evenodd"></path>
+          </svg>
+          <div>
+            <h3 class="font-semibold">Transaksi Aman & Terpercaya</h3>
+            <ul class="text-xs list-disc mt-2 space-y-1">
+              <!-- <li>Data Anda dilindungi enkripsi SSL 256-bit</li> -->
+              <li>Tidak ada biaya tambahan untuk transaksi ini</li>
+              <li>Item akan masuk ke akun dalam 1-3 menit</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- General Disclaimers -->
+        <p class="text-center text-xs text-gray-400">
+          Dengan melanjutkan, Anda menyetujui
+          <a href="#" class="text-blue-600 hover:underline"
+            >Syarat & Ketentuan</a
+          >
+          dan
+          <a href="#" class="text-blue-600 hover:underline"
+            >Kebijakan Privasi</a
+          >
+        </p>
+      </div>
+
+      <!-- Footer Section (Security Badges) -->
+      <div
+        class="bg-gray-100 p-4 text-xs text-gray-400 flex justify-around items-center rounded-b-xl border-t border-gray-200">
+        <div class="flex items-center space-x-1">
+          <svg
+            class="w-4 h-4"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-8a1 1 0 11-2 0 1 1 0 012 0zm3 0a1 1 0 11-2 0 1 1 0 012 0z"
+              clip-rule="evenodd"></path>
+          </svg>
+          <span>SSL Secured</span>
+        </div>
+        <div class="flex items-center space-x-1">
+          <svg
+            class="w-4 h-4"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M10 2a8 8 0 100 16 8 8 0 000-16zm-1 8a1 1 0 112 0 1 1 0 01-2 0z"
+              clip-rule="evenodd"></path>
+          </svg>
+          <span>PCI Compliant</span>
+        </div>
+        <div class="flex items-center space-x-1">
+          <svg
+            class="w-4 h-4"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              fill-rule="evenodd"
+              d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-8a1 1 0 10-2 0v4a1 1 0 102 0v-4zm-1-4a1 1 0 100 2 1 1 0 000-2z"
+              clip-rule="evenodd"></path>
+          </svg>
+          <span>24/7 Support</span>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let isQris = false;
+
+      document
+        .getElementById("paymentQrForm")
+        ?.addEventListener("submit", function (event) {
+          event.preventDefault();
+          isQris = true;
+          document
+            .getElementById("paymentForm")
+            .dispatchEvent(new Event("submit"));
+        });
+
+      document
+        .getElementById("paymentForm")
+        .addEventListener("submit", function (event) {
+          event.preventDefault();
+          const submitButton = document.querySelector(".btn-submit");
+          submitButton.disabled = true;
+
+          const formData = new FormData(this);
+
+          const data = Object.fromEntries(formData.entries());
+
+          const dataFormated = {
+            amount: parseFloat(data.amount),
+            price: parseFloat(data.price),
+            user_mdn: data.user_mdn,
+            client_appkey: data.client_appkey,
+            payment_method: data.payment_method,
+            app_name: data.app_name,
+            merchant_transaction_id: data.merchant_transaction_id,
+            user_id: data.user_id,
+            item_name: data.item_name,
+            item_id: data.item_id,
+            app_id: data.app_id,
+            token: data.token,
+            customer_name: data.customer_name || "",
+            notification_url: data.notification_url,
+            redirect_url: data.redirect_url,
+            UserIP: data.UserIP,
+          };
+
+          fetch("/api/payment/notelco", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              appid: data.app_id,
+              appkey: data.client_appkey,
+              token: data.token,
+              bodysign: data.bodysign,
+            },
+            body: JSON.stringify(dataFormated),
+          })
+            .then((response) => response.json())
+            .then((data) => {
+              submitButton.disabled = false;
+              if (data.success) {
+                if (isQris) {
+                  window.location.href = `/api/payment-qris?qrisUrl=${data.qrisUrl}&acquirer=Gopay&back_url=${data.back_url}&typeQr=${data.payment_method}`;
+                } else {
+                  if (data.urlPayment) {
+                    window.location.href = data.urlPayment;
+                  }
+                  window.location.href = data.redirect;
+                }
+              } else {
+                alert(data.error || data.message || "Transaksi gagal");
+              }
+            })
+            .catch((error) => {
+              submitButton.disabled = false;
+              console.error("Error:", error);
+            });
+
+          const allowedClients = {
+            "6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
+            "64522e4e764f1bb11b8b4567": "1PSBWpSlKRY400bFIXKs2kBjNxLGf15h",
+            MHSBZnRBLkDQFlYDMSeXFA: "5HjSLo37LwvIhTAX_zOJkg",
+            "64d07790764f1bbe758b4569": "L66vZHbpCnCyjRzvnJ67wYeBEKPb5k1Q",
+            "5ab32a23764f1b296b8bb386": "QdQpQLCBTbkAJv0OOTYhxAdojWkot5Gk",
+          };
+
+          if (dataFormated.payment_method === "ovo") {
+            const expectedAppkey = allowedClients[data.app_id];
+            const useV1 =
+              expectedAppkey && expectedAppkey === data.client_appkey;
+
+            const redirectUrl = useV1
+              ? `/api/v1/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`
+              : `/api/success-payment/${dataFormated.user_mdn}/${dataFormated.token}`;
+
+            window.location.href = redirectUrl;
+          }
+        });
+
+      // Saat kembali ke halaman (misal: user tekan back)
+      window.addEventListener("pageshow", function (event) {
+        if (event.persisted) {
+          // Halaman dibuka dari cache (misalnya user tekan tombol back)
+          location.reload();
+        }
+      });
+
+      document
+        .getElementById("userMdn")
+        .addEventListener("input", function (event) {
+          this.value = this.value.replace(/[^0-9]/g, "");
+        });
+    </script>
+  </body>
+</html>

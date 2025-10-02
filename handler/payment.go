@@ -537,7 +537,7 @@ func PaymentPage(c *fiber.Ctx) error {
 
 		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" || paymentMethod == "qrph" {
 			vat := inputReq.Price - inputReq.Amount
-			return c.Render("payment_ewallet", fiber.Map{
+			return c.Render("payment_ewallet_new", fiber.Map{
 				"AppName":          inputReq.AppName,
 				"PaymentMethod":    paymentMethod,
 				"PaymentMethodStr": StrPaymentMethod,
@@ -545,6 +545,7 @@ func PaymentPage(c *fiber.Ctx) error {
 				"ItemId":           inputReq.ItemId,
 				"Price":            inputReq.Price,
 				"Amount":           inputReq.Amount,
+				"FormattedAmount":  helper.FormatCurrencyIDR(inputReq.Amount),
 				"Currency":         currency,
 				"ClientAppKey":     inputReq.ClientAppKey,
 				"VAT":              vat,
@@ -559,7 +560,7 @@ func PaymentPage(c *fiber.Ctx) error {
 			})
 		}
 
-		return c.Render("payment", fiber.Map{
+		return c.Render("payment_new", fiber.Map{
 			"AppName":          inputReq.AppName,
 			"PaymentMethod":    paymentMethod,
 			"PaymentMethodStr": StrPaymentMethod,
@@ -567,6 +568,7 @@ func PaymentPage(c *fiber.Ctx) error {
 			"ItemId":           inputReq.ItemId,
 			"Price":            inputReq.Price,
 			"Amount":           inputReq.Amount,
+			"FormattedAmount":  helper.FormatCurrencyIDR(inputReq.Amount),
 			"Currency":         currency,
 			"ClientAppKey":     inputReq.ClientAppKey,
 			"AppID":            inputReq.AppID,
@@ -817,8 +819,8 @@ func SuccessPage(c *fiber.Ctx) error {
 		case "xl_airtime":
 			StrPaymentMethod = "XL"
 			steps = []string{
-				"Cek SMS yang masuk ke nomor anda",
-				"Cek kembali informasi yang diterima di sms, kemudian balas sms dengan kode OTP yang diterima",
+				"Cek SMS yang masuk ke nomor anda dari nomor 99899",
+				"Cek kembali informasi yang diterima di sms, kemudian balas sms dengan kode OTP yang diterima ke nomor 99899",
 				"Pastikan pulsa cukup sesuai nominal transaksi",
 				"Transaksi akan diproses setelah OTP dikirim.",
 			}
@@ -835,7 +837,7 @@ func SuccessPage(c *fiber.Ctx) error {
 		}
 
 		if inputReq.PaymentMethod == "ovo" {
-			return c.Render("success_ovo", fiber.Map{
+			return c.Render("success_ovo_new", fiber.Map{
 				"PaymentMethodStr": StrPaymentMethod,
 				"Msisdn":           msisdn,
 				"RedirectURL":      inputReq.RedirectURL,
@@ -843,9 +845,10 @@ func SuccessPage(c *fiber.Ctx) error {
 			})
 		}
 
-		return c.Render("success_payment", fiber.Map{
+		return c.Render("success_payment_new", fiber.Map{
 			"PaymentMethodStr": StrPaymentMethod,
 			"Msisdn":           msisdn,
+			"PaymentMethod":    inputReq.PaymentMethod,
 			"RedirectURL":      inputReq.RedirectURL,
 			"Steps":            steps,
 		})
@@ -874,8 +877,8 @@ func SuccessPageLegacy(c *fiber.Ctx) error {
 		case "xl_airtime":
 			StrPaymentMethod = "XL"
 			steps = []string{
-				"Cek SMS yang masuk ke nomor anda",
-				"Cek kembali informasi yang diterima di sms, kemudian balas sms dengan kode OTP yang diterima",
+				"Cek SMS yang masuk ke nomor anda dari nomor 99899",
+				"Cek kembali informasi yang diterima di sms, kemudian balas sms dengan kode OTP yang diterima ke nomor 99899",
 				"Pastikan pulsa cukup sesuai nominal transaksi",
 				"Transaksi akan diproses setelah OTP dikirim.",
 			}
@@ -892,7 +895,7 @@ func SuccessPageLegacy(c *fiber.Ctx) error {
 		}
 
 		if inputReq.PaymentMethod == "ovo" {
-			return c.Render("success_ovo", fiber.Map{
+			return c.Render("success_ovo_new", fiber.Map{
 				"PaymentMethodStr": StrPaymentMethod,
 				"Msisdn":           msisdn,
 				"RedirectURL":      inputReq.RedirectURL,
@@ -900,7 +903,7 @@ func SuccessPageLegacy(c *fiber.Ctx) error {
 			})
 		}
 
-		return c.Render("success_payment", fiber.Map{
+		return c.Render("success_payment_new", fiber.Map{
 			"PaymentMethodStr": StrPaymentMethod,
 			"Msisdn":           msisdn,
 			"RedirectURL":      inputReq.RedirectURL,
@@ -1629,7 +1632,7 @@ func VaPage(c *fiber.Ctx) error {
 		},
 	}
 
-	return c.Render("va_page", fiber.Map{
+	return c.Render("va_page_new", fiber.Map{
 		"VaNumber":     inputReq.VaNumber,
 		"RedirectURL":  inputReq.RedirectURL,
 		"CustomerName": inputReq.CustomerName,

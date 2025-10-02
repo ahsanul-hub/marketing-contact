@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Payment Confirmation</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet" />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #e2e8f0; /* bg-slate-200 */
+      }
+    </style>
+  </head>
+  <body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div
+      class="bg-white rounded-xl shadow-lg w-full max-w-sm overflow-hidden p-6">
+      <!-- Header / Method Name -->
+      <div class="text-center pb-4 border-b border-gray-200 mb-6">
+        <h1 class="text-2xl font-bold text-gray-800">
+          {{ .PaymentMethodStr }}
+        </h1>
+      </div>
+
+      <div class="space-y-4">
+        <!-- SMS Instructions Block -->
+        <div
+          class="bg-blue-50 text-blue-700 p-3 rounded-lg flex items-start space-x-3 border border-blue-200">
+          <svg
+            class="w-6 h-6 flex-shrink-0"
+            fill="currentColor"
+            viewBox="0 0 20 20"
+            xmlns="http://www.w3.org/2000/svg">
+            <path
+              fill-rule="evenodd"
+              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
+              clip-rule="evenodd"></path>
+          </svg>
+          <div>
+            <h3 class="font-semibold text-md mb-1">
+              Penting! Selesaikan Pembayaran Anda
+            </h3>
+            <p class="text-sm">
+              Mohon ikuti petunjuk sesuai SMS yang dikirim ke nomor berikut:
+            </p>
+            <p class="text-base font-bold mt-1">{{ .Msisdn}}</p>
+          </div>
+        </div>
+
+        <!-- General Steps Section -->
+        {{ if .Steps }}
+        <div class="pt-4 space-y-3">
+          <h5 class="font-semibold text-lg text-gray-800">Langkah-langkah:</h5>
+          <ol class="list-decimal pl-5 text-sm text-gray-600 space-y-2">
+            {{ range .Steps }}
+            <li class="pl-1">{{ . }}</li>
+            {{ end }}
+          </ol>
+        </div>
+        {{ end }}
+      </div>
+
+      <!-- Back Button -->
+      <div class="mt-8">
+        <a
+          href="{{ .RedirectURL }}"
+          class="block w-full text-center py-3 border border-gray-300 rounded-xl text-gray-700 font-semibold transition-colors duration-200 hover:bg-gray-100 no-underline">
+          Kembali
+        </a>
+      </div>
+    </div>
+
+    <div
+      id="copyModal"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40 hidden">
+      <div class="bg-white p-4 rounded-lg shadow-xl max-w-xs text-center">
+        <p class="text-gray-800 font-medium">Kode berhasil disalin!</p>
+      </div>
+    </div>
+
+    <!-- JavaScript for Copy Function and Modal -->
+    <script>
+      function copyKeyword() {
+        const keywordText = document.getElementById("keyword").innerText;
+
+        // Use fallback for clipboard API due to iframe restrictions
+        const textarea = document.createElement("textarea");
+        textarea.value = keywordText;
+        document.body.appendChild(textarea);
+        textarea.select();
+
+        try {
+          document.execCommand("copy");
+          document.body.removeChild(textarea);
+
+          const modal = document.getElementById("copyModal");
+          modal.classList.remove("hidden");
+
+          setTimeout(() => {
+            modal.classList.add("hidden");
+          }, 1500);
+        } catch (err) {
+          document.body.removeChild(textarea);
+          console.error("Gagal menyalin: ", err);
+        }
+      }
+    </script>
+  </body>
+</html>

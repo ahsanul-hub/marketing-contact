@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pembayaran VA {{ .BankName}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet" />
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #f1f5f9; /* bg-slate-100 */
+      }
+      /* Custom styling for the copy button interaction */
+      .copy-btn {
+        transition: all 0.2s ease-in-out;
+      }
+      .copy-btn:hover {
+        opacity: 0.9;
+      }
+      .step-list ul {
+        list-style-type: none;
+        padding-left: 0;
+        margin-top: 0.5rem;
+      }
+      .step-list li {
+        position: relative;
+        padding-left: 1.5rem;
+        margin-bottom: 0.5rem;
+        font-size: 0.95rem;
+        color: #4b5563; /* text-gray-600 */
+      }
+      .step-list li::before {
+        content: "•"; /* Using a simple bullet for sub-steps */
+        position: absolute;
+        left: 0;
+        top: 0;
+        color: #3b82f6; /* text-blue-500 */
+        font-size: 1.2rem;
+        font-weight: 700;
+      }
+      .step-method h5 {
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e5e7eb;
+        margin-top: 1.5rem;
+        font-size: 1.125rem; /* text-lg */
+        font-weight: 600;
+        color: #1f2937; /* text-gray-800 */
+      }
+    </style>
+  </head>
+  <body class="flex flex-col items-center justify-center min-h-screen p-4">
+    <div
+      id="alert-modal"
+      class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+      <div
+        class="bg-white p-4 rounded-xl shadow-2xl max-w-xs w-full mx-4 text-center">
+        <p class="text-green-600 font-semibold text-lg">Berhasil Disalin!</p>
+        <p class="text-sm text-gray-600 mt-2">
+          Nomor VA telah disalin ke clipboard Anda.
+        </p>
+      </div>
+    </div>
+
+    <div
+      class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden p-6 space-y-6">
+      <!-- Header Section -->
+      <div class="text-center pb-4 border-b border-gray-200">
+        <h1 class="text-xl font-bold text-gray-800">
+          Pembayaran Virtual Account
+        </h1>
+        <p class="text-3xl font-extrabold text-blue-600 mt-2">{{ .BankName}}</p>
+      </div>
+
+      <!-- Main Instruction -->
+      <div class="space-y-4 text-center">
+        {{ if or (eq .BankName "ALFAMART") (eq .BankName "INDOMARET") }}
+        <p class="text-md font-medium text-gray-700">
+          Selesaikan pembayaran Anda dengan menunjukkan kode di bawah ini kepada
+          kasir {{ .BankName}}.
+        </p>
+        {{ else }}
+        <p class="text-md font-medium text-gray-700">
+          Selesaikan pembayaran Anda melalui Internet Banking, Mobile Banking
+          (SMS), atau ATM.
+        </p>
+        {{ end }}
+      </div>
+
+      <!-- VA Number Display -->
+      <div class="p-6 bg-blue-50 rounded-xl border border-blue-200 space-y-3">
+        <p class="text-sm font-semibold text-gray-600">
+          Nomor Virtual Account:
+        </p>
+
+        <div class="flex flex-col items-center justify-center space-y-1">
+          <span class="text-md font-medium text-gray-700"
+            >{{ .CustomerName }}</span
+          >
+          <div class="flex items-center space-x-3 mt-1">
+            <span
+              id="va-number"
+              class="text-3xl font-bold text-gray-900 tracking-wider select-text"
+              >{{ .VaNumber }}</span
+            >
+            <button
+              id="copy-btn"
+              class="copy-btn px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-semibold shadow-md flex items-center space-x-1 hover:bg-blue-700 active:bg-blue-800"
+              onclick="copyVaNumber()">
+              <span id="copy-text">Salin</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Payment Steps Section -->
+      {{ if .Steps }}
+      <div class="pt-2 step-list">
+        <h4 class="text-lg font-bold text-gray-800 border-b pb-2">
+          Panduan Pembayaran
+        </h4>
+
+        {{ range $method, $steps := .Steps }}
+        <div class="step-method">
+          <h5>Cara bayar dengan {{ $method }}:</h5>
+          <ul>
+            {{ range $steps }}
+            <li>{{ . }}</li>
+            {{ end }}
+          </ul>
+        </div>
+        {{ end }}
+      </div>
+      {{ end }}
+
+      <!-- Action Button -->
+      <div class="pt-4">
+        <button
+          class="w-full px-4 py-3 rounded-xl bg-gray-600 text-white font-semibold transition-colors duration-200 hover:bg-gray-700 shadow-md"
+          onclick="window.location.href='{{ .RedirectURL }}'">
+          Kembali
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // Use a custom modal replacement since window.alert/confirm/modal is forbidden in canvas environments
+      function showCustomAlert() {
+        const modal = document.getElementById("alert-modal");
+        const copyText = document.getElementById("copy-text");
+
+        // Show the modal
+        modal.classList.remove("hidden");
+
+        // Update button text temporarily
+        copyText.textContent = "Disalin!";
+
+        // Hide modal after 1.5 seconds and restore button text
+        setTimeout(() => {
+          modal.classList.add("hidden");
+          copyText.textContent = "Salin";
+        }, 1500);
+      }
+
+      function copyVaNumber() {
+        const vaText = document.getElementById("va-number").innerText;
+        // Use execCommand for broader compatibility within iframe/canvas environments
+        try {
+          const tempInput = document.createElement("textarea");
+          tempInput.value = vaText;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand("copy");
+          document.body.removeChild(tempInput);
+          showCustomAlert();
+        } catch (err) {
+          console.error("Gagal menyalin menggunakan execCommand:", err);
+        }
+      }
+    </script>
+  </body>
+</html>
