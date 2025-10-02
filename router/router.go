@@ -13,7 +13,8 @@ import (
 )
 
 func SetupRoutes(app *fiber.App, db *gorm.DB) {
-	dirAsset := config.Config("DIR_ASSETS", "/Users/apple/Documents/dcb/dcb-be/assets")
+	// Serve static assets (e.g., images) from /assets using absolute path
+	dirAsset := config.Config("DIR_ASSETS", "/home/aldi/dcb-backend/assets")
 	app.Static("/assets", dirAsset)
 
 	api := app.Group("/api", logger.New())
