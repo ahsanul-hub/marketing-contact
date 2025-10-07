@@ -275,8 +275,7 @@ func LogPaymentAPI(paymentType, endpoint, method string, duration time.Duration,
 		LogManager.LogPayment(paymentType, "ERROR", "", entry)
 	} else if duration > 2*time.Second {
 		LogManager.LogPayment(paymentType, "WARN", "", entry)
-	} else if statusCode == 200 || statusCode == 201 {
-		// Log semua transaksi sukses (200/201) ke file payment method
+	} else if statusCode >= 200 && statusCode < 300 {
 		LogManager.LogPayment(paymentType, "INFO", "", entry)
 	}
 	// Skip other normal responses to reduce volume
