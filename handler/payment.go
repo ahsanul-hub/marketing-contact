@@ -350,12 +350,28 @@ func CreateOrderLegacy(c *fiber.Ctx) error {
 		})
 	}
 
+	isBlockedMDN, err := repository.IsMDNBlocked(input.UserMDN)
+	if err != nil {
+		log.Println("error get blocked Msisdn:", err)
+
+	}
+
+	if isBlockedMDN {
+		log.Println("diblokir: ", input.UserMDN)
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0015",
+			"message": "Blocked User ID or MSISDN!",
+			"data":    []interface{}{},
+		})
+	}
+
 	isBlocked, _ := repository.IsUserIDBlocked(input.UserId, arrClient.ClientName)
 	if isBlocked {
 		return c.JSON(fiber.Map{
 			"success": false,
 			"retcode": "E0015",
-			"message": "Blocked MSISDN!",
+			"message": "Blocked User ID or MSISDN!",
 			"data":    []interface{}{},
 		})
 	}

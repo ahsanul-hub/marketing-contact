@@ -166,6 +166,20 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	}
 
+	isBlockedMDN, err := repository.IsMDNBlocked(beautifyMsisdn)
+	if err != nil {
+		log.Println("error get blocked Msisdn:", err)
+
+	}
+
+	if isBlockedMDN {
+		log.Println("diblokir: ", beautifyMsisdn)
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"message": "Msisdn is blocked",
+		})
+	}
+
 	appName := repository.GetAppNameFromClient(arrClient, appid)
 
 	expectedBodysign := helper.GenerateBodySign(transaction, arrClient.ClientSecret)
@@ -959,14 +973,14 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 
 	beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
 
-	isBlocked, err := repository.IsMDNBlocked(beautifyMsisdn)
+	isBlockedMDN, err := repository.IsMDNBlocked(beautifyMsisdn)
 	if err != nil {
-		log.Println("Msisdn is blocked")
+		log.Println("error get blocked Msisdn:", err)
 
 	}
 
-	if isBlocked {
-		log.Println(" diblokir")
+	if isBlockedMDN {
+		log.Println("diblokir: ", beautifyMsisdn)
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
 			"success": false,
 			"message": "Msisdn is blocked",
@@ -991,16 +1005,6 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
 	if err != nil {
 		log.Println("Error get client")
-
-	}
-
-	isBlocked, _ = repository.IsUserIDBlocked(transaction.UserId, arrClient.ClientName)
-	if isBlocked {
-		log.Println("userID is blocked")
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"error":   "userID is blocked",
-		})
 
 	}
 

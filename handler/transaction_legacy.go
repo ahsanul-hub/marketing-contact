@@ -178,6 +178,20 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 	}
 
+	isBlockedMDN, err := repository.IsMDNBlocked(beautifyMsisdn)
+	if err != nil {
+		log.Println("error get blocked Msisdn:", err)
+
+	}
+
+	if isBlockedMDN {
+		log.Println("diblokir: ", beautifyMsisdn)
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"success": false,
+			"message": "Msisdn is blocked",
+		})
+	}
+
 	if !isEwallet && !helper.IsValidPrefix(beautifyMsisdn, paymentMethod) && paymentMethod != "ovo" {
 		return c.JSON(fiber.Map{
 			"success": false,

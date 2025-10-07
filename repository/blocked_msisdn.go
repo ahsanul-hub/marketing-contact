@@ -2,6 +2,8 @@ package repository
 
 import (
 	"app/database"
+	"context"
+	"errors"
 	"log"
 
 	// "app/lib"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
+	"gorm.io/gorm"
 )
 
 var BlockedMDNCache = cache.New(10*time.Minute, 15*time.Minute)
@@ -21,25 +24,78 @@ type BlockedUserInfo struct {
 }
 
 func IsMDNBlocked(userMDN string) (bool, error) {
-	if cached, found := BlockedMDNCache.Get(userMDN); found {
-		return cached.(bool), nil
+	// Query langsung ke database tanpa cache
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var blocked model.BlockedMDN
+	err := database.DB.WithContext(ctx).
+		Where("user_mdn = ? AND (blocked_until IS NULL OR blocked_until > ?)", userMDN, time.Now()).
+		First(&blocked).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, err
 	}
-	return false, nil
+
+	// Consider blocked jika record ada dan belum expired (query sudah memfilter kondisi ini)
+	return true, nil
 }
 
 func IsUserIDBlocked(userId, merchantName string) (bool, error) {
 	if cached, found := BlockedUserIDCache.Get(userId); found {
-		return cached.(bool), nil
-	}
-
-	if cached, found := BlockedUserIDCache.Get(userId); found {
-		data := cached.(BlockedUserInfo)
-		if data.MerchantName == merchantName {
-			return true, nil
+		// Gunakan bool di cache: true = blocked, false = not blocked
+		if v, ok := cached.(bool); ok {
+			return v, nil
 		}
+		// Backward compatibility: jika masih ada tipe lama di cache, treat sebagai blocked hanya jika belum expired
+		if v, ok := cached.(BlockedUserInfo); ok {
+			if v.MerchantName == merchantName {
+				if v.BlockedUntil == nil || time.Until(*v.BlockedUntil) > 0 {
+					return true, nil
+				}
+			}
+			// Jaga-jaga: convert ke negative cache 1 menit agar tidak hit tipe lama berulang
+			BlockedUserIDCache.Set(userId, false, 1*time.Minute)
+			return false, nil
+		}
+		log.Printf("unexpected cache type for userId %s: %T", userId, cached)
 	}
 
-	return false, nil
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	var blocked model.BlockedUserId
+	err := database.DB.WithContext(ctx).
+		Where("user_id = ? AND merchant_name = ? AND (blocked_until IS NULL OR blocked_until > ?)", userId, merchantName, time.Now()).
+		First(&blocked).Error
+
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			// negative caching singkat: simpan false
+			BlockedUserIDCache.Set(userId, false, 1*time.Minute)
+			return false, nil
+		}
+		return false, err
+	}
+
+	// Set ke cache dengan TTL sesuai blocked_until
+	var expiration time.Duration
+	if blocked.BlockedUntil != nil {
+		expiration = time.Until(*blocked.BlockedUntil)
+		if expiration <= 0 {
+			BlockedUserIDCache.Set(userId, BlockedUserInfo{MerchantName: merchantName, BlockedUntil: blocked.BlockedUntil}, 1*time.Minute)
+			return false, nil
+		}
+	} else {
+		expiration = cache.NoExpiration
+	}
+
+	// Simpan sebagai boolean true dengan TTL sesuai masa blokir
+	BlockedUserIDCache.Set(userId, true, expiration)
+	return true, nil
 }
 
 func UpdateBlockedMDNCache() error {
@@ -55,7 +111,7 @@ func UpdateBlockedMDNCache() error {
 	for _, mdn := range blockedMDNs {
 		var expiration time.Duration
 		if mdn.BlockedUntil != nil {
-			expiration = mdn.BlockedUntil.Sub(time.Now())
+			expiration = time.Until(*mdn.BlockedUntil)
 			if expiration <= 0 {
 				continue
 			}
@@ -83,7 +139,7 @@ func UpdateBlockedUserIDCache() error {
 	for _, user := range blockedUsers {
 		var expiration time.Duration
 		if user.BlockedUntil != nil {
-			expiration = user.BlockedUntil.Sub(time.Now())
+			expiration = time.Until(*user.BlockedUntil)
 			if expiration <= 0 {
 				continue
 			}
@@ -91,10 +147,8 @@ func UpdateBlockedUserIDCache() error {
 			expiration = cache.NoExpiration
 		}
 
-		BlockedUserIDCache.Set(user.UserId, BlockedUserInfo{
-			MerchantName: user.MerchantName,
-			BlockedUntil: user.BlockedUntil,
-		}, expiration)
+		// Simpan sebagai boolean true (blocked)
+		BlockedUserIDCache.Set(user.UserId, true, expiration)
 	}
 
 	log.Println("Cache blocked UserID diperbarui dari database.")
