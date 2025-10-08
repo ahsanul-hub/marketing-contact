@@ -166,6 +166,22 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		})
 	}
 
+	// Validasi limit harian telco
+	if isTelcoMethod(paymentMethod) {
+		msisdnKey := helper.BeautifyIDNumber(transaction.UserMDN, true)
+		ok, err := checkDailyTelcoLimit(msisdnKey, transaction.Amount)
+		if err != nil {
+			log.Println("error check telco limit:", err)
+		}
+		if !ok {
+			log.Println("This number has exceeded the daily transaction limit with merchant_transaction_id:", transaction.MtTid)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "This number has exceeded the daily transaction limit",
+			})
+		}
+	}
+
 	beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
 
 	if _, found := lib.NumberCache.Get(beautifyMsisdn); found {

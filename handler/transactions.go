@@ -2,6 +2,7 @@ package handler
 
 import (
 	"app/config"
+	"app/database"
 	"app/dto/http"
 	"app/dto/model"
 	"app/helper"
@@ -53,6 +54,40 @@ func containsString(slice []string, str string) bool {
 
 func isBankVA(method string) bool {
 	return method == "va_bca" || method == "va_bri" || method == "va_bni" || method == "va_mandiri" || method == "va_permata" || method == "va_sinarmas" || method == "alfamart_otc" || method == "indomaret_otc"
+}
+
+func isTelcoMethod(method string) bool {
+	switch method {
+	case "telkomsel_airtime", "xl_airtime", "indosat_airtime", "three_airtime", "smartfren_airtime", "xl_twt", "indosat_triyakom", "three_triyakom", "smartfren_triyakom":
+		return true
+	}
+	return false
+}
+
+func checkDailyTelcoLimit(msisdn string, amount uint) (bool, error) {
+	if database.RedisClient == nil {
+		return true, nil
+	}
+
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	now := time.Now().In(loc)
+	dayKey := now.Format("2006-01-02")
+	key := fmt.Sprintf("telco:sum:%s:%s", dayKey, msisdn)
+
+	ctx := context.Background()
+	val, err := database.RedisClient.Get(ctx, key).Result()
+	var current int64
+	if err == nil {
+		if parsed, perr := strconv.ParseInt(val, 10, 64); perr == nil {
+			current = parsed
+		}
+	}
+
+	if current+int64(amount) > 1000000 {
+		return false, nil
+	}
+
+	return true, nil
 }
 
 func CreateTransaction(c *fiber.Ctx) error {
@@ -134,6 +169,22 @@ func CreateTransaction(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Missing mandatory fields: UserId, mtId, paymentMethod, item_name, amount or UserMDN (if required) must not be empty",
 		})
+	}
+
+	// Validasi limit harian telco (berdasarkan jumlah transaksi sukses sebelumnya di Redis)
+	if isTelcoMethod(paymentMethod) {
+		msisdnKey := helper.BeautifyIDNumber(transaction.UserMDN, true)
+		ok, err := checkDailyTelcoLimit(msisdnKey, transaction.Amount)
+		if err != nil {
+			log.Println("error check telco limit:", err)
+		}
+		if !ok {
+			log.Println("This number has exceeded the daily transaction limit with merchant_transaction_id:", transaction.MtTid)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "This number has exceeded the daily transaction limit",
+			})
+		}
 	}
 
 	beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
@@ -972,6 +1023,21 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	}
 
 	beautifyMsisdn := helper.BeautifyIDNumber(transaction.UserMDN, false)
+
+	if isTelcoMethod(paymentMethod) {
+		msisdnKey := helper.BeautifyIDNumber(transaction.UserMDN, true)
+		ok, err := checkDailyTelcoLimit(msisdnKey, transaction.Amount)
+		if err != nil {
+			log.Println("error check telco limit:", err)
+		}
+		if !ok {
+			log.Println("This number has exceeded the daily transaction limit with merchant_transaction_id:", transaction.MtTid)
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"success": false,
+				"message": "This number has exceeded the daily transaction limit",
+			})
+		}
+	}
 
 	isBlockedMDN, err := repository.IsMDNBlocked(beautifyMsisdn)
 	if err != nil {

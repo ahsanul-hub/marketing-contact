@@ -586,6 +586,12 @@ func GetTransactionMoTelkomsel(ctx context.Context, msisdn, keyword string, otp 
 func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatusCode int, referenceId, ximpayId *string, failReason string, receiveCallbackDate *time.Time) error {
 	db := database.DB
 
+	// Ambil transaksi untuk mengetahui nilai sebelumnya dan data msisdn/amount
+	var existing model.Transactions
+	if err := db.WithContext(ctx).Where("id = ?", transactionID).First(&existing).Error; err != nil {
+		return fmt.Errorf("failed to fetch transaction before update: %w", err)
+	}
+
 	transactionUpdate := model.Transactions{
 		StatusCode: newStatusCode,
 	}
@@ -606,6 +612,30 @@ func UpdateTransactionStatus(ctx context.Context, transactionID string, newStatu
 
 	if err := db.WithContext(ctx).Model(&model.Transactions{}).Where("id = ? ", transactionID).Updates(transactionUpdate).Error; err != nil {
 		return fmt.Errorf("failed to update transaction status: %w", err)
+	}
+
+	// Jika status berubah menjadi sukses (1000/1003) dari status lain, update akumulasi harian di Redis
+	if (newStatusCode == 1000 || newStatusCode == 1003) && (existing.StatusCode != 1000 && existing.StatusCode != 1003) && database.RedisClient != nil {
+		// Gunakan zona WIB untuk kunci harian
+		loc, _ := time.LoadLocation("Asia/Jakarta")
+		now := time.Now().In(loc)
+		dayKey := now.Format("2006-01-02")
+		msisdnKey := existing.UserMDN // diasumsikan sudah 0-leading (lihat penyimpanan di handler)
+		redisKey := fmt.Sprintf("telco:sum:%s:%s", dayKey, msisdnKey)
+
+		// Tambahkan amount ke total
+		amountToAdd := int64(existing.Amount)
+		// INCRBY
+		if err := database.RedisClient.IncrBy(ctx, redisKey, amountToAdd).Err(); err != nil {
+			log.Printf("failed to increment telco sum for %s: %v", redisKey, err)
+		} else {
+			// Set TTL sampai akhir hari WIB
+			endOfDay := time.Date(now.Year(), now.Month(), now.Day(), 23, 59, 59, 0, loc)
+			ttl := time.Until(endOfDay)
+			if ttl > 0 {
+				_ = database.RedisClient.Expire(ctx, redisKey, ttl).Err()
+			}
+		}
 	}
 
 	return nil
