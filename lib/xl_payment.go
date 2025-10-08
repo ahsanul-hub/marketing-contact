@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httputil"
 	"time"
 
 	"github.com/patrickmn/go-cache"
@@ -270,7 +271,13 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 	if err != nil {
 		return ChargingResponse{}, fmt.Errorf("failed to send request: %w", err)
 	}
+
 	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return ChargingResponse{}, fmt.Errorf("failed to read response body: %w", err)
+	}
 
 	helper.XLLogger.LogAPICall(
 		url,
@@ -279,10 +286,10 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 		resp.StatusCode,
 		map[string]interface{}{
 			"transaction_id": transactionId,
-			"request_body":   body,
+			"request_body":   string(body),
 		},
 		map[string]interface{}{
-			"body": resp,
+			"body": string(bodyBytes),
 		},
 	)
 
@@ -303,7 +310,7 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 		ChargingResponse ChargingResponse `json:"chargingResponse"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&responseMap); err != nil {
+	if err := json.Unmarshal(bodyBytes, &responseMap); err != nil {
 		return ChargingResponse{}, fmt.Errorf("failed to decode response: %w", err)
 	}
 
@@ -331,6 +338,11 @@ func CheckTransactions(transactionID, partnerID, token string) (TransactionInqui
 	req.Header.Set("Connection", "keep-alive")
 	req.Header.Set("cache-control", "no-cache")
 
+	dumpReq, err := httputil.DumpRequestOut(req, true)
+	if err != nil {
+		fmt.Printf("Failed to dump request: %v\n", err)
+	}
+
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -338,15 +350,24 @@ func CheckTransactions(transactionID, partnerID, token string) (TransactionInqui
 	}
 	defer resp.Body.Close()
 
-	// Check if response status is OK
-	if resp.StatusCode != http.StatusOK {
-		return TransactionInquiryStatusResponse{}, fmt.Errorf("request failed with status: %s", resp.Status)
-	}
-
 	// Read and log response body
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return TransactionInquiryStatusResponse{}, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	helper.XLLogger.LogCallback(transactionID, true,
+		map[string]interface{}{
+			"transaction_id":   transactionID,
+			"method":           "GET",
+			"request_callback": string(dumpReq),
+			"response":         string(bodyBytes),
+		},
+	)
+
+	// Check if response status is OK
+	if resp.StatusCode != http.StatusOK {
+		return TransactionInquiryStatusResponse{}, fmt.Errorf("request failed with status: %s", resp.Status)
 	}
 
 	var responseMap struct {
