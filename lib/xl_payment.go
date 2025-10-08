@@ -356,15 +356,6 @@ func CheckTransactions(transactionID, partnerID, token string) (TransactionInqui
 		return TransactionInquiryStatusResponse{}, fmt.Errorf("failed to read response body: %w", err)
 	}
 
-	helper.XLLogger.LogCallback(transactionID, true,
-		map[string]interface{}{
-			"transaction_id":   transactionID,
-			"method":           "GET",
-			"request_callback": string(dumpReq),
-			"response":         string(bodyBytes),
-		},
-	)
-
 	// Check if response status is OK
 	if resp.StatusCode != http.StatusOK {
 		return TransactionInquiryStatusResponse{}, fmt.Errorf("request failed with status: %s", resp.Status)
@@ -377,6 +368,17 @@ func CheckTransactions(transactionID, partnerID, token string) (TransactionInqui
 	// Decode the response body using the updated structure
 	if err := json.Unmarshal(bodyBytes, &responseMap); err != nil {
 		return TransactionInquiryStatusResponse{}, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	if responseMap.TransactionInquiryResponse.TransactionStatus.ResponseCode == "00" {
+		helper.XLLogger.LogCallback(transactionID, true,
+			map[string]interface{}{
+				"transaction_id":   transactionID,
+				"method":           "GET",
+				"request_callback": string(dumpReq),
+				"response":         string(bodyBytes),
+			},
+		)
 	}
 
 	// Mengembalikan status response inquiry jika ada
