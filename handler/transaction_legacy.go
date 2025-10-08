@@ -244,6 +244,12 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		})
 	}
 
+	if paymentMethodClient.Status != 1 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Payment method is not active",
+		})
+	}
+
 	var routes map[string][]string
 	if err := json.Unmarshal(paymentMethodClient.Route, &routes); err != nil {
 		return c.JSON(fiber.Map{

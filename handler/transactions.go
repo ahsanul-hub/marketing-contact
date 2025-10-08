@@ -255,6 +255,12 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	}
 
+	if paymentMethodClient.Status != 1 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Payment method is not active",
+		})
+	}
+
 	var routes map[string][]string
 	if err := json.Unmarshal(paymentMethodClient.Route, &routes); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -1101,6 +1107,12 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 	if !exists {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": "Invalid payment method",
+		})
+	}
+
+	if paymentMethodClient.Status != 1 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Payment method is not active",
 		})
 	}
 

@@ -36,6 +36,7 @@ func FindClient(ctx context.Context, clientAppKey, clientID string) (*model.Clie
 
 	cacheKey := fmt.Sprintf("client:%s:%s", clientAppKey, clientID)
 	if cachedClient, found := merchantCache.Get(cacheKey); found {
+		// log.Println("data diambil dari cache")
 		return cachedClient.(*model.Client), nil
 	}
 
@@ -52,6 +53,7 @@ func FindClient(ctx context.Context, clientAppKey, clientID string) (*model.Clie
 	}
 
 	merchantCache.Set(cacheKey, &client, cache.DefaultExpiration)
+	// log.Println("data diambil dari database")
 
 	return &client, nil
 }
@@ -427,8 +429,8 @@ func UpdateMerchant(ctx context.Context, clientID string, input *model.InputClie
 		log.Printf("Failed to reload updated client for cache: %s", err)
 		// Don't return error here, just log it as cache refresh is not critical
 	} else {
-		// Clear old cache and set new cache with all app_key combinations
-		merchantCache.Delete(cacheKey)
+		// Clear all cache entries for this client and set new cache entries for all app combos
+		ClearClientCacheByClientUID(updatedClient.UID)
 		for _, app := range updatedClient.ClientApps {
 			newCacheKey := fmt.Sprintf("client:%s:%s", app.AppKey, app.AppID)
 			merchantCache.Set(newCacheKey, &updatedClient, cache.DefaultExpiration)
@@ -854,7 +856,7 @@ func AddMerchantV2(ctx context.Context, input *model.InputClientRequestV2) error
 		}
 	}
 
-	// Add new client to cache for immediate availability
+	// Add new client to cache for immediate availability (override any stale entries)
 	var newClient model.Client
 	if err := database.DB.Where("client_id = ?", client.ClientID).
 		Preload("ClientApps").
@@ -863,9 +865,12 @@ func AddMerchantV2(ctx context.Context, input *model.InputClientRequestV2) error
 		Preload("ChannelRouteWeight").
 		First(&newClient).Error; err != nil {
 		log.Printf("Failed to load new client for cache: %s", err)
-		// Don't return error here, just log it as cache update is not critical
 	} else {
-		// Cache with all possible app_key combinations
+		// Hapus semua entry cache lama untuk client ini lalu isi ulang
+		for _, app := range newClient.ClientApps {
+			oldKey := fmt.Sprintf("client:%s:%s", app.AppKey, app.AppID)
+			merchantCache.Delete(oldKey)
+		}
 		for _, app := range newClient.ClientApps {
 			cacheKey := fmt.Sprintf("client:%s:%s", app.AppKey, app.AppID)
 			merchantCache.Set(cacheKey, &newClient, cache.DefaultExpiration)
@@ -1161,6 +1166,17 @@ func ValidatePaymentMethodSettlementConsistency(paymentMethods []model.PaymentMe
 // ClearClientCache menghapus cache untuk client tertentu
 func ClearClientCache(cacheKey string) {
 	merchantCache.Delete(cacheKey)
+}
+
+func ClearClientCacheByClientUID(clientUID string) {
+	// Ambil semua app milik client ini lalu delete berdasarkan kombinasi app_key + app_id
+	var apps []model.ClientApp
+	if err := database.DB.Where("client_id = ?", clientUID).Find(&apps).Error; err == nil {
+		for _, app := range apps {
+			key := fmt.Sprintf("client:%s:%s", app.AppKey, app.AppID)
+			merchantCache.Delete(key)
+		}
+	}
 }
 
 // UpdateClientProfile mengupdate data client (email dan address)
