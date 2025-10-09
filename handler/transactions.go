@@ -2321,7 +2321,7 @@ func ManualCallback(c *fiber.Ctx) error {
 	}
 
 	var amount interface{}
-	if arrClient.ClientName == "WEIDIAN TECHNOLOGY CO" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
+	if arrClient.ClientName == "LeisureLink Digital Limited" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
 		amount = transaction.Amount
 	} else {
 		amount = fmt.Sprintf("%d", transaction.Amount)
@@ -2527,7 +2527,7 @@ func ManualCallbackClient(c *fiber.Ctx) error {
 	}
 
 	var amount interface{}
-	if arrClient.ClientName == "WEIDIAN TECHNOLOGY CO" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
+	if arrClient.ClientName == "LeisureLink Digital Limited" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
 		amount = transaction.Amount
 	} else {
 		amount = fmt.Sprintf("%d", transaction.Amount)
