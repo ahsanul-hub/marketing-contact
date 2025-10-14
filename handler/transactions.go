@@ -1371,8 +1371,32 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 	}
 
 	arrClient, err := repository.FindClient(spanCtx, appkey, appid)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"status": "error", "message": "Internal Server Error", "response": "error find merchant data", "data": err})
+	}
 
 	appName := repository.GetAppNameFromClient(arrClient, appid)
+
+	paymentMethodMap := make(map[string]model.PaymentMethodClient)
+	for _, pm := range arrClient.PaymentMethods {
+		paymentMethodMap[pm.Name] = pm
+	}
+
+	paymentMethodClient, exists := paymentMethodMap[paymentMethod]
+	if !exists {
+		return c.JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0007",
+			"message": "This payment method is not available for this merchant",
+			"data":    []interface{}{},
+		})
+	}
+
+	if paymentMethodClient.Status != 1 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "Payment method is not active",
+		})
+	}
 
 	transaction.UserMDN = helper.BeautifyIDNumber(transaction.UserMDN, true)
 	transaction.BodySign = bodysign

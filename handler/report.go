@@ -4,6 +4,7 @@ import (
 	"app/dto/model"
 	"app/repository"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -116,6 +117,16 @@ func GetReport(c *fiber.Ctx) error {
 
 			if settlementConfig.ShareRedision != nil {
 				shareRedFloat := float64(totalAmount) * float64(*settlementConfig.ShareRedision) / 100
+				if settlementConfig.MdrType == "fix" && *settlementConfig.ShareRedision == 0 {
+					// Attempt to parse MDR from string to float64
+					mdrFloat, err := strconv.ParseFloat(settlementConfig.Mdr, 64)
+					if err == nil {
+						shareRedFloat = float64(summaries[i].Count) * mdrFloat
+					} else {
+						shareRedFloat = 0 // fallback if MDR can't be parsed
+					}
+				}
+
 				shareRed := uint(math.Round(shareRedFloat))
 				summaries[i].ShareRedision = shareRed
 				grandTotalRedision += shareRed
@@ -127,6 +138,15 @@ func GetReport(c *fiber.Ctx) error {
 				shareMerch := uint(math.Round(float64(totalAmount) * float64(*settlementConfig.SharePartner) / 100))
 				summaries[i].ShareMerchant = shareMerch
 				totalMerchant += shareMerch
+			}
+		}
+
+		if settlementConfig.Mdr != "" && *settlementConfig.ShareRedision != 0 {
+			mdrFloat, err := strconv.ParseFloat(settlementConfig.Mdr, 64)
+			if err == nil {
+				additionalFee = uint(float64(totalTransaction) * mdrFloat)
+			} else {
+				additionalFee = 0
 			}
 		}
 
