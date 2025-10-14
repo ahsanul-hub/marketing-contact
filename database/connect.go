@@ -3,6 +3,7 @@ package database
 import (
 	"app/config"
 	"app/dto/model"
+	"context"
 	"fmt"
 	"io"
 	"log"
@@ -91,11 +92,29 @@ func ConnectDB() *gorm.DB {
 		config.Config("DB_REPLICA_NAME", config.Config("DB_NAME", "")),
 		config.Config("DB_REPLICA_PORT", config.Config("DB_PORT", "5432")))
 
-	// Connect to Replica Database
+	// Connect to Replica Database with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
 	ReadDB, err = gorm.Open(postgres.Open(replicaDSN), &gorm.Config{})
 	if err != nil {
 		log.Printf("Failed to connect to replica database, using master for reads: %v", err)
 		ReadDB = DB // Fallback ke master database jika replica tidak tersedia
+	} else {
+		// Test connection with timeout
+		sqlDB, err := ReadDB.DB()
+		if err != nil {
+			log.Printf("Failed to get replica database object: %v", err)
+			ReadDB = DB
+		} else {
+			err = sqlDB.PingContext(ctx)
+			if err != nil {
+				log.Printf("Failed to ping replica database within timeout, using master for reads: %v", err)
+				ReadDB = DB
+			} else {
+				log.Println("Successfully connected to replica database")
+			}
+		}
 	}
 
 	// dsnUrl := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
