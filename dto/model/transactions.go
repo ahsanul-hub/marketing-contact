@@ -231,3 +231,28 @@ type FailedCallbackDataLegacy struct {
 	Custom                 string      `json:"custom"`
 	FailReason             string      `json:"fail_reason"`
 }
+
+type TrafficMonitoringData struct {
+	Timestamp     time.Time `json:"timestamp"`
+	ClientUID     string    `json:"client_uid"`
+	MerchantName  string    `json:"merchant_name"`
+	PaymentMethod string    `json:"payment_method"`
+	Success       int       `json:"success"`
+	Pending       int       `json:"pending"`
+	Failed        int       `json:"failed"`
+	Total         int       `json:"total"`
+}
+
+type TrafficChartResponse struct {
+	ClientUID     string                  `json:"client_uid"`
+	MerchantName  string                  `json:"merchant_name"`
+	PaymentMethod string                  `json:"payment_method"`
+	Data          []TrafficMonitoringData `json:"data"`
+}
+
+type TrafficSummaryResponse struct {
+	Success int `json:"success"`
+	Pending int `json:"pending"`
+	Failed  int `json:"failed"`
+	Total   int `json:"total"`
+}
