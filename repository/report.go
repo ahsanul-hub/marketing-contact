@@ -4,6 +4,7 @@ import (
 	"app/database"
 	"app/dto/model"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"math"
@@ -520,4 +521,291 @@ func calculateMargin(shareRedision uint64, fee float64) uint64 {
 
 	margin := float64(shareRedision) - (float64(shareRedision) * fee / 100)
 	return uint64(math.Round(margin))
+}
+
+// GetTrafficMonitoring aggregates transactions into 5-minute buckets grouped by client, merchant, payment method and route.
+func GetTrafficMonitoring(ctx context.Context, start, end time.Time, clientUID, appID, merchantName, paymentMethod, route string) ([]model.TrafficChartResponse, error) {
+	db := database.GetReadDB().WithContext(ctx)
+
+	// Normalize time range to 10-minute boundaries (WIB)
+	loc, _ := time.LoadLocation("Asia/Jakarta")
+	start = start.In(loc)
+	end = end.In(loc)
+
+	roundDown10 := func(t time.Time) time.Time {
+		m := (t.Minute() / 10) * 10
+		return time.Date(t.Year(), t.Month(), t.Day(), t.Hour(), m, 0, 0, t.Location())
+	}
+
+	if start.After(end) {
+		return nil, fmt.Errorf("invalid time range: start after end")
+	}
+
+	start = roundDown10(start)
+	end = roundDown10(end)
+
+	// Base query with filters
+	type row struct {
+		Timestamp     time.Time
+		ClientUID     string
+		MerchantName  string
+		PaymentMethod string
+		Route         string
+		Success       int64
+		Pending       int64
+		Failed        int64
+		Total         int64
+	}
+
+	// Build WHERE clause
+	where := "created_at >= ? AND created_at <= ?"
+	params := []interface{}{start, end}
+	if clientUID != "" {
+		where += " AND app_id IN (SELECT app_id FROM client_apps WHERE client_id = ?)"
+		params = append(params, clientUID)
+	}
+	if appID != "" {
+		where += " AND app_id = ?"
+		params = append(params, appID)
+	}
+	if merchantName != "" {
+		where += " AND merchant_name = ?"
+		params = append(params, merchantName)
+	}
+	if paymentMethod != "" {
+		where += " AND payment_method = ?"
+		params = append(params, paymentMethod)
+	}
+	if route != "" {
+		where += " AND route = ?"
+		params = append(params, route)
+	}
+
+	// Aggregate per 5-minute using floor function; use created_at as event time
+	// Success codes: 1000, 1003; Pending: 1001; Failed: others (1002, etc.)
+	// Group by bucket, merchant, client (via app mapping), payment_method, route
+	query := `
+        WITH base AS (
+            SELECT 
+                date_trunc('minute', t.created_at) - make_interval(mins := EXTRACT(MINUTE FROM t.created_at)::int % 10) AS bucket,
+                t.id,
+                t.created_at,
+                t.merchant_name,
+                t.payment_method,
+                COALESCE(t.route, '') AS route,
+                t.status_code,
+                COALESCE((SELECT client_id FROM client_apps ca WHERE ca.app_id = t.app_id LIMIT 1), '') AS client_uid
+            FROM transactions t
+            WHERE ` + where + `
+        )
+        SELECT 
+            bucket AS timestamp,
+            client_uid,
+            merchant_name,
+            payment_method,
+            route,
+            SUM(CASE WHEN status_code IN (1000,1003) THEN 1 ELSE 0 END) AS success,
+            SUM(CASE WHEN status_code = 1001 THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN status_code NOT IN (1000,1001,1003) THEN 1 ELSE 0 END) AS failed,
+            COUNT(*) AS total
+        FROM base
+        WHERE bucket IN (?)
+        GROUP BY bucket, client_uid, merchant_name, payment_method, route
+        ORDER BY bucket ASC`
+
+	// Per-bucket Redis cache strategy
+	// 1) Build list of 10-minute bucket timestamps and redis keys
+	var bucketTimes []time.Time
+	var redisKeys []string
+	bucketKey := func(ts time.Time) string {
+		return fmt.Sprintf("traffic:bucket:%d:%s:%s:%s:%s:%s", ts.Unix(), clientUID, appID, merchantName, paymentMethod, route)
+	}
+	for ts := start; !ts.After(end); ts = ts.Add(10 * time.Minute) {
+		bucketTimes = append(bucketTimes, ts)
+		if database.RedisClient != nil {
+			redisKeys = append(redisKeys, bucketKey(ts))
+		}
+	}
+
+	// 2) Try MGET from Redis
+	type key struct {
+		ClientUID     string
+		MerchantName  string
+		PaymentMethod string
+		Route         string
+	}
+	grouped := map[key]map[time.Time]row{}
+	missingBuckets := make([]time.Time, 0, len(bucketTimes))
+
+	if database.RedisClient != nil && len(redisKeys) > 0 {
+		vals, err := database.RedisClient.MGet(ctx, redisKeys...).Result()
+		if err == nil && len(vals) == len(bucketTimes) {
+			for i, v := range vals {
+				ts := bucketTimes[i]
+				if v == nil {
+					missingBuckets = append(missingBuckets, ts)
+					continue
+				}
+				bs, ok := v.(string)
+				if !ok {
+					missingBuckets = append(missingBuckets, ts)
+					continue
+				}
+				var rowsCached []row
+				if uerr := json.Unmarshal([]byte(bs), &rowsCached); uerr != nil {
+					missingBuckets = append(missingBuckets, ts)
+					continue
+				}
+				// hydrate cache rows into grouped map
+				for _, r := range rowsCached {
+					k := key{ClientUID: r.ClientUID, MerchantName: r.MerchantName, PaymentMethod: r.PaymentMethod, Route: r.Route}
+					if _, ok := grouped[k]; !ok {
+						grouped[k] = map[time.Time]row{}
+					}
+					grouped[k][ts.In(loc)] = r
+				}
+			}
+		} else {
+			// if MGET failed, treat all as missing to fallback DB
+			missingBuckets = bucketTimes
+		}
+	} else {
+		// no redis, all missing
+		missingBuckets = bucketTimes
+	}
+
+	// 3) Query DB only for missing buckets
+	if len(missingBuckets) > 0 {
+		dbParams := append([]interface{}{}, params...)
+		dbParams = append(dbParams, missingBuckets)
+
+		var rowsDB []row
+		if err := db.Raw(query, dbParams...).Scan(&rowsDB).Error; err != nil {
+			return nil, err
+		}
+
+		// group results by timestamp for caching per bucket
+		perBucket := make(map[int64][]row)
+		for _, r := range rowsDB {
+			k := key{ClientUID: r.ClientUID, MerchantName: r.MerchantName, PaymentMethod: r.PaymentMethod, Route: r.Route}
+			if _, ok := grouped[k]; !ok {
+				grouped[k] = map[time.Time]row{}
+			}
+			grouped[k][r.Timestamp.In(loc)] = r
+			unixTs := r.Timestamp.Unix()
+			perBucket[unixTs] = append(perBucket[unixTs], r)
+		}
+
+		// 4) Store to Redis per bucket with dynamic TTL
+		if database.RedisClient != nil {
+			now := time.Now().In(loc)
+			cutoff := now.Add(-1 * time.Hour)
+			for tsUnix, rowsForTs := range perBucket {
+				ts := time.Unix(tsUnix, 0).In(loc)
+				keyStr := bucketKey(ts)
+				if payload, err := json.Marshal(rowsForTs); err == nil {
+					ttl := 120 * time.Second
+					if ts.Before(cutoff) {
+						ttl = 2 * time.Hour
+					}
+					_ = database.RedisClient.Set(ctx, keyStr, payload, ttl).Err()
+				}
+			}
+		}
+	}
+
+	// Index results per group key already in 'grouped'
+
+	// Build response with filled buckets
+	var result []model.TrafficChartResponse
+	for k, bucketMap := range grouped {
+		var data []model.TrafficMonitoringData
+		for ts := start; !ts.After(end); ts = ts.Add(10 * time.Minute) {
+			if r, ok := bucketMap[ts]; ok {
+				data = append(data, model.TrafficMonitoringData{
+					Timestamp:     ts,
+					ClientUID:     k.ClientUID,
+					MerchantName:  k.MerchantName,
+					PaymentMethod: k.PaymentMethod,
+					Success:       int(r.Success),
+					Pending:       int(r.Pending),
+					Failed:        int(r.Failed),
+					Total:         int(r.Total),
+				})
+			} else {
+				data = append(data, model.TrafficMonitoringData{
+					Timestamp:     ts,
+					ClientUID:     k.ClientUID,
+					MerchantName:  k.MerchantName,
+					PaymentMethod: k.PaymentMethod,
+					Success:       0,
+					Pending:       0,
+					Failed:        0,
+					Total:         0,
+				})
+			}
+		}
+
+		result = append(result, model.TrafficChartResponse{
+			ClientUID:     k.ClientUID,
+			MerchantName:  k.MerchantName,
+			PaymentMethod: k.PaymentMethod,
+			Data:          data,
+		})
+	}
+
+	// Store in Redis with short TTL if available
+	if database.RedisClient != nil {
+		cacheKey := fmt.Sprintf(
+			"traffic:monitor:%d:%d:%s:%s:%s:%s:%s",
+			start.Unix(), end.Unix(), clientUID, appID, merchantName, paymentMethod, route,
+		)
+		if payload, err := json.Marshal(result); err == nil {
+			// TTL 60 detik
+			_ = database.RedisClient.Set(ctx, cacheKey, payload, 60*time.Second).Err()
+		}
+	}
+
+	return result, nil
+}
+
+// GetTrafficSummary returns total counts for the range and filters
+func GetTrafficSummary(ctx context.Context, start, end time.Time, clientUID, appID, merchantName, paymentMethod, route string) (model.TrafficSummaryResponse, error) {
+	db := database.DB.WithContext(ctx)
+
+	where := "created_at >= ? AND created_at <= ?"
+	params := []interface{}{start, end}
+	if clientUID != "" {
+		where += " AND app_id IN (SELECT appid FROM client_apps WHERE client_id = ?)"
+		params = append(params, clientUID)
+	}
+	if appID != "" {
+		where += " AND app_id = ?"
+		params = append(params, appID)
+	}
+	if merchantName != "" {
+		where += " AND merchant_name = ?"
+		params = append(params, merchantName)
+	}
+	if paymentMethod != "" {
+		where += " AND payment_method = ?"
+		params = append(params, paymentMethod)
+	}
+	if route != "" {
+		where += " AND route = ?"
+		params = append(params, route)
+	}
+
+	var res model.TrafficSummaryResponse
+	q := `SELECT 
+            SUM(CASE WHEN status_code IN (1000,1003) THEN 1 ELSE 0 END) AS success,
+            SUM(CASE WHEN status_code = 1001 THEN 1 ELSE 0 END) AS pending,
+            SUM(CASE WHEN status_code NOT IN (1000,1001,1003) THEN 1 ELSE 0 END) AS failed,
+            COUNT(*) AS total
+        FROM transactions WHERE ` + where
+
+	if err := db.Raw(q, params...).Scan(&res).Error; err != nil {
+		return model.TrafficSummaryResponse{}, err
+	}
+	return res, nil
 }

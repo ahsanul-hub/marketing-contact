@@ -65,6 +65,10 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/test-email", middleware.Protected(), middleware.AdminOnly(true), handler.TestEmailService)
 	api.Get("/test-sftp", middleware.Protected(), middleware.AdminOnly(true), handler.TestSFTPConnection)
 
+	// Traffic Monitoring endpoints
+	api.Get("/traffic/monitoring", middleware.Protected(), middleware.AdminOnly(false), handler.GetTrafficMonitoringChart)
+	api.Get("/traffic/summary", middleware.Protected(), middleware.AdminOnly(false), handler.GetTrafficSummary)
+
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)
 
 	api.Post("/callback/dana", handler.DanaCallback)
