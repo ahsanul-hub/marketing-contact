@@ -1912,11 +1912,35 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions, se
 
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 
+	// Simple in-memory caches
+	// clientUID -> settlement array
+	settlementCache := make(map[string][]model.SettlementClient)
+	// appID -> clientUID
+	appToClient := make(map[string]string)
+
+	// Prefetch mapping app_id -> client_uid (distinct)
+	distinctAppIDs := make(map[string]struct{})
+	for _, t := range transactions {
+		if t.AppID != "" {
+			distinctAppIDs[t.AppID] = struct{}{}
+		}
+	}
+	if len(distinctAppIDs) > 0 {
+		ids := make([]string, 0, len(distinctAppIDs))
+		for id := range distinctAppIDs {
+			ids = append(ids, id)
+		}
+		if m, err := repository.GetClientUIDsByAppIDs(c.Context(), ids); err == nil {
+			appToClient = m
+		}
+	}
+
 	for _, transaction := range transactions {
 		var status, paymentMethod string
 		var price uint
 		var fee uint
 		var netAmount uint
+		var err error
 		switch transaction.StatusCode {
 		case 1005:
 			status = "failed"
@@ -1930,23 +1954,37 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions, se
 
 		currentSettlement := helper.FindSettlementByPaymentMethod(settlementConfig, transaction.PaymentMethod)
 		if currentSettlement == nil {
-			log.Printf("export CSV: settlement not found for method=%s\n", transaction.PaymentMethod)
+			clientUID := appToClient[transaction.AppID]
+			if clientUID == "" {
+				if v, errMap := repository.GetClientUIDByAppID(c.Context(), transaction.AppID); errMap == nil {
+					clientUID = v
+				}
+			}
+			if clientUID != "" {
+				if cached, ok := settlementCache[clientUID]; ok {
+					currentSettlement = helper.FindSettlementByPaymentMethod(&cached, transaction.PaymentMethod)
 		} else {
-			log.Printf("export CSV: settlement found for method=%s mdr=%s type=%s\n", transaction.PaymentMethod, currentSettlement.Mdr, currentSettlement.MdrType)
+					if sett, errSett := repository.GetSettlementConfig(clientUID); errSett == nil {
+						settlementCache[clientUID] = sett
+						currentSettlement = helper.FindSettlementByPaymentMethod(&sett, transaction.PaymentMethod)
+					}
+				}
+			}
 		}
+
+		fee, err = helper.CalculateFee(transaction.Amount, transaction.PaymentMethod, currentSettlement)
+		if err != nil {
+			log.Printf("ExportTransactions: failed to calculate fee for transaction %s, payment_method: %s, error: %v", transaction.ID, transaction.PaymentMethod, err)
+			fee = 0
+		}
+		netAmount = transaction.Amount - fee
 
 		switch transaction.PaymentMethod {
 		case "qris":
-			feeFloat := float64(transaction.Amount) * 0.008
-			fee = uint(math.Ceil(feeFloat))
 			price = transaction.Amount
-			netAmount = price - fee
 			paymentMethod = transaction.PaymentMethod
 		case "dana":
-			feeFloat := float64(transaction.Amount) * 0.018
-			fee = uint(math.Ceil(feeFloat))
 			price = transaction.Amount
-			netAmount = price - fee
 			paymentMethod = transaction.PaymentMethod
 		case "telkomsel_airtime":
 			paymentMethod = "Telkomsel"
@@ -1963,15 +2001,6 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions, se
 		case "smartfren_airtime":
 			paymentMethod = "Smartfren"
 			price = transaction.Price
-		case "va_bca":
-			price = transaction.Price
-			paymentMethod = transaction.PaymentMethod
-			if currentSettlement != nil {
-				fee = *currentSettlement.FixFee
-			} else {
-				fee = 0
-			}
-			netAmount = price - fee
 		default:
 			price = transaction.Price
 			paymentMethod = transaction.PaymentMethod
@@ -2030,11 +2059,31 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions, 
 	}
 
 	loc, _ := time.LoadLocation("Asia/Jakarta")
+	// Simple in-memory caches
+	settlementCache := make(map[string][]model.SettlementClient) // clientUID -> settlement array
+	appToClient := make(map[string]string)                       // appID -> clientUID
+
+	// Prefetch mapping app_id -> client_uid
+	distinctAppIDs := make(map[string]struct{})
+	for _, t := range transactions {
+		if t.AppID != "" {
+			distinctAppIDs[t.AppID] = struct{}{}
+		}
+	}
+	if len(distinctAppIDs) > 0 {
+		ids := make([]string, 0, len(distinctAppIDs))
+		for id := range distinctAppIDs {
+			ids = append(ids, id)
+		}
+		if m, err := repository.GetClientUIDsByAppIDs(c.Context(), ids); err == nil {
+			appToClient = m
+		}
+	}
+
 	// Tulis data transaksi
 	for rowIndex, transaction := range transactions {
 		var status, paymentMethod string
 		var price uint
-		var fee uint
 		var netAmount uint
 		switch transaction.StatusCode {
 		case 1005:
@@ -2048,18 +2097,39 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions, 
 		}
 
 		currentSettlement := helper.FindSettlementByPaymentMethod(settlementConfig, transaction.PaymentMethod)
+		if currentSettlement == nil {
+			clientUID := appToClient[transaction.AppID]
+			if clientUID == "" {
+				if v, errMap := repository.GetClientUIDByAppID(c.Context(), transaction.AppID); errMap == nil {
+					clientUID = v
+				}
+			}
+			if clientUID != "" {
+				if cached, ok := settlementCache[clientUID]; ok {
+					currentSettlement = helper.FindSettlementByPaymentMethod(&cached, transaction.PaymentMethod)
+				} else {
+					if sett, errSett := repository.GetSettlementConfig(clientUID); errSett == nil {
+						settlementCache[clientUID] = sett
+						currentSettlement = helper.FindSettlementByPaymentMethod(&sett, transaction.PaymentMethod)
+					}
+				}
+			}
+		}
+
+		fee, err := helper.CalculateFee(transaction.Amount, transaction.PaymentMethod, currentSettlement)
+		if err != nil {
+			log.Printf("ExportTransactions: failed to calculate fee for transaction %s, payment_method: %s, error: %v", transaction.ID, transaction.PaymentMethod, err)
+			fee = 0
+		}
+
+		netAmount = transaction.Amount - fee
+
 		switch transaction.PaymentMethod {
 		case "qris":
 			price = transaction.Amount
-			feeFloat := float64(transaction.Amount) * 0.008
-			fee = uint(math.Ceil(feeFloat))
-			netAmount = price - fee
 			paymentMethod = transaction.PaymentMethod
 		case "dana":
-			feeFloat := float64(transaction.Amount) * 0.018
-			fee = uint(math.Ceil(feeFloat))
 			price = transaction.Amount
-			netAmount = price - fee
 			paymentMethod = transaction.PaymentMethod
 		case "telkomsel_airtime":
 			paymentMethod = "Telkomsel"
@@ -2079,12 +2149,6 @@ func exportTransactionsToExcel(c *fiber.Ctx, transactions []model.Transactions, 
 		case "va_bca":
 			price = transaction.Price
 			paymentMethod = transaction.PaymentMethod
-			if currentSettlement != nil {
-				fee = *currentSettlement.FixFee
-			} else {
-				fee = 0
-			}
-			netAmount = price - fee
 		default:
 			price = transaction.Price
 			paymentMethod = transaction.PaymentMethod

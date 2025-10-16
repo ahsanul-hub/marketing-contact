@@ -656,6 +656,38 @@ func UpdateTransactionKeyword(ctx context.Context, transactionID string, keyword
 	return nil
 }
 
+func GetClientUIDByAppID(ctx context.Context, appID string) (string, error) {
+	type row struct{ ClientID string }
+	var r row
+	q := `SELECT client_id FROM client_apps WHERE app_id = ? LIMIT 1`
+	if err := database.DB.WithContext(ctx).Raw(q, appID).Scan(&r).Error; err != nil {
+		return "", err
+	}
+	return r.ClientID, nil
+}
+
+// GetClientUIDsByAppIDs returns mapping of app_id -> client_uid for a batch of app_ids
+func GetClientUIDsByAppIDs(ctx context.Context, appIDs []string) (map[string]string, error) {
+	if len(appIDs) == 0 {
+		return map[string]string{}, nil
+	}
+	type row struct {
+		AppID    string
+		ClientID string
+	}
+	var rows []row
+	if err := database.DB.WithContext(ctx).
+		Raw(`SELECT app_id, client_id FROM client_apps WHERE app_id IN (?)`, appIDs).
+		Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	result := make(map[string]string, len(rows))
+	for _, r := range rows {
+		result[r.AppID] = r.ClientID
+	}
+	return result, nil
+}
+
 func GetPendingTransactions(ctx context.Context, paymentMethod string) ([]model.Transactions, error) {
 	var transactions []model.Transactions
 
