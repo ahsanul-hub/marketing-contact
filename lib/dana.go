@@ -3,7 +3,9 @@ package lib
 import (
 	"app/config"
 	"app/helper"
+	"app/repository"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -352,6 +354,12 @@ func RequestChargingDana(transactionId, itemName, price, redirectUrl string) (st
 			"body": string(body),
 		},
 	)
+
+	requestDate := &start
+	err = repository.UpdateTransactionTimestamps(context.Background(), transactionId, requestDate, nil, nil)
+	if err != nil {
+		log.Printf("Error updating request timestamp for transaction %s: %s", transactionId, err)
+	}
 
 	var danaResponse DanaResponse
 	err = json.Unmarshal(body, &danaResponse)

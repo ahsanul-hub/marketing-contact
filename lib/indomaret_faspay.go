@@ -2,7 +2,9 @@ package lib
 
 import (
 	"app/helper"
+	"app/repository"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -81,6 +83,26 @@ func RequestIndomaretFaspay(transactionId, itemName, price, redirectUrl, custome
 	if err != nil {
 
 		log.Println("Error reading response")
+	}
+
+	helper.FaspayLogger.LogAPICall(
+		"https://web.faspay.co.id/cvr/300011/10",
+		"POST",
+		time.Since(now),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   requestBody,
+		},
+		map[string]interface{}{
+			"body": body,
+		},
+	)
+
+	requestDate := &now
+	err = repository.UpdateTransactionTimestamps(context.Background(), transactionId, requestDate, nil, nil)
+	if err != nil {
+		log.Printf("Error updating request timestamp for transaction %s: %s", transactionId, err)
 	}
 
 	var danaResponse FaspayVaResponse

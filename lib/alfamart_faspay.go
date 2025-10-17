@@ -2,7 +2,9 @@ package lib
 
 import (
 	"app/helper"
+	"app/repository"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -83,11 +85,31 @@ func RequestAlfaFaspay(transactionId, itemName, price, redirectUrl, customerName
 		log.Println("Error reading response")
 	}
 
-	var danaResponse FaspayVaResponse
-	err = json.Unmarshal(body, &danaResponse)
+	helper.FaspayLogger.LogAPICall(
+		"https://web.faspay.co.id/cvr/300011/10",
+		"POST",
+		time.Since(now),
+		resp.StatusCode,
+		map[string]interface{}{
+			"transaction_id": transactionId,
+			"request_body":   requestBody,
+		},
+		map[string]interface{}{
+			"body": body,
+		},
+	)
+
+	requestDate := &now
+	err = repository.UpdateTransactionTimestamps(context.Background(), transactionId, requestDate, nil, nil)
+	if err != nil {
+		log.Printf("Error updating request timestamp for transaction %s: %s", transactionId, err)
+	}
+
+	var response FaspayVaResponse
+	err = json.Unmarshal(body, &response)
 	if err != nil {
 		log.Println("Error decoding response")
 	}
 
-	return &danaResponse, expiredDate, nil
+	return &response, expiredDate, nil
 }

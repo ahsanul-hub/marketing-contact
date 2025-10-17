@@ -2,7 +2,9 @@ package lib
 
 import (
 	"app/helper"
+	"app/repository"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -147,6 +149,12 @@ func RequestChargingVaFaspay(transactionId, itemName, price, redirectUrl, custom
 			"body": body,
 		},
 	)
+
+	requestDate := &now
+	err = repository.UpdateTransactionTimestamps(context.Background(), transactionId, requestDate, nil, nil)
+	if err != nil {
+		log.Printf("Error updating request timestamp for transaction %s: %s", transactionId, err)
+	}
 
 	var FaspayResponse FaspayVaResponse
 	err = json.Unmarshal(body, &FaspayResponse)
