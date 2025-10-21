@@ -23,6 +23,7 @@ type ReportResult struct {
 	TotalTransactionAmount uint                      `json:"total_transaction_amount"`
 	TotalTransaction       uint                      `json:"total_transaction"`
 	ShareRedision          float32                   `json:"share_redision"`
+	Mdr                    string                    `json:"mdr"`
 	ShareMerchant          float32                   `json:"share_merchant"`
 }
 
@@ -179,6 +180,7 @@ func GetReport(c *fiber.Ctx) error {
 		GrandTotalRedision:     grandTotalRedision,
 		TotalMerchant:          totalMerchant,
 		BhpUSO:                 bhpUSO,
+		Mdr:                    settlementConfig.Mdr,
 		Tax23:                  tax23,
 		TotalTransactionAmount: uint(totalTransactionAmount),
 		TotalTransaction:       totalTransaction,
