@@ -939,7 +939,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"message":        "Successful Created Transaction",
 		})
 	case "visa_master":
-		res, err := lib.CardHarsyaCharging(createdTransId, transaction.CustomerName, transaction.UserMDN, transaction.Amount)
+		res, err := lib.CardHarsyaCharging(createdTransId, transaction.CustomerName, transaction.UserMDN, transaction.Email, transaction.Address, transaction.ProvinceState, transaction.Country, transaction.PostalCode, transaction.City, transaction.CountryCode, transaction.PhoneNumber, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request credit card pivot failed:", err)
 			return c.JSON(fiber.Map{

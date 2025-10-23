@@ -40,6 +40,8 @@ type CreditCardChargingRequest struct {
 	} `json:"customer"`
 	OrderInformation struct {
 		ProductDetails []ProductDetail `json:"productDetails"`
+		BillingInfo    BillingInfo     `json:"billingInfo"`
+		ShippingInfo   ShippingInfo    `json:"shippingInfo"`
 	} `json:"orderInformation"`
 	AutoConfirm         bool   `json:"autoConfirm"`
 	StatementDescriptor string `json:"statementDescriptor"`
@@ -52,12 +54,47 @@ type ProductDetail struct {
 	Price    Price  `json:"price"`
 }
 
+type BillingInfo struct {
+	GivenName     string      `json:"givenName"`
+	SureName      string      `json:"sureName"`
+	Email         string      `json:"email"`
+	PhoneNumber   PhoneNumber `json:"phoneNumber"`
+	AddressLine1  string      `json:"addressLine1"`
+	AddressLine2  string      `json:"addressLine2"`
+	City          string      `json:"city"`
+	ProvinceState string      `json:"provinceState"`
+	Country       string      `json:"country"`
+	PostalCode    string      `json:"postalCode"`
+}
+
+type ShippingInfo struct {
+	GivenName     string      `json:"givenName"`
+	SureName      string      `json:"sureName"`
+	Email         string      `json:"email"`
+	PhoneNumber   PhoneNumber `json:"phoneNumber"`
+	AddressLine1  string      `json:"addressLine1"`
+	AddressLine2  string      `json:"addressLine2"`
+	City          string      `json:"city"`
+	ProvinceState string      `json:"provinceState"`
+	Country       string      `json:"country"`
+	PostalCode    string      `json:"postalCode"`
+	Method        string      `json:"method"`
+	ShippingFee   struct {
+		Value    int    `json:"value"`
+		Currency string `json:"currency"`
+	} `json:"amount"`
+}
+type PhoneNumber struct {
+	CountryCode string `json:"countryCode"`
+	Number      string `json:"number"`
+}
+
 type Price struct {
 	Value    int    `json:"value"`
 	Currency string `json:"currency"`
 }
 
-func CardHarsyaCharging(transactionId, customerName, userMdn string, amount uint) (*HarsyaChargingResponse, error) {
+func CardHarsyaCharging(transactionId, customerName, userMdn, email, address, provinceState, country, postalCode, city, countryCode, phoneNumber string, amount uint) (*HarsyaChargingResponse, error) {
 	clientId := config.Config("PIVOT_CLIENT_ID", "")
 	clientSecret := config.Config("PIVOT_CLIENT_SECRET", "")
 	accessToken, err := GetAccessTokenHarsya(clientId, clientSecret)
@@ -103,9 +140,43 @@ func CardHarsyaCharging(transactionId, customerName, userMdn string, amount uint
 			},
 		},
 	}
+	requestBody.OrderInformation.BillingInfo = BillingInfo{
+		GivenName: customerName,
+		SureName:  "",
+		Email:     email,
+		PhoneNumber: PhoneNumber{
+			CountryCode: countryCode,
+			Number:      phoneNumber,
+		},
+		AddressLine1:  address,
+		AddressLine2:  "",
+		City:          city,
+		ProvinceState: provinceState,
+		Country:       country,
+		PostalCode:    postalCode,
+	}
 
-	phoneNumber := strings.TrimPrefix(userMdn, "0")
+	phoneNumber = strings.TrimPrefix(userMdn, "0")
 	requestBody.Customer.PhoneNumber.Number = phoneNumber
+
+	requestBody.OrderInformation.ShippingInfo = ShippingInfo{
+		GivenName: customerName,
+		SureName:  "",
+		Email:     email,
+		PhoneNumber: PhoneNumber{
+			CountryCode: countryCode,
+			Number:      phoneNumber,
+		},
+		AddressLine1:  address,
+		AddressLine2:  "",
+		City:          city,
+		ProvinceState: provinceState,
+		Country:       country,
+		PostalCode:    postalCode,
+		Method:        "REGULAR",
+	}
+	requestBody.OrderInformation.ShippingInfo.ShippingFee.Value = 0
+	requestBody.OrderInformation.ShippingInfo.ShippingFee.Currency = "IDR"
 
 	body, err := json.Marshal(requestBody)
 	if err != nil {

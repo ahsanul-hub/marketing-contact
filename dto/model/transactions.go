@@ -101,9 +101,17 @@ type InputPaymentRequest struct {
 	Otp                 string `json:"otp,omitempty"`
 	ReffId              string `json:"reff_id,omitempty"`
 	CustomerName        string `json:"customer_name,omitempty"`
-	NotificationUrl     string `json:"notification_url,omitempty"`
 	UserIP              string `json:"user_ip,omitempty"`
 	CallbackReferenceId string `json:"callback_reference_id,omitempty"`
+	Email               string `json:"email,omitempty"`
+	CountryCode         string `json:"country_code,omitempty"`
+	PhoneNumber         string `json:"phone_number,omitempty"`
+	Address             string `json:"address,omitempty"`
+	City                string `json:"city,omitempty"`
+	ProvinceState       string `json:"province_state,omitempty"`
+	Country             string `json:"country,omitempty"`
+	PostalCode          string `json:"postal_code,omitempty"`
+	NotificationUrl     string `json:"notification_url,omitempty"`
 }
 
 type InputPaymentRequestLegacy struct {
