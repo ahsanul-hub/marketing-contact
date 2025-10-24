@@ -105,7 +105,7 @@ func CardHarsyaCharging(transactionId, customerName, userMdn, email, address, pr
 	now := time.Now()
 	loc, _ := time.LoadLocation("Asia/Jakarta")
 	timeNow := time.Now().In(loc)
-	expiryAt := timeNow.Add(60 * time.Minute)
+	expiryAt := timeNow.Add(24 * time.Hour)
 
 	successUrl := fmt.Sprintf("%s/return/dana", config.Config("APIURL", ""))
 	requestUrl := fmt.Sprintf("%s/v2/payments", config.Config("PIVOT_BASE_URL", ""))
