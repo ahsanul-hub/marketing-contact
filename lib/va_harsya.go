@@ -234,7 +234,7 @@ func VaHarsyaCharging(transactionId, customerName, bankName string, amount uint)
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api-stg.harsya.com/v2/payments", bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", "https://api.pivot-payment.com/v2/payments", bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

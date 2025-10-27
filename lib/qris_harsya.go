@@ -92,7 +92,7 @@ func QrisHarsyaCharging(transactionId string, amount uint) (*HarsyaChargingRespo
 		return nil, fmt.Errorf("failed to marshal request body: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", "https://api.harsya.com/v2/payments", bytes.NewBuffer(body))
+	req, err := http.NewRequest("POST", "https://api.pivot-payment.com/v2/payments", bytes.NewBuffer(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -114,7 +114,7 @@ func QrisHarsyaCharging(transactionId string, amount uint) (*HarsyaChargingRespo
 	now := time.Now()
 
 	helper.QrisLogger.LogAPICall(
-		"https://api.harsya.com/v2/payments",
+		"https://api.pivot-payment.com/v2/payments",
 		"POST",
 		time.Since(now),
 		resp.StatusCode,
