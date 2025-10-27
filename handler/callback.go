@@ -33,6 +33,20 @@ type MidtransCallbackRequest struct {
 	ExpiryTime        *string `json:"expiry_time"`
 }
 
+type XlCallbackRequest struct {
+	UserIdentifier  *string `json:"userIdentifier"`
+	TransactionId   *string `json:"transactionId"`
+	RefferenceId    *string `json:"refferenceId"`
+	PartnerId       *string `json:"partnerId"`
+	Item            *string `json:"item"`
+	ItemDescription *string `json:"itemDescription"`
+	BalanceType     *string `json:"balanceType"`
+	Amount          *string `json:"amount"`
+	Currency        *string `json:"currency"`
+	ResultCode      *string `json:"resultCode"`
+	ResultDesc      *string `json:"resultDesc"`
+}
+
 type CallbackDanaPayload struct {
 	Request struct {
 		Head struct {
@@ -409,6 +423,88 @@ func MidtransCallback(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Callback processed successfully",
+	})
+}
+
+func XLCallback(c *fiber.Ctx) error {
+	var req XlCallbackRequest
+	ipClient := c.IP()
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	if req.TransactionId == nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Missing required fields",
+		})
+	}
+
+	transactionID := *req.TransactionId
+
+	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
+	if err != nil || transaction == nil {
+		return nil
+	}
+
+	statusCallback := true
+
+	strAmount := fmt.Sprintf("%d", transaction.Amount)
+
+	message := "success"
+
+	if req.Amount == nil || strAmount != *req.Amount {
+		statusCallback = false
+		message = "amount doesn't match"
+	}
+
+	helper.XLLogger.LogCallback(transactionID, statusCallback,
+		map[string]interface{}{
+			"transaction_id":   transactionID,
+			"ip":               ipClient,
+			"message":          message,
+			"request_callback": req,
+		},
+	)
+
+	now := time.Now()
+
+	receiveCallbackDate := &now
+
+	switch *req.ResultCode {
+	case "00":
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", *req.TransactionId, err)
+		}
+	case "11", "12":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Insufficient Balance"); err != nil {
+			log.Printf("Error updating transaction status for %s to expired: %s", *req.TransactionId, err)
+		}
+	case "20", "21", "22":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Invalid MSISDN or not found"); err != nil {
+			log.Printf("Error updating transaction status for %s to failed: %s", *req.TransactionId, err)
+		}
+	case "30", "31", "39", "40", "41", "45", "46", "47", "48", "99", "49", "50":
+		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction Failed"); err != nil {
+			log.Printf("Error updating transaction status for %s to failed: %s", *req.TransactionId, err)
+		}
+	default:
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid transaction status",
+		})
+	}
+
+	// Set response headers
+	c.Set("Content-Type", "application/json")
+
+	return c.Status(200).JSON(fiber.Map{
 		"status":  "success",
 		"message": "Callback processed successfully",
 	})
