@@ -446,6 +446,7 @@ func XLCallback(c *fiber.Ctx) error {
 		})
 	}
 
+	log.Println("callback hit from Xl")
 	transactionID := *req.TransactionId
 
 	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)

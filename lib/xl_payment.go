@@ -434,16 +434,16 @@ func ProcessPendingTransactions() {
 	for {
 		go worker.ProcessTransactions()
 		go worker.ProcessFailedTransactions()
-		transactions, err := repository.GetPendingTransactions(context.Background(), "xl_airtime")
+		// transactions, err := repository.GetPendingTransactions(context.Background(), "xl_airtime")
 
-		if err != nil {
-			log.Printf("Error retrieving pending transactions: %s", err)
-			time.Sleep(1 * time.Minute)
-			continue
-		}
-		for _, transaction := range transactions {
-			go CheckTransactionStatus(transaction)
-		}
+		// if err != nil {
+		// 	log.Printf("Error retrieving pending transactions: %s", err)
+		// 	time.Sleep(1 * time.Minute)
+		// 	continue
+		// }
+		// for _, transaction := range transactions {
+		// 	go CheckTransactionStatus(transaction)
+		// }
 
 		time.Sleep(5 * time.Second)
 	}
