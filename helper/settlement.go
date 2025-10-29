@@ -2,7 +2,6 @@ package helper
 
 import (
 	"app/dto/model"
-	"log"
 	"math"
 	"strconv"
 	"strings"
@@ -11,22 +10,22 @@ import (
 // FindSettlementByPaymentMethod mencari konfigurasi settlement berdasarkan nama payment method
 func FindSettlementByPaymentMethod(settlementConfig *[]model.SettlementClient, paymentMethod string) *model.SettlementClient {
 	if settlementConfig == nil {
-		log.Printf("FindSettlementByPaymentMethod: paymentMethod=%s, configs=nil", paymentMethod)
+		// log.Printf("FindSettlementByPaymentMethod: paymentMethod=%s, configs=nil", paymentMethod)
 		return nil
 	}
-	log.Printf("FindSettlementByPaymentMethod: paymentMethod=%s, total_configs=%d", paymentMethod, len(*settlementConfig))
+	// log.Printf("FindSettlementByPaymentMethod: paymentMethod=%s, total_configs=%d", paymentMethod, len(*settlementConfig))
 	for i := range *settlementConfig {
 		// log each name for debugging minimal
 		name := (*settlementConfig)[i].Name
 		if name == paymentMethod {
-			log.Printf("FindSettlementByPaymentMethod: found match for paymentMethod=%s", paymentMethod)
+			// log.Printf("FindSettlementByPaymentMethod: found match for paymentMethod=%s", paymentMethod)
 			return &(*settlementConfig)[i]
 		}
 		if (*settlementConfig)[i].Name == paymentMethod {
 			return &(*settlementConfig)[i]
 		}
 	}
-	log.Printf("FindSettlementByPaymentMethod: NOT FOUND for paymentMethod=%s", paymentMethod)
+	// log.Printf("FindSettlementByPaymentMethod: NOT FOUND for paymentMethod=%s", paymentMethod)
 	return nil
 }
 
