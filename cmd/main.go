@@ -78,6 +78,8 @@ func main() {
 	}
 
 	go lib.ProcessPendingTransactions()
+	go worker.ProcessTransactions()
+	go worker.ProcessFailedTransactions()
 	go worker.ProccessFailedCallbackWorker()
 	go worker.ProcessCallbackQueue()
 	go handler.ProcessUpdateTransactionPending()

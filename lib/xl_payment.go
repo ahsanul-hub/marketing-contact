@@ -5,7 +5,6 @@ import (
 	"app/dto/model"
 	"app/helper"
 	"app/repository"
-	"app/worker"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -442,8 +441,6 @@ func CheckTransactionStatus(transaction model.Transactions) {
 func ProcessPendingTransactions() {
 
 	for {
-		go worker.ProcessTransactions()
-		go worker.ProcessFailedTransactions()
 		transactions, err := repository.GetPendingTransactions(context.Background(), "xl_airtime")
 
 		if err != nil {
@@ -455,6 +452,6 @@ func ProcessPendingTransactions() {
 			go CheckTransactionStatus(transaction)
 		}
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
 }
