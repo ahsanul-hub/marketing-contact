@@ -127,7 +127,7 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	}
 	jsonData, _ := json.Marshal(cacheData)
 
-	log.Println("cacheKey request mo tsel", cacheKey)
+	// log.Println("cacheKey request mo tsel", cacheKey)
 
 	if database.RedisClient != nil {
 		if err := database.RedisClient.Set(ctx, cacheKey, jsonData, 10*time.Minute).Err(); err != nil {
