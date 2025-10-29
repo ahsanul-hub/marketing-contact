@@ -274,6 +274,15 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 
 	defer resp.Body.Close()
 
+	// Ambil xsrf-token dari header response (dengan beberapa kemungkinan penamaan)
+	xsrfToken := resp.Header.Get("xsrf-token")
+	if xsrfToken == "" {
+		xsrfToken = resp.Header.Get("XSRF-TOKEN")
+	}
+	if xsrfToken == "" {
+		xsrfToken = resp.Header.Get("X-XSRF-TOKEN")
+	}
+
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return ChargingResponse{}, fmt.Errorf("failed to read response body: %w", err)
@@ -287,9 +296,11 @@ func RequestChargingXL(msisdn, itemID, itemDesc, transactionId string, chargingP
 		map[string]interface{}{
 			"transaction_id": transactionId,
 			"request_body":   string(body),
+			"xsrf-token ":    xsrfToken,
 		},
 		map[string]interface{}{
-			"body": string(bodyBytes),
+			"body":       string(bodyBytes),
+			"xsrf-token": xsrfToken,
 		},
 	)
 
@@ -396,7 +407,6 @@ func CheckTransactionStatus(transaction model.Transactions) {
 		return
 	}
 
-	// Periksa status transaction
 	response, err := CheckTransactions(transaction.ID, "RDSN", token)
 	if err != nil {
 		log.Printf("Error checking transaction %s: %s", transaction.ID, err)
@@ -434,16 +444,16 @@ func ProcessPendingTransactions() {
 	for {
 		go worker.ProcessTransactions()
 		go worker.ProcessFailedTransactions()
-		// transactions, err := repository.GetPendingTransactions(context.Background(), "xl_airtime")
+		transactions, err := repository.GetPendingTransactions(context.Background(), "xl_airtime")
 
-		// if err != nil {
-		// 	log.Printf("Error retrieving pending transactions: %s", err)
-		// 	time.Sleep(1 * time.Minute)
-		// 	continue
-		// }
-		// for _, transaction := range transactions {
-		// 	go CheckTransactionStatus(transaction)
-		// }
+		if err != nil {
+			log.Printf("Error retrieving pending transactions: %s", err)
+			time.Sleep(1 * time.Minute)
+			continue
+		}
+		for _, transaction := range transactions {
+			go CheckTransactionStatus(transaction)
+		}
 
 		time.Sleep(5 * time.Second)
 	}
