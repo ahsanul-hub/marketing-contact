@@ -6,10 +6,12 @@ import (
 	"app/helper"
 	"app/lib"
 	"app/repository"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -446,7 +448,6 @@ func XLCallback(c *fiber.Ctx) error {
 		})
 	}
 
-	log.Println("callback hit from Xl")
 	transactionID := *req.TransactionId
 
 	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
@@ -473,6 +474,24 @@ func XLCallback(c *fiber.Ctx) error {
 			"request_callback": req,
 		},
 	)
+
+	// Forward payload ke endpoint eksternal (non-blocking)
+	go func(payload []byte) {
+		forwardURL := "https://sandbox-payment.redision.com/api/notify/xl"
+		reqFwd, err := http.NewRequest(http.MethodPost, forwardURL, bytes.NewBuffer(payload))
+		if err != nil {
+			log.Printf("XLCallback forward build request error: %v", err)
+			return
+		}
+		reqFwd.Header.Set("Content-Type", "application/json")
+		client := &http.Client{}
+		resp, err := client.Do(reqFwd)
+		if err != nil {
+			log.Printf("XLCallback forward send error: %v", err)
+			return
+		}
+		defer resp.Body.Close()
+	}(c.Body())
 
 	now := time.Now()
 
