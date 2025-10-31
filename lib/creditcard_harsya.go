@@ -40,8 +40,8 @@ type CreditCardChargingRequest struct {
 	} `json:"customer"`
 	OrderInformation struct {
 		ProductDetails []ProductDetail `json:"productDetails"`
-		BillingInfo    BillingInfo     `json:"billingInfo"`
-		ShippingInfo   ShippingInfo    `json:"shippingInfo"`
+		// BillingInfo    BillingInfo     `json:"billingInfo,omitempty"`
+		// ShippingInfo   ShippingInfo    `json:"shippingInfo,omitempty"`
 	} `json:"orderInformation"`
 	AutoConfirm         bool   `json:"autoConfirm"`
 	StatementDescriptor string `json:"statementDescriptor"`
@@ -140,43 +140,43 @@ func CardHarsyaCharging(transactionId, customerName, userMdn, email, address, pr
 			},
 		},
 	}
-	requestBody.OrderInformation.BillingInfo = BillingInfo{
-		GivenName: customerName,
-		SureName:  "",
-		Email:     email,
-		PhoneNumber: PhoneNumber{
-			CountryCode: countryCode,
-			Number:      phoneNumber,
-		},
-		AddressLine1:  address,
-		AddressLine2:  "",
-		City:          city,
-		ProvinceState: provinceState,
-		Country:       country,
-		PostalCode:    postalCode,
-	}
+	// requestBody.OrderInformation.BillingInfo = BillingInfo{
+	// 	GivenName: customerName,
+	// 	SureName:  "",
+	// 	Email:     email,
+	// 	PhoneNumber: PhoneNumber{
+	// 		CountryCode: countryCode,
+	// 		Number:      phoneNumber,
+	// 	},
+	// 	AddressLine1:  address,
+	// 	AddressLine2:  "",
+	// 	City:          city,
+	// 	ProvinceState: provinceState,
+	// 	Country:       country,
+	// 	PostalCode:    postalCode,
+	// }
 
 	phoneNumber = strings.TrimPrefix(userMdn, "0")
 	requestBody.Customer.PhoneNumber.Number = phoneNumber
 
-	requestBody.OrderInformation.ShippingInfo = ShippingInfo{
-		GivenName: customerName,
-		SureName:  "",
-		Email:     email,
-		PhoneNumber: PhoneNumber{
-			CountryCode: countryCode,
-			Number:      phoneNumber,
-		},
-		AddressLine1:  address,
-		AddressLine2:  "",
-		City:          city,
-		ProvinceState: provinceState,
-		Country:       country,
-		PostalCode:    postalCode,
-		Method:        "REGULAR",
-	}
-	requestBody.OrderInformation.ShippingInfo.ShippingFee.Value = 0
-	requestBody.OrderInformation.ShippingInfo.ShippingFee.Currency = "IDR"
+	// requestBody.OrderInformation.ShippingInfo = ShippingInfo{
+	// 	GivenName: customerName,
+	// 	SureName:  "",
+	// 	Email:     email,
+	// 	PhoneNumber: PhoneNumber{
+	// 		CountryCode: countryCode,
+	// 		Number:      phoneNumber,
+	// 	},
+	// 	AddressLine1:  address,
+	// 	AddressLine2:  "",
+	// 	City:          city,
+	// 	ProvinceState: provinceState,
+	// 	Country:       country,
+	// 	PostalCode:    postalCode,
+	// 	Method:        "REGULAR",
+	// }
+	// requestBody.OrderInformation.ShippingInfo.ShippingFee.Value = 0
+	// requestBody.OrderInformation.ShippingInfo.ShippingFee.Currency = "IDR"
 
 	body, err := json.Marshal(requestBody)
 	if err != nil {
