@@ -237,9 +237,14 @@ type HarsyaCallbackFull struct {
 			Type string `json:"type"`
 		} `json:"paymentMethod"`
 		StatementDescriptor string         `json:"statementDescriptor"`
-		Amount              Amount         `json:"amount"`
+		Amount              AmountPivot    `json:"amount"`
 		ChargeDetails       []ChargeDetail `json:"chargeDetails"`
 	} `json:"data"`
+}
+
+type AmountPivot struct {
+	Currency string `json:"currency"`
+	Value    int    `json:"value"`
 }
 
 func CallbackTriyakom(c *fiber.Ctx) error {
