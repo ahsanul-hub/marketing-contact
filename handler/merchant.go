@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"regexp"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -479,4 +480,38 @@ func UpdateClientProfile(c *fiber.Ctx) error {
 			"client_apps": client.ClientApps,
 		},
 	})
+}
+
+func GetCreditCardLogByFirst6(c *fiber.Ctx) error {
+	first6 := c.Params("first6")
+
+	appKey := c.Get("appkey")
+	appID := c.Get("appid")
+	if appKey == "" || appID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Missing required headers: appkey and appid",
+		})
+	}
+	_, err := repository.FindClient(c.Context(), appKey, appID)
+	if err != nil {
+		log.Println("")
+
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Error get client data",
+		})
+
+	}
+
+	if len(first6) < 4 || len(first6) > 6 || !regexp.MustCompile(`^\d{4,6}$`).MatchString(first6) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "first6 param harus 4-6 digit angka",
+		})
+	}
+	logs, err := repository.FindCreditCardLogsByFirst6(context.Background(), database.DB, first6)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.JSON(logs)
 }

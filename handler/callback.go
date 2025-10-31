@@ -3,6 +3,7 @@ package handler
 import (
 	"app/config"
 	"app/database"
+	"app/dto/model"
 	"app/helper"
 	"app/lib"
 	"app/repository"
@@ -167,6 +168,78 @@ type DigiphCallbackPayload struct {
 	PaymentMethod  string  `json:"paymentMethod"`
 	PaymentChannel string  `json:"paymentChannel"`
 	Description    string  `json:"description"`
+}
+
+// Tambahkan: struct parsing chargeDetails[].card
+type BinInformations struct {
+	Type        string `json:"type"`
+	IssuingBank string `json:"issuingBank"`
+	Brand       string `json:"brand"`
+	Country     string `json:"country"`
+}
+type AuthenticationResult struct {
+	ThreeDsVersion string `json:"threeDsVersion"`
+	ThreeDsResult  string `json:"threeDsResult"`
+	ThreeDsMethod  string `json:"threeDsMethod"`
+	EciCode        string `json:"eciCode"`
+}
+type AuthorizedAmount struct {
+	Value    int    `json:"value"`
+	Currency string `json:"currency"`
+}
+type AuthorizationResult struct {
+	AcquirerReferenceNumber  string           `json:"acquirerReferenceNumber"`
+	RetrievalReferenceNumber string           `json:"retrievalReferenceNumber"`
+	Stan                     string           `json:"stan"`
+	AvsResult                string           `json:"avsResult"`
+	CvvResult                string           `json:"cvvResult"`
+	AuthorizedAmount         AuthorizedAmount `json:"authorizedAmount"`
+	IssuerAuthorizationCode  string           `json:"issuerAuthorizationCode"`
+}
+
+type CardDetail struct {
+	First6               string               `json:"first6"`
+	First8               string               `json:"first8"`
+	Last4                string               `json:"last4"`
+	ExpMonth             string               `json:"expMonth"`
+	ExpYear              string               `json:"expYear"`
+	BinInformations      BinInformations      `json:"binInformations"`
+	AuthenticationResult AuthenticationResult `json:"authenticationResult"`
+	AuthorizationResult  AuthorizationResult  `json:"authorizationResult"`
+}
+
+type ChargeDetail struct {
+	ID                              string `json:"id"`
+	PaymentSessionId                string `json:"paymentSessionId"`
+	PaymentSessionClientReferenceId string `json:"paymentSessionClientReferenceId"`
+	Amount                          struct {
+		Value    int    `json:"value"`
+		Currency string `json:"currency"`
+	} `json:"amount"`
+	StatementDescriptor string      `json:"statementDescriptor"`
+	Status              string      `json:"status"`
+	FailureCode         string      `json:"failureCode"`
+	FailureMessage      string      `json:"failureMessage"`
+	Recommendation      string      `json:"recommendation"`
+	CreatedAt           string      `json:"createdAt"`
+	UpdatedAt           string      `json:"updatedAt"`
+	PaidAt              string      `json:"paidAt"`
+	Card                *CardDetail `json:"card"`
+}
+
+type HarsyaCallbackFull struct {
+	Event string `json:"event"`
+	Data  struct {
+		ID                string `json:"id"`
+		ClientReferenceID string `json:"clientReferenceId"`
+		Status            string `json:"status"`
+		PaymentMethod     struct {
+			Type string `json:"type"`
+		} `json:"paymentMethod"`
+		StatementDescriptor string         `json:"statementDescriptor"`
+		Amount              Amount         `json:"amount"`
+		ChargeDetails       []ChargeDetail `json:"chargeDetails"`
+	} `json:"data"`
 }
 
 func CallbackTriyakom(c *fiber.Ctx) error {
@@ -741,24 +814,7 @@ func CallbackHarsya(c *fiber.Ctx) error {
 		})
 	}
 
-	type Amount struct {
-		Value    int    `json:"value"`
-		Currency string `json:"currency"`
-	}
-
-	type HarsyaCallbackData struct {
-		ID                string `json:"id"`
-		ClientReferenceID string `json:"clientReferenceId"`
-		Status            string `json:"status"`
-		Amount            Amount `json:"amount"`
-	}
-
-	type HarsyaCallbackRequest struct {
-		Event string             `json:"event"`
-		Data  HarsyaCallbackData `json:"data"`
-	}
-
-	var req HarsyaCallbackRequest
+	var req HarsyaCallbackFull
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"status":  "error",
@@ -820,6 +876,47 @@ func CallbackHarsya(c *fiber.Ctx) error {
 		err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction cancelled")
 		if err != nil {
 			log.Printf("Error updating transaction %s to CANCELLED: %s", transactionID, err)
+		}
+	}
+
+	if len(req.Data.ChargeDetails) > 0 && strings.ToUpper(req.Data.PaymentMethod.Type) == "CARD" {
+
+		for _, chg := range req.Data.ChargeDetails {
+			if chg.Card == nil {
+				continue
+			}
+			logCard := model.CreditCardLog{
+				PaymentSessionID:                req.Data.ID,
+				PaymentSessionClientReferenceID: req.Data.ClientReferenceID,
+				StatementDescriptor:             chg.StatementDescriptor,
+				Status:                          chg.Status,
+				FailureCode:                     chg.FailureCode,
+				FailureMessage:                  chg.FailureMessage,
+				Recommendation:                  chg.Recommendation,
+				First6:                          chg.Card.First6,
+				First8:                          chg.Card.First8,
+				Last4:                           chg.Card.Last4,
+				ExpMonth:                        chg.Card.ExpMonth,
+				ExpYear:                         chg.Card.ExpYear,
+				CardType:                        chg.Card.BinInformations.Type,
+				Brand:                           chg.Card.BinInformations.Brand,
+				IssuingBank:                     chg.Card.BinInformations.IssuingBank,
+				BinCountry:                      chg.Card.BinInformations.Country,
+				ThreeDsVersion:                  chg.Card.AuthenticationResult.ThreeDsVersion,
+				ThreeDsResult:                   chg.Card.AuthenticationResult.ThreeDsResult,
+				ThreeDsMethod:                   chg.Card.AuthenticationResult.ThreeDsMethod,
+				EciCode:                         chg.Card.AuthenticationResult.EciCode,
+				AcquirerReferenceNumber:         chg.Card.AuthorizationResult.AcquirerReferenceNumber,
+				RetrievalReferenceNumber:        chg.Card.AuthorizationResult.RetrievalReferenceNumber,
+				Stan:                            chg.Card.AuthorizationResult.Stan,
+				AvsResult:                       chg.Card.AuthorizationResult.AvsResult,
+				CvvResult:                       chg.Card.AuthorizationResult.CvvResult,
+				AuthorizedAmountValue:           chg.Card.AuthorizationResult.AuthorizedAmount.Value,
+				AuthorizedAmountCurrency:        chg.Card.AuthorizationResult.AuthorizedAmount.Currency,
+				IssuerAuthorizationCode:         chg.Card.AuthorizationResult.IssuerAuthorizationCode,
+				CreatedAt:                       time.Now(), UpdatedAt: time.Now(),
+			}
+			_ = repository.InsertCreditCardLog(context.Background(), database.DB, logCard)
 		}
 	}
 
