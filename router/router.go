@@ -89,7 +89,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/bca/payment", handler.PaymentBca)
 	api.Post("/bca/token", handler.TokenBca)
 
-	api.Get("/credit-card-bin/:first6", handler.GetCreditCardLogByFirst6)
+	api.Get("/credit-card-bin/:first4", handler.GetCreditCardLogByFirst4)
 
 	merchant := api.Group("/merchant")
 	merchant.Get("/transactions", handler.GetTransactionsMerchant)

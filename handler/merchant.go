@@ -482,8 +482,8 @@ func UpdateClientProfile(c *fiber.Ctx) error {
 	})
 }
 
-func GetCreditCardLogByFirst6(c *fiber.Ctx) error {
-	first6 := c.Params("first6")
+func GetCreditCardLogByFirst4(c *fiber.Ctx) error {
+	first4 := c.Params("first4")
 
 	appKey := c.Get("appkey")
 	appID := c.Get("appid")
@@ -504,12 +504,12 @@ func GetCreditCardLogByFirst6(c *fiber.Ctx) error {
 
 	}
 
-	if len(first6) < 4 || len(first6) > 6 || !regexp.MustCompile(`^\d{4,6}$`).MatchString(first6) {
+	if len(first4) < 4 || len(first4) > 6 || !regexp.MustCompile(`^\d{4,6}$`).MatchString(first4) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "first6 param harus 4-6 digit angka",
+			"error": "first4 param harus 4-6 digit angka",
 		})
 	}
-	logs, err := repository.FindCreditCardLogsByFirst6(context.Background(), database.DB, first6)
+	logs, err := repository.FindCreditCardLogsByFirst4(context.Background(), database.DB, first4)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": err.Error()})
 	}
