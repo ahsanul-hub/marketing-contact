@@ -94,7 +94,7 @@ type Price struct {
 	Currency string `json:"currency"`
 }
 
-func CardHarsyaCharging(transactionId, customerName, userMdn, email, address, provinceState, country, postalCode, city, countryCode, phoneNumber string, amount uint) (*HarsyaChargingResponse, error) {
+func CardHarsyaCharging(transactionId, customerName, userMdn, redirectUrl, email, address, provinceState, country, postalCode, city, countryCode, phoneNumber string, amount uint) (*HarsyaChargingResponse, error) {
 	clientId := config.Config("PIVOT_CLIENT_ID", "")
 	clientSecret := config.Config("PIVOT_CLIENT_SECRET", "")
 	accessToken, err := GetAccessTokenHarsya(clientId, clientSecret)
@@ -108,6 +108,11 @@ func CardHarsyaCharging(transactionId, customerName, userMdn, email, address, pr
 	expiryAt := timeNow.Add(24 * time.Hour)
 
 	successUrl := fmt.Sprintf("%s/return/dana", config.Config("APIURL", ""))
+
+	if redirectUrl != "" {
+		successUrl = redirectUrl
+	}
+
 	requestUrl := fmt.Sprintf("%s/v2/payments", config.Config("PIVOT_BASE_URL", ""))
 
 	requestBody := CreditCardChargingRequest{
