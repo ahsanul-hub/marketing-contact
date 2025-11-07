@@ -74,6 +74,14 @@ func ProcessTransactions() {
 			// Proses transaksi dalam goroutine
 			go func(transaction model.Transactions) {
 				arrClient, err := repository.FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
+				if err != nil {
+					log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
+					return
+				}
+				if arrClient == nil {
+					log.Printf("Client not found for AppKey: %s, AppID: %s", transaction.ClientAppKey, transaction.AppID)
+					return
+				}
 				var callbackURL string
 				for _, app := range arrClient.ClientApps {
 					if app.AppID == transaction.AppID {

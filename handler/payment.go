@@ -80,12 +80,17 @@ func CreateOrder(c *fiber.Ctx) error {
 	}
 
 	paymentLimits := map[string]uint{
-		"qris":      10000000,
-		"shopeepay": 10000000,
-		"gopay":     10000000,
-		"ovo":       10000000,
-		"dana":      10000000,
-		"va_bca":    10000000,
+		"qris":        10000000,
+		"shopeepay":   10000000,
+		"gopay":       10000000,
+		"ovo":         10000000,
+		"dana":        10000000,
+		"va_bca":      50000000,
+		"va_bri":      50000000,
+		"va_bni":      50000000,
+		"va_mandiri":  50000000,
+		"va_permata":  50000000,
+		"visa_master": 300000000,
 	}
 
 	limit, ok := paymentLimits[input.PaymentMethod]
