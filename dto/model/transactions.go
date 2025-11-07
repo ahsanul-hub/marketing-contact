@@ -249,6 +249,10 @@ type TrafficMonitoringData struct {
 	Pending       int       `json:"pending"`
 	Failed        int       `json:"failed"`
 	Total         int       `json:"total"`
+	Avg7Success   int       `json:"avg7_success,omitempty"`
+	Avg7Pending   int       `json:"avg7_pending,omitempty"`
+	Avg7Failed    int       `json:"avg7_failed,omitempty"`
+	Avg7Total     int       `json:"avg7_total,omitempty"`
 }
 
 type TrafficChartResponse struct {

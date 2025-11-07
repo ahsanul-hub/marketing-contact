@@ -87,6 +87,49 @@ func GetTrafficSummary(c *fiber.Ctx) error {
 	return c.JSON(sum)
 }
 
+// GetTrafficMonitoringChartHourly returns 1-hour bucketed traffic grouped per merchant, route, and payment method
+// Query params: start, end (RFC3339), client_uid, app_id, merchant_name, payment_method, route
+func GetTrafficMonitoringChartHourly(c *fiber.Ctx) error {
+	ctx := c.Context()
+
+	startStr := c.Query("start")
+	endStr := c.Query("end")
+	clientUID := c.Query("client_uid")
+	appID := c.Query("app_id")
+	merchant := c.Query("merchant_name")
+	paymentMethod := c.Query("payment_method")
+	route := c.Query("route")
+
+	var (
+		start time.Time
+		end   time.Time
+		err   error
+	)
+
+	if startStr == "" || endStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "start and end are required in RFC3339"})
+	}
+
+	start, err = parseTimeParam(startStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid start format, use RFC3339 (e.g. 2025-10-13T11:00:00+07:00)"})
+	}
+	end, err = parseTimeParam(endStr)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid end format, use RFC3339 (e.g. 2025-10-13T12:00:00+07:00)"})
+	}
+
+	avgParam := strings.ToLower(strings.TrimSpace(c.Query("avg")))
+	withAvg7 := avgParam == "7day"
+
+	data, err := repository.GetTrafficMonitoringHourly(ctx, start, end, clientUID, appID, merchant, paymentMethod, route, withAvg7)
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.JSON(fiber.Map{"data": data})
+}
+
 // parseTimeParam tries multiple layouts and also fixes space-before-offset cases (e.g., due to '+' not URL-encoded)
 func parseTimeParam(v string) (time.Time, error) {
 	if v == "" {

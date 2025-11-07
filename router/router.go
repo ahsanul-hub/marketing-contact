@@ -68,6 +68,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 
 	// Traffic Monitoring endpoints
 	api.Get("/traffic/monitoring", middleware.Protected(), middleware.AdminOnly(false), handler.GetTrafficMonitoringChart)
+	api.Get("/traffic/monitoring/hourly", middleware.Protected(), middleware.AdminOnly(false), handler.GetTrafficMonitoringChartHourly)
 	api.Get("/traffic/summary", middleware.Protected(), middleware.AdminOnly(false), handler.GetTrafficSummary)
 
 	// app.Get("/cached-transactions", handler.GetAllCachedTransactions)
