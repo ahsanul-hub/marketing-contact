@@ -299,20 +299,34 @@ func GetTransactionReportWithMargin(ctx context.Context, startDate, endDate *tim
 	// log.Printf("Filters - merchants: %v, appID: %s, paymentMethods: %s, clientUID: %s", merchants, appID, paymentMethods, clientUID)
 	// log.Printf("Date parameters - startDate: %v, endDate: %v", startDate, endDate)
 
-	query := database.DB.Model(&model.Transactions{}).
+	// Removed slow COUNT queries - they were only for debugging and taking 20+ seconds
+	// var totalCount int64
+	// database.DB.Model(&model.Transactions{}).Count(&totalCount)
+	// log.Printf("Total transactions in table: %d", totalCount)
+
+	// var successCount int64
+	// database.DB.Model(&model.Transactions{}).Where("status_code = ?", 1000).Count(&successCount)
+
+	// Use read replica for better performance
+	db := database.GetReadDB().WithContext(ctx)
+
+	// Build query using read replica
+	// Use explicit table alias to avoid ambiguity and improve query planner
+	// Note: For current month queries with active transactions, read replica helps avoid lock contention
+	query := db.Model(&model.Transactions{}).
 		Select(`
-			merchant_name,
-			payment_method,
-			route,
+			transactions.merchant_name,
+			transactions.payment_method,
+			transactions.route,
 			clients.uid AS client_uid,
 			COUNT(*) as count,
-			SUM(amount) as total_amount,
-			SUM(price) as total_amount_tax
+			SUM(transactions.amount) as total_amount,
+			SUM(transactions.price) as total_amount_tax
 		`).
 		Joins("JOIN client_apps ON client_apps.app_id = transactions.app_id").
 		Joins("JOIN clients ON clients.uid = client_apps.client_id").
-		Where("status_code = ?", 1000).
-		Group("merchant_name, payment_method, route, clients.uid").
+		Where("transactions.status_code = ?", 1000).
+		Group("transactions.merchant_name, transactions.payment_method, transactions.route, clients.uid").
 		Having("COUNT(*) > 0")
 
 	if startDate != nil && endDate != nil {
@@ -320,33 +334,17 @@ func GetTransactionReportWithMargin(ctx context.Context, startDate, endDate *tim
 	}
 
 	if len(merchants) > 0 {
-		query = query.Where("merchant_name IN ?", merchants)
-		// log.Printf("Merchant filter: %v", merchants)
+		query = query.Where("transactions.merchant_name IN ?", merchants)
 	} else if appID != "" {
-		query = query.Where("app_id = ?", appID)
-		// log.Printf("AppID filter: %s", appID)
+		query = query.Where("transactions.app_id = ?", appID)
 	}
 
 	if paymentMethods != "" {
-		query = query.Where("payment_method = ?", paymentMethods)
-		log.Printf("Payment method filter: %s", paymentMethods)
+		query = query.Where("transactions.payment_method = ?", paymentMethods)
 	}
 
-	// Debug: Print the SQL query
-	// sql := query.ToSQL(func(tx *gorm.DB) *gorm.DB {
-	// 	return tx.Find(&[]model.Transactions{})
-	// })
-
-	// log.Printf("Generated SQL: %s", sql)
-
-	var totalCount int64
-	database.DB.Model(&model.Transactions{}).Count(&totalCount)
-	// log.Printf("Total transactions in table: %d", totalCount)
-
-	var successCount int64
-	database.DB.Model(&model.Transactions{}).Where("status_code = ?", 1000).Count(&successCount)
-
-	// Execute query
+	// Execute query using read replica
+	// For current month queries with active transactions, this helps avoid lock contention
 	if err := query.Scan(&summaries).Error; err != nil {
 		return nil, fmt.Errorf("failed to get transaction summary: %w", err)
 	}
