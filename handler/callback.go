@@ -868,7 +868,7 @@ func CallbackHarsya(c *fiber.Ctx) error {
 			log.Printf("Error updating transaction %s to PAID: %s", transactionID, err)
 		}
 	case "FAILED":
-		err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction failed")
+		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "Transaction failed", receiveCallbackDate)
 		if err != nil {
 			log.Printf("Error updating transaction %s to FAILED: %s", transactionID, err)
 		}
@@ -878,7 +878,7 @@ func CallbackHarsya(c *fiber.Ctx) error {
 			log.Printf("Error updating transaction %s to EXPIRED: %s", transactionID, err)
 		}
 	case "CANCELLED":
-		err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction cancelled")
+		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "Transaction cancelled", receiveCallbackDate)
 		if err != nil {
 			log.Printf("Error updating transaction %s to CANCELLED: %s", transactionID, err)
 		}
