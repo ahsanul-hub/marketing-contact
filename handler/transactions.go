@@ -2478,6 +2478,9 @@ func ManualCallback(c *fiber.Ctx) error {
 			payload.AppID = transaction.AppID
 			payload.ClientAppKey = transaction.ClientAppKey
 		}
+		if arrClient.ClientSecret == "08gf6K6t7cRdvoM" {
+			payload.ReferenceID = transaction.ReferenceID
+		}
 
 		callbackPayload = payload
 	}

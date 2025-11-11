@@ -164,6 +164,9 @@ func ProcessTransactions() {
 						payload.ClientAppKey = transaction.ClientAppKey
 					}
 
+					if arrClient.ClientSecret == "08gf6K6t7cRdvoM" {
+						payload.ReferenceID = transaction.ReferenceID
+					}
 					callbackPayload = payload
 				}
 
@@ -326,6 +329,10 @@ func ProcessFailedTransactions() {
 					if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
 						payload.AppID = transaction.AppID
 						payload.ClientAppKey = transaction.ClientAppKey
+					}
+
+					if arrClient.ClientSecret == "08gf6K6t7cRdvoM" {
+						payload.ReferenceID = transaction.ReferenceID
 					}
 
 					callbackPayload = payload
