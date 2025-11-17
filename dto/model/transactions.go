@@ -112,6 +112,8 @@ type InputPaymentRequest struct {
 	Country             string `json:"country,omitempty"`
 	PostalCode          string `json:"postal_code,omitempty"`
 	NotificationUrl     string `json:"notification_url,omitempty"`
+	// Midtrans Credit Card Core API
+	TokenID string `json:"token_id,omitempty"`
 }
 
 type InputPaymentRequestLegacy struct {
@@ -267,4 +269,11 @@ type TrafficSummaryResponse struct {
 	Pending int `json:"pending"`
 	Failed  int `json:"failed"`
 	Total   int `json:"total"`
+}
+
+// CreditCardCachedTransaction represents cached credit-card payment payload for payment page.
+type CreditCardCachedTransaction struct {
+	Transaction    InputPaymentRequest `json:"transaction"`
+	CreatedTransId string              `json:"created_trans_id"`
+	ChargingPrice  uint                `json:"charging_price"`
 }

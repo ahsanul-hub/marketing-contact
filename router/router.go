@@ -45,6 +45,8 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Get("/v1/order/:appid/:token", handler.PaymentPageLegacy)
 	api.Get("/payment-qris", handler.PaymentQrisRedirect)
 	api.Get("/payment-qris/:id", handler.QrisPage)
+	api.Get("/payment-card/:token", handler.PaymentPageCreditCard)
+	api.Post("/payment-card/:token/charge", handler.ChargeCreditCardMidtrans)
 	api.Get("/callback-triyakom", handler.CallbackTriyakom)
 	api.Get("/callback/midtrans", handler.MidtransCallback)
 	api.Post("/callback/harsya", handler.CallbackHarsya)

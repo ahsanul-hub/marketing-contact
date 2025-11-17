@@ -1747,3 +1747,221 @@ func GetAllCachedTransactions(c *fiber.Ctx) error {
 // 		"transactionId": id,
 // 	})
 // }
+
+func PaymentPageCreditCard(c *fiber.Ctx) error {
+	span, _ := apm.StartSpan(c.Context(), "PaymentPageCreditCard", "handler")
+	defer span.End()
+	token := c.Params("token")
+
+	var inputReq model.InputPaymentRequest
+	var createdTransId string
+	remainingSeconds := int64((24 * time.Hour).Seconds())
+
+	// 1. Coba ambil dari Redis (khusus credit card)
+	var cachedFound bool
+	if database.RedisClient != nil {
+		ctx := context.Background()
+		key := fmt.Sprintf("cc_payment:%s", token)
+		if val, err := database.RedisClient.Get(ctx, key).Result(); err == nil {
+			var ccCached model.CreditCardCachedTransaction
+			if err := json.Unmarshal([]byte(val), &ccCached); err == nil {
+				inputReq = ccCached.Transaction
+				createdTransId = ccCached.CreatedTransId
+				cachedFound = true
+			} else {
+				log.Println("failed unmarshal credit card cache from redis:", err)
+			}
+		}
+	}
+
+	// 2. Fallback ke in-memory cache untuk compatibility lama
+	if !cachedFound {
+		if cachedData, found := TransactionCache.Get(token); found {
+			if ccCached, ok := cachedData.(model.CreditCardCachedTransaction); ok {
+				inputReq = ccCached.Transaction
+				createdTransId = ccCached.CreatedTransId
+				cachedFound = true
+			} else if cachedMap, ok := cachedData.(map[string]interface{}); ok {
+				if trans, exists := cachedMap["transaction"]; exists {
+					inputReq = trans.(model.InputPaymentRequest)
+					if v, existsId := cachedMap["created_trans_id"]; existsId {
+						if idStr, okId := v.(string); okId {
+							createdTransId = idStr
+						}
+					}
+					cachedFound = true
+				}
+			} else if oldReq, ok := cachedData.(model.InputPaymentRequest); ok {
+				inputReq = oldReq
+				cachedFound = true
+			}
+		}
+	}
+
+	if cachedFound {
+
+		// Jika kita punya transaction id, cek status di DB: jika sudah sukses atau lebih dari 24 jam, jangan tampilkan halaman lagi
+		if createdTransId != "" {
+			if tx, err := repository.GetTransactionByID(c.Context(), createdTransId); err == nil && tx != nil {
+				elapsed := time.Since(tx.CreatedAt)
+				expired := elapsed >= 24*time.Hour
+				if tx.StatusCode == 1000 || tx.StatusCode == 1003 || expired {
+					return c.Render("notfound", fiber.Map{})
+				}
+
+				if elapsed < 24*time.Hour {
+					remainingSeconds = int64((24*time.Hour - elapsed).Seconds())
+					if remainingSeconds < 0 {
+						remainingSeconds = 0
+					}
+				}
+			}
+		}
+
+		currency := inputReq.Currency
+		if currency == "" {
+			currency = "IDR"
+		}
+
+		midtransClientKey := config.Config("MIDTRANS_CLIENT_KEY", "")
+		midtransEnvironment := config.Config("MIDTRANS_ENVIRONMENT", "")
+
+		return c.Render("payment_card_checkout", fiber.Map{
+			"AppName":             inputReq.AppName,
+			"PaymentMethod":       "credit_card_midtrans",
+			"PaymentMethodStr":    "Credit Card",
+			"ItemName":            inputReq.ItemName,
+			"ItemId":              inputReq.ItemId,
+			"Price":               inputReq.Price,
+			"Amount":              inputReq.Amount,
+			"FormattedAmount":     helper.FormatCurrencyIDR(inputReq.Amount),
+			"Currency":            currency,
+			"ClientAppKey":        inputReq.ClientAppKey,
+			"AppID":               inputReq.AppID,
+			"MtID":                inputReq.MtTid,
+			"UserId":              inputReq.UserId,
+			"RedirectURL":         inputReq.RedirectURL,
+			"NotificationURL":     inputReq.NotificationUrl,
+			"Token":               token,
+			"BodySign":            inputReq.BodySign,
+			"UserIP":              inputReq.UserIP,
+			"MidtransClientKey":   midtransClientKey,
+			"MidtransEnvironment": midtransEnvironment,
+			"ExpirySeconds":       remainingSeconds,
+		})
+	}
+
+	return c.Render("notfound", fiber.Map{})
+}
+
+func ChargeCreditCardMidtrans(c *fiber.Ctx) error {
+	span, _ := apm.StartSpan(c.Context(), "ChargeCreditCardMidtrans", "handler")
+	defer span.End()
+
+	token := c.Params("token")
+	var chargeRequest struct {
+		TokenID string `json:"token_id"`
+	}
+
+	if err := c.BodyParser(&chargeRequest); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	if chargeRequest.TokenID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0008",
+			"message": "Missing token_id for credit card payment",
+		})
+	}
+
+	// Get transaction from cache
+	var transaction model.InputPaymentRequest
+	var createdTransId string
+	var chargingPrice uint
+	var cachedFound bool
+
+	// 1. Coba ambil dari Redis
+	if database.RedisClient != nil {
+		ctx := context.Background()
+		key := fmt.Sprintf("cc_payment:%s", token)
+		if val, err := database.RedisClient.Get(ctx, key).Result(); err == nil {
+			var ccCached model.CreditCardCachedTransaction
+			if err := json.Unmarshal([]byte(val), &ccCached); err == nil {
+				transaction = ccCached.Transaction
+				createdTransId = ccCached.CreatedTransId
+				chargingPrice = ccCached.ChargingPrice
+				cachedFound = true
+			} else {
+				log.Println("failed unmarshal credit card cache from redis:", err)
+			}
+		}
+	}
+
+	// 2. Fallback ke in-memory cache
+	if !cachedFound {
+		if cachedData, found := TransactionCache.Get(token); found {
+			if ccCached, ok := cachedData.(model.CreditCardCachedTransaction); ok {
+				transaction = ccCached.Transaction
+				createdTransId = ccCached.CreatedTransId
+				chargingPrice = ccCached.ChargingPrice
+				cachedFound = true
+			} else if cachedMap, ok := cachedData.(map[string]interface{}); ok {
+				transaction = cachedMap["transaction"].(model.InputPaymentRequest)
+				createdTransId = cachedMap["created_trans_id"].(string)
+				chargingPrice = cachedMap["charging_price"].(uint)
+				cachedFound = true
+			} else if oldReq, ok := cachedData.(model.InputPaymentRequest); ok {
+				transaction = oldReq
+				// createdTransId & chargingPrice tidak tersedia di format lama
+			}
+		}
+	}
+
+	if !cachedFound {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Transaction not found or expired",
+		})
+	}
+	transaction.TokenID = chargeRequest.TokenID
+
+	// Charge to Midtrans
+	ccRes, err := lib.RequestChargingCreditCard(
+		createdTransId,
+		chargingPrice,
+		transaction.TokenID,
+		transaction.RedirectURL,
+		transaction.CustomerName,
+		transaction.Email,
+		transaction.PhoneNumber,
+		transaction.ItemName,
+	)
+	if err != nil {
+		log.Println("Charging request credit card midtrans failed:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0000",
+			"message": "Failed charging request",
+			"data":    []interface{}{},
+		})
+	}
+
+	if err := repository.UpdateMidtransId(context.Background(), createdTransId, ccRes.TransactionID); err != nil {
+		log.Println("Updated Midtrans ID error:", err)
+	}
+
+	// Delete cache
+	TransactionCache.Delete(token)
+
+	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		"success":        true,
+		"transaction_id": createdTransId,
+		"redirect_url":   ccRes.RedirectURL,
+		"retcode":        "0000",
+		"message":        "Successful Created Transaction",
+	})
+}

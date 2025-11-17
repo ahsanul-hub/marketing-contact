@@ -641,7 +641,6 @@ func CreateTransaction(c *fiber.Ctx) error {
 				// Kamu bisa retry atau simpan log error ke DB jika perlu
 				_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, nil, nil, "Charging request failed", nil)
 			case res := <-resultChan:
-				log.Println("res charge ovo:", res)
 
 				referenceId := fmt.Sprintf("%s-%s", res.ApprovalCode, res.TransactionRequestData.MerchantInvoice)
 				now := time.Now()
@@ -956,6 +955,41 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"payment_url":    res.Data.PaymentURL,
 			"retcode":        "0000",
 			"message":        "Successful Created Transaction",
+		})
+	case "credit_card_midtrans", "credit_card":
+		// Save transaction to Redis for payment page (include createdTransId)
+		transactionToken := fmt.Sprintf("cc-%d", time.Now().UnixNano())
+		ccCached := model.CreditCardCachedTransaction{
+			Transaction:    transaction,
+			CreatedTransId: createdTransId,
+			ChargingPrice:  chargingPrice,
+		}
+
+		if database.RedisClient != nil {
+			ctx := context.Background()
+			key := fmt.Sprintf("cc_payment:%s", transactionToken)
+			if b, err := json.Marshal(ccCached); err == nil {
+				// TTL 24 jam sesuai requirement
+				if err := database.RedisClient.Set(ctx, key, b, 24*time.Hour).Err(); err != nil {
+					log.Println("failed to store credit card cache in redis:", err)
+				}
+			} else {
+				log.Println("failed to marshal credit card cache:", err)
+			}
+		} else {
+			// Fallback ke in-memory cache jika Redis tidak tersedia
+			TransactionCache.Set(transactionToken, ccCached, cache.DefaultExpiration)
+		}
+
+		// Return redirect URL to payment page
+		baseURL := config.Config("APIURL", "")
+		paymentPageURL := fmt.Sprintf("%s/payment-card/%s", baseURL, transactionToken)
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"transaction_id": createdTransId,
+			"payment_url":    paymentPageURL,
+			"retcode":        "0000",
+			"message":        "Please complete payment on payment page",
 		})
 
 	}
@@ -1502,7 +1536,6 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 
 		switch res.ResponseCode {
 		case "00":
-			log.Println("res charge ovo:", res)
 			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1003, &referenceId, nil, "", receiveCallbackDate); err != nil {
 				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
 			}
@@ -1553,7 +1586,6 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 		}
 
 		TransactionCache.Delete(token)
-		log.Println("transaction.MtTid: ", transaction.MtTid)
 		TransactionCache.Delete(transaction.MtTid)
 		return c.JSON(fiber.Map{
 			"success":  true,
@@ -1628,6 +1660,30 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 			"redirect": checkoutUrl,
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
+		})
+	case "credit_card_midtrans", "credit_card":
+		// Save transaction to cache for payment page (include createdTransId)
+		transactionToken := fmt.Sprintf("cc-%d", time.Now().UnixNano())
+		// Store transaction with createdTransId for later use
+		cachedTransaction := map[string]interface{}{
+			"transaction":      transaction,
+			"created_trans_id": createdTransId,
+			"charging_price":   chargingPrice,
+			"client":           arrClient,
+		}
+		TransactionCache.Set(transactionToken, cachedTransaction, cache.DefaultExpiration)
+
+		// Return redirect URL to payment page
+		baseURL := config.Config("APIURL", "")
+		paymentPageURL := fmt.Sprintf("%s/api/payment-card/%s", baseURL, transactionToken)
+		TransactionCache.Delete(token)
+		TransactionCache.Delete(transaction.MtTid)
+		return c.JSON(fiber.Map{
+			"success":        true,
+			"transaction_id": createdTransId,
+			"payment_url":    paymentPageURL,
+			"retcode":        "0000",
+			"message":        "Please complete payment on payment page",
 		})
 	}
 
