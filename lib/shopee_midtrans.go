@@ -36,6 +36,7 @@ type MidtransResponse struct {
 	TransactionTime   string `json:"transaction_time,omitempty"`
 	TransactionStatus string `json:"transaction_status,omitempty"`
 	FraudStatus       string `json:"fraud_status,omitempty"`
+	RedirectURL       string `json:"redirect_url,omitempty"`
 	Actions           []struct {
 		Name   string `json:"name,omitempty"`
 		Method string `json:"method,omitempty"`
