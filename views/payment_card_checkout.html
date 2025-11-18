@@ -459,6 +459,23 @@
           }
         });
 
+      (function () {
+        var navEntries = performance.getEntriesByType("navigation");
+        if (navEntries && navEntries.length > 0) {
+          var navType = navEntries[0].type;
+          if (navType === "back_forward") {
+            window.location.reload();
+            return;
+          }
+        } else if (
+          performance &&
+          performance.navigation &&
+          performance.navigation.type === 2
+        ) {
+          window.location.reload();
+          return;
+        }
+      })();
       // Countdown expired timer (24 jam default)
       (function () {
         var countdownEl = document.getElementById("countdownDisplay");
