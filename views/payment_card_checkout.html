@@ -432,21 +432,17 @@
               onSuccess: function (response) {
                 console.log("3DS success:", response);
                 popupModal.closePopup();
-                window.location.href = "{{ .RedirectURL }}";
+                window.location.reload();
               },
               onFailure: function (response) {
                 console.log("3DS failure:", response);
                 popupModal.closePopup();
-                alert("Pembayaran gagal. Silakan coba lagi.");
-                submitBtn.disabled = false;
-                loading.classList.add("hidden");
+                window.location.reload();
               },
               onPending: function (response) {
                 console.log("3DS pending:", response);
                 popupModal.closePopup();
-                alert("Pembayaran pending. Silakan tunggu konfirmasi.");
-                submitBtn.disabled = false;
-                loading.classList.add("hidden");
+                window.location.reload();
               },
             };
 
@@ -458,6 +454,12 @@
             loading.classList.add("hidden");
           }
         });
+
+      window.addEventListener("pageshow", function (event) {
+        if (event.persisted) {
+          window.location.reload();
+        }
+      });
 
       (function () {
         var navEntries = performance.getEntriesByType("navigation");
@@ -476,7 +478,7 @@
           return;
         }
       })();
-      // Countdown expired timer (24 jam default)
+
       (function () {
         var countdownEl = document.getElementById("countdownDisplay");
         var submitBtn = document.getElementById("submitBtn");
