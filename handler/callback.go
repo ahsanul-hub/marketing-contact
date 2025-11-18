@@ -483,7 +483,7 @@ func MidtransCallback(c *fiber.Ctx) error {
 	receiveCallbackDate := &now
 
 	switch *req.TransactionStatus {
-	case "settlement":
+	case "settlement", "capture":
 		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", *req.TransactionID, err)
 		}
