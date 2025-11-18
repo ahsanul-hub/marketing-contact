@@ -1803,15 +1803,34 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 
 	if cachedFound {
 
-		// Jika kita punya transaction id, cek status di DB: jika sudah sukses atau lebih dari 24 jam, jangan tampilkan halaman lagi
+		// Jika kita punya transaction id, cek status di DB
 		if createdTransId != "" {
 			if tx, err := repository.GetTransactionByID(c.Context(), createdTransId); err == nil && tx != nil {
 				elapsed := time.Since(tx.CreatedAt)
 				expired := elapsed >= 24*time.Hour
+
+				// Jika transaksi sudah selesai (success/pending/failed) atau expired, tampilkan halaman status
 				if tx.StatusCode == 1000 || tx.StatusCode == 1003 || expired {
-					return c.Render("notfound", fiber.Map{})
+					currency := inputReq.Currency
+					if currency == "" {
+						currency = "IDR"
+					}
+
+					return c.Render("payment_card_status", fiber.Map{
+						"AppName":         inputReq.AppName,
+						"ItemName":        inputReq.ItemName,
+						"Amount":          inputReq.Amount,
+						"FormattedAmount": helper.FormatCurrencyIDR(inputReq.Amount),
+						"Currency":        currency,
+						"TransactionID":   createdTransId,
+						"MtID":            inputReq.MtTid,
+						"StatusCode":      tx.StatusCode,
+						"StatusMessage":   tx.FailReason,
+						"RedirectURL":     inputReq.RedirectURL,
+					})
 				}
 
+				// Jika masih dalam proses, hitung remaining time untuk countdown
 				if elapsed < 24*time.Hour {
 					remainingSeconds = int64((24*time.Hour - elapsed).Seconds())
 					if remainingSeconds < 0 {
