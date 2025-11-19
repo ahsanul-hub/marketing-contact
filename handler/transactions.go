@@ -142,7 +142,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 		body,
 		appid,
 		appkey,
-		"",
+		transaction.MtTid,
 	)
 
 	mtDupKey := fmt.Sprintf("dup:%s:%s", appkey, transaction.MtTid)

@@ -107,7 +107,7 @@ func CreateOrder(c *fiber.Ctx) error {
 		body,
 		appid,
 		appkey,
-		"",
+		input.MtTid,
 	)
 
 	mtDupKey := fmt.Sprintf("dup:%s:%s", appkey, input.MtTid)
