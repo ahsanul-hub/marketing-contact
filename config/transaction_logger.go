@@ -373,3 +373,148 @@ func GetPaymentMethodFromEndpoint(endpoint, paymentMethod string) string {
 
 	return "unknown"
 }
+
+// RequestLogger manages logging for API requests (body and headers)
+type RequestLogger struct {
+	logger   *log.Logger
+	logFile  *os.File
+	logChan  chan RequestLogEntry
+	stopChan chan bool
+	wg       sync.WaitGroup
+}
+
+// RequestLogEntry represents a log entry for API requests
+type RequestLogEntry struct {
+	Level         string                 `json:"level"`
+	Message       string                 `json:"message"`
+	Timestamp     string                 `json:"timestamp"`
+	Endpoint      string                 `json:"endpoint"`
+	Method        string                 `json:"method"`
+	IP            string                 `json:"ip,omitempty"`
+	Headers       map[string]interface{} `json:"headers,omitempty"`
+	Body          map[string]interface{} `json:"body,omitempty"`
+	AppID         string                 `json:"app_id,omitempty"`
+	AppKey        string                 `json:"app_key,omitempty"`
+	TransactionID string                 `json:"transaction_id,omitempty"`
+}
+
+var (
+	requestLogger     *RequestLogger
+	requestLoggerOnce sync.Once
+)
+
+// InitRequestLogger initializes the request logger
+func InitRequestLogger() error {
+	var err error
+	requestLoggerOnce.Do(func() {
+		baseDir := LogsBaseDir()
+		if err = os.MkdirAll(baseDir, 0755); err != nil {
+			return
+		}
+
+		currentTime := time.Now()
+		year, month, _ := currentTime.Date()
+		_, week := currentTime.ISOWeek()
+
+		logFileName := fmt.Sprintf("dcb-request-%d-%02d-week%d.log", year, month, week)
+		logFilePath := filepath.Join(baseDir, logFileName)
+
+		logFile, fileErr := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if fileErr != nil {
+			err = fileErr
+			return
+		}
+
+		logger := log.New(logFile, "", 0)
+
+		requestLogger = &RequestLogger{
+			logger:   logger,
+			logFile:  logFile,
+			logChan:  make(chan RequestLogEntry, 1000),
+			stopChan: make(chan bool),
+		}
+
+		// Start goroutine worker
+		requestLogger.wg.Add(1)
+		go requestLogger.worker()
+	})
+	return err
+}
+
+// worker processes log entries
+func (rl *RequestLogger) worker() {
+	defer rl.wg.Done()
+
+	for {
+		select {
+		case entry := <-rl.logChan:
+			rl.writeLog(entry)
+		case <-rl.stopChan:
+			// Process remaining entries before stopping
+			for len(rl.logChan) > 0 {
+				entry := <-rl.logChan
+				rl.writeLog(entry)
+			}
+			return
+		}
+	}
+}
+
+// writeLog writes the log entry to file
+func (rl *RequestLogger) writeLog(entry RequestLogEntry) {
+	jsonData, err := json.Marshal(entry)
+	if err != nil {
+		log.Printf("Error marshaling request log entry: %v", err)
+		return
+	}
+
+	rl.logger.Println(string(jsonData))
+	rl.logFile.Sync() // Force write to disk
+}
+
+// LogRequest logs an API request asynchronously
+func LogRequest(endpoint, method, ip string, headers map[string]interface{}, body map[string]interface{}, appID, appKey, transactionID string) {
+	if requestLogger == nil {
+		// Try to initialize if not already done
+		if err := InitRequestLogger(); err != nil {
+			log.Printf("Failed to initialize request logger: %v", err)
+			return
+		}
+	}
+
+	entry := RequestLogEntry{
+		Level:         "INFO",
+		Message:       "API Request",
+		Timestamp:     time.Now().Format(time.RFC3339),
+		Endpoint:      endpoint,
+		Method:        method,
+		IP:            ip,
+		Headers:       headers,
+		Body:          body,
+		AppID:         appID,
+		AppKey:        appKey,
+		TransactionID: transactionID,
+	}
+
+	// Send to goroutine channel (non-blocking)
+	select {
+	case requestLogger.logChan <- entry:
+		// Successfully queued
+	default:
+		// Channel is full, log to main logger as fallback
+		LogWithLevel("WARN", "Request logger channel full")
+	}
+}
+
+// ShutdownRequestLogger gracefully shuts down the request logger
+func ShutdownRequestLogger() {
+	if requestLogger == nil {
+		return
+	}
+
+	close(requestLogger.stopChan)
+	requestLogger.wg.Wait()
+	if requestLogger.logFile != nil {
+		requestLogger.logFile.Close()
+	}
+}

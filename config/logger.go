@@ -99,6 +99,12 @@ func InitLoggers() error {
 		// Continue without payment loggers
 	}
 
+	// Initialize request logger
+	if err := InitRequestLogger(); err != nil {
+		log.Printf("Failed to initialize request logger: %v", err)
+		// Continue without request logger
+	}
+
 	return nil
 }
 

@@ -107,6 +107,44 @@ func CreateTransaction(c *fiber.Ctx) error {
 		})
 	}
 
+	// Log request body and headers
+	headers := make(map[string]interface{})
+	c.Request().Header.VisitAll(func(key, value []byte) {
+		headers[string(key)] = string(value)
+	})
+
+	body := make(map[string]interface{})
+	body["user_id"] = transaction.UserId
+	body["mt_tid"] = transaction.MtTid
+	body["payment_method"] = transaction.PaymentMethod
+	body["amount"] = transaction.Amount
+	body["item_name"] = transaction.ItemName
+	body["item_id"] = transaction.ItemId
+	body["currency"] = transaction.Currency
+	body["user_mdn"] = transaction.UserMDN
+	body["redirect_url"] = transaction.RedirectURL
+	body["notification_url"] = transaction.NotificationUrl
+	body["customer_name"] = transaction.CustomerName
+	body["email"] = transaction.Email
+	body["phone_number"] = transaction.PhoneNumber
+	body["address"] = transaction.Address
+	body["city"] = transaction.City
+	body["province_state"] = transaction.ProvinceState
+	body["country"] = transaction.Country
+	body["country_code"] = transaction.CountryCode
+	body["postal_code"] = transaction.PostalCode
+
+	config.LogRequest(
+		c.Path(),
+		c.Method(),
+		c.IP(),
+		headers,
+		body,
+		appid,
+		appkey,
+		"",
+	)
+
 	mtDupKey := fmt.Sprintf("dup:%s:%s", appkey, transaction.MtTid)
 
 	if _, found := MTIDCache.Get(mtDupKey); found {
