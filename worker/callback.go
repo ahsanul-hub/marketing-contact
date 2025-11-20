@@ -27,7 +27,10 @@ type CallbackQueueStruct struct {
 
 var SuccessCallbackQueue = make(chan CallbackQueueStruct, 100)
 var FailedCallbackQueue = make(chan CallbackQueueStruct, 100)
-var processedTransactions sync.Map
+var (
+	processedSuccessTransactions sync.Map
+	processedFailedTransactions  sync.Map
+)
 
 func ProcessCallbackQueue() {
 	for job := range SuccessCallbackQueue {
@@ -38,6 +41,8 @@ func ProcessCallbackQueue() {
 			if err != nil {
 				fmt.Printf("Failed to send callback for transactionId: %s: %v", job.TransactionId, err)
 			}
+			// Hapus dari map hanya setelah semua retry selesai (success atau failed)
+			processedSuccessTransactions.Delete(job.TransactionId)
 		}(job)
 	}
 }
@@ -49,18 +54,17 @@ func ProccessFailedCallbackWorker() {
 			if err != nil {
 				log.Println("Callback failed, failed to send:", err)
 			}
+			// Hapus dari map hanya setelah semua retry selesai (success atau failed)
+			processedFailedTransactions.Delete(j.TransactionId)
 		}(job)
 	}
 }
 
 func ProcessTransactions() {
 	for {
-		// reset processed tracker untuk mencegah penumpukan
-		processedTransactions = sync.Map{}
-
 		var transactions []model.Transactions
 
-		err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code, notification_url, callback_reference_id FROM transactions WHERE status_code = ? AND timestamp_callback_result != ?", 1003, "failed").Scan(&transactions).Error
+		err := database.DB.Raw("SELECT id, mt_tid, payment_method, amount, client_app_key, app_id, currency, item_name, item_id, user_id, reference_id, ximpay_id, midtrans_transaction_id, status_code, notification_url, callback_reference_id FROM transactions WHERE status_code = ? AND (timestamp_callback_result IS NULL OR timestamp_callback_result = '')", 1003).Scan(&transactions).Error
 		if err != nil {
 			fmt.Println("Error fetching transactions:", err)
 			time.Sleep(1 * time.Minute)
@@ -68,7 +72,7 @@ func ProcessTransactions() {
 		}
 
 		for _, transaction := range transactions {
-			if _, loaded := processedTransactions.LoadOrStore(transaction.ID, true); loaded {
+			if _, loaded := processedSuccessTransactions.LoadOrStore(transaction.ID, true); loaded {
 				continue
 			}
 			// Proses transaksi dalam goroutine
@@ -76,10 +80,12 @@ func ProcessTransactions() {
 				arrClient, err := repository.FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
 				if err != nil {
 					log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
+					processedSuccessTransactions.Delete(transaction.ID)
 					return
 				}
 				if arrClient == nil {
 					log.Printf("Client not found for AppKey: %s, AppID: %s", transaction.ClientAppKey, transaction.AppID)
+					processedSuccessTransactions.Delete(transaction.ID)
 					return
 				}
 				var callbackURL string
@@ -91,17 +97,13 @@ func ProcessTransactions() {
 				}
 
 				if callbackURL == "" {
-					log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
+					// log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
+					processedSuccessTransactions.Delete(transaction.ID)
 					return
 				}
 
 				if transaction.NotificationUrl != "" {
 					callbackURL = transaction.NotificationUrl
-				}
-
-				if err != nil {
-					log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
-					return
 				}
 
 				var paymentMethod string
@@ -185,9 +187,6 @@ func ProcessTransactions() {
 
 func ProcessFailedTransactions() {
 	for {
-		// reset processed tracker untuk mencegah penumpukan
-		processedTransactions = sync.Map{}
-
 		var transactions []model.Transactions
 
 		err := database.DB.Raw(`
@@ -213,7 +212,7 @@ func ProcessFailedTransactions() {
 		}
 
 		for _, transaction := range transactions {
-			if _, loaded := processedTransactions.LoadOrStore(transaction.ID, true); loaded {
+			if _, loaded := processedFailedTransactions.LoadOrStore(transaction.ID, true); loaded {
 				continue
 			}
 
@@ -221,15 +220,18 @@ func ProcessFailedTransactions() {
 				arrClient, err := repository.FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
 				if err != nil {
 					log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
+					processedFailedTransactions.Delete(transaction.ID)
 					return
 				}
 
 				if arrClient == nil || len(arrClient.ClientApps) == 0 {
 					log.Printf("No client data found for transaction %s (AppKey: %s, AppID: %s)", transaction.ID, transaction.ClientAppKey, transaction.AppID)
+					processedFailedTransactions.Delete(transaction.ID)
 					return
 				}
 
 				if arrClient.FailCallback == "0" {
+					processedFailedTransactions.Delete(transaction.ID)
 					return
 				}
 
@@ -242,7 +244,8 @@ func ProcessFailedTransactions() {
 				}
 
 				if callbackURL == "" {
-					log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
+					// log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
+					processedFailedTransactions.Delete(transaction.ID)
 					return
 				}
 
@@ -575,18 +578,26 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 }
 
 func SendCallbackWithRetry(merchantURL string, transactionID string, secret string, retries int, data interface{}) error {
+	// Update status ke "processing" untuk mencegah transaksi dipilih lagi selama retry
+	if err := repository.UpdateTransactionCallbackTimestamps(context.Background(), transactionID, 1003, nil, "processing"); err != nil {
+		log.Printf("Failed to update transaction status to processing: %v", err)
+	}
+
 	for i := 0; i < retries; i++ {
 
 		_, err := SendCallbackWithLogger(merchantURL, secret, transactionID, data, helper.NotificationLogger)
 
 		if err == nil {
-			fmt.Println("Callback sent successfully")
 			return nil
 		}
 
-		time.Sleep(5 * time.Minute)
+		// Jangan sleep di retry terakhir
+		if i < retries-1 {
+			time.Sleep(60 * time.Second)
+		}
 	}
 
+	// Update ke "failed" setelah semua retry gagal
 	if err := repository.UpdateTransactionCallbackTimestamps(context.Background(), transactionID, 1003, nil, "failed"); err != nil {
 		return fmt.Errorf("failed to update transaction callback timestamps: %v", err)
 	}
@@ -595,17 +606,6 @@ func SendCallbackWithRetry(merchantURL string, transactionID string, secret stri
 }
 
 func SendCallbackFailedRetry(merchantURL string, transactionID string, secret string, retries int, data interface{}) error {
-	for i := 0; i < retries; i++ {
-
-		err := SendCallbackFailed(merchantURL, secret, transactionID, data)
-		if err == nil {
-			fmt.Println("Callback failed sent successfully")
-			return nil
-		}
-
-		time.Sleep(5 * time.Minute)
-	}
-
 	var statusCode int
 	switch v := data.(type) {
 	case CallbackData:
@@ -620,6 +620,26 @@ func SendCallbackFailedRetry(merchantURL string, transactionID string, secret st
 		return fmt.Errorf("unsupported callback data type: %T", data)
 	}
 
+	// Update status ke "processing" untuk mencegah transaksi dipilih lagi selama retry
+	if err := repository.UpdateTransactionCallbackTimestamps(context.Background(), transactionID, statusCode, nil, "processing"); err != nil {
+		log.Printf("Failed to update transaction status to processing: %v", err)
+	}
+
+	for i := 0; i < retries; i++ {
+
+		err := SendCallbackFailed(merchantURL, secret, transactionID, data)
+		if err == nil {
+			log.Printf("Callback failed payload sent successfully for transactionId: %s (attempt %d/%d)", transactionID, i+1, retries)
+			return nil
+		}
+
+		// Jangan sleep di retry terakhir
+		if i < retries-1 {
+			time.Sleep(60 * time.Second)
+		}
+	}
+
+	// Update ke "failed" setelah semua retry gagal
 	if err := repository.UpdateTransactionCallbackTimestamps(context.Background(), transactionID, statusCode, nil, "failed"); err != nil {
 		return fmt.Errorf("failed to update transaction callback timestamps: %v", err)
 	}
