@@ -472,7 +472,24 @@ func SendCallbackWithLogger(merchantURL, secret string, transactionID string, da
 	ctx := context.Background()
 
 	if err := repository.UpdateTransactionCallbackTimestamps(ctx, transactionID, 1000, &callbackDate, callbackResult); err != nil {
-		return responseBody, fmt.Errorf("failed to update transaction callback timestamps: %v", err)
+		// Jika update DB gagal, jangan retry callback ke merchant lagi
+		// karena merchant sudah merespons 200 (tidak idempotent di sisi merchant).
+		log.Printf("failed to update transaction callback timestamps for %s: %v", transactionID, err)
+
+		// Coba perbaiki status di DB secara async (tanpa kirim callback ulang ke merchant).
+		go func(txID string, cbDate time.Time, cbResult string) {
+			bgCtx := context.Background()
+			for i := 1; i <= 3; i++ {
+				time.Sleep(5 * time.Second)
+				if err := repository.UpdateTransactionCallbackTimestamps(bgCtx, txID, 1000, &cbDate, cbResult); err != nil {
+					log.Printf("retry %d update callback timestamps failed for %s: %v", i, txID, err)
+					continue
+				}
+				log.Printf("retry update callback timestamps succeeded for %s on attempt %d", txID, i)
+				return
+			}
+		}(transactionID, callbackDate, callbackResult)
+		// Tetap anggap sukses supaya tidak mengirim callback berulang ke merchant.
 	}
 
 	return responseBody, nil
