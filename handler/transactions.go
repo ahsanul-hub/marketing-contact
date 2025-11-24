@@ -1055,6 +1055,33 @@ func CreateTransactionV1(c *fiber.Ctx) error {
 		})
 	}
 
+	headers := make(map[string]interface{})
+	c.Request().Header.VisitAll(func(key, value []byte) {
+		headers[string(key)] = string(value)
+	})
+
+	body := make(map[string]interface{})
+	body["user_id"] = transaction.UserId
+	body["transaction_id"] = transaction.MtTid
+	body["payment_method"] = transaction.PaymentMethod
+	body["amount"] = transaction.Amount
+	body["item_name"] = transaction.ItemName
+	body["item_id"] = transaction.ItemId
+	body["currency"] = transaction.Currency
+	body["user_mdn"] = transaction.UserMDN
+	body["redirect_url"] = transaction.RedirectURL
+
+	config.LogRequest(
+		c.Path(),
+		c.Method(),
+		c.IP(),
+		headers,
+		body,
+		appid,
+		appkey,
+		transaction.MtTid,
+	)
+
 	mtDupKey := fmt.Sprintf("dup:%s:%s", appkey, transaction.MtTid)
 
 	if _, found := MTIDCache.Get(mtDupKey); found {
