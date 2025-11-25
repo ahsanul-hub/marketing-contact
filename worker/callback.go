@@ -472,7 +472,8 @@ func SendCallbackWithLogger(merchantURL, secret string, transactionID string, da
 	ctx := context.Background()
 
 	if err := repository.UpdateTransactionCallbackTimestamps(ctx, transactionID, 1000, &callbackDate, callbackResult); err != nil {
-		return responseBody, log.Printf("failed to update transaction callback timestamps: %v", err)
+		log.Printf("failed to update transaction callback timestamps for %s: %v", transactionID, err)
+		return responseBody, fmt.Errorf("failed to update transaction callback timestamps: %v", err)
 	}
 
 	return responseBody, nil
