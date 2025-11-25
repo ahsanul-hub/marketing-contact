@@ -113,7 +113,7 @@ func UpdateMerchantV2(c *fiber.Ctx) error {
 }
 
 func GetMerchantByID(c *fiber.Ctx) error {
-	clientID := c.Params("clientID")
+	clientID := c.Params("uid")
 	if clientID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
@@ -128,7 +128,6 @@ func GetMerchantByID(c *fiber.Ctx) error {
 
 	return response.ResponseSuccess(c, fiber.StatusOK, client)
 }
-
 func GetAllMerchants(c *fiber.Ctx) error {
 	clients, err := repository.GetAllClients()
 	if err != nil {
