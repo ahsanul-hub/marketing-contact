@@ -84,7 +84,7 @@ func UpdateMerchantV2(c *fiber.Ctx) error {
 		})
 	}
 
-	clientID := c.Params("clientID")
+	clientID := c.Params("uid")
 	if clientID == "" {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,

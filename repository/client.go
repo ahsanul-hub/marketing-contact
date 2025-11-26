@@ -885,7 +885,7 @@ func UpdateMerchantV2(ctx context.Context, clientID string, input *model.InputCl
 	db := database.DB
 
 	var existingClient model.Client
-	if err := db.Where("client_id = ?", clientID).First(&existingClient).Error; err != nil {
+	if err := db.Where("uid = ?", clientID).First(&existingClient).Error; err != nil {
 		return fmt.Errorf("client not found: %w", err)
 	}
 
