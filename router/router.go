@@ -63,7 +63,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 	api.Post("/v1/checkstatus", handler.CheckTransactionStatusLegacy)
 
 	api.Get("/summary/transaction", middleware.Protected(), handler.GetTransactionSummary)
-	api.Get("/report/merchant", middleware.Protected(), middleware.AdminOnly(false), handler.GetReport)
+	api.Get("/report/merchant", middleware.Protected(), handler.GetReport)
 	api.Get("/report/merchant/margin", middleware.Protected(), middleware.AdminOnly(false), handler.GetReportMargin)
 	api.Get("/test-email", middleware.Protected(), middleware.AdminOnly(true), handler.TestEmailService)
 	api.Get("/test-sftp", middleware.Protected(), middleware.AdminOnly(true), handler.TestSFTPConnection)
