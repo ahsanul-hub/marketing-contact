@@ -814,3 +814,22 @@ func GenerateBodySign(bodyJson string, appSecret string) (string, error) {
 
 	return bodysign, nil
 }
+
+func ClaimTransactionForCallback(ctx context.Context, transactionID string, statusCode int) (bool, error) {
+	db := database.DB
+
+	// Atomic update: only update if timestamp_callback_result is empty
+	// This prevents other workers from picking up the same transaction
+	result := db.WithContext(ctx).Model(&model.Transactions{}).
+		Where("id = ? AND (timestamp_callback_result IS NULL OR timestamp_callback_result = '')", transactionID).
+		Updates(map[string]interface{}{
+			"timestamp_callback_result": "processing",
+			"status_code":               statusCode,
+		})
+
+	if result.Error != nil {
+		return false, fmt.Errorf("failed to claim transaction: %w", result.Error)
+	}
+
+	return result.RowsAffected > 0, nil
+}

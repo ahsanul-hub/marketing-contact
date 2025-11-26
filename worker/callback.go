@@ -580,8 +580,14 @@ func SendCallbackFailed(merchantURL, secret string, transactionID string, data i
 
 func SendCallbackWithRetry(merchantURL string, transactionID string, secret string, retries int, data interface{}) error {
 	// Update status ke "processing" untuk mencegah transaksi dipilih lagi selama retry
-	if err := repository.UpdateTransactionCallbackTimestamps(context.Background(), transactionID, 1003, nil, "processing"); err != nil {
-		log.Printf("Failed to update transaction status to processing: %v", err)
+	// Use atomic claim to prevent race condition
+	claimed, err := repository.ClaimTransactionForCallback(context.Background(), transactionID, 1003)
+	if err != nil {
+		log.Printf("Failed to claim transaction %s: %v", transactionID, err)
+		return err
+	}
+	if !claimed {
+		return nil
 	}
 
 	for i := 0; i < retries; i++ {
@@ -622,8 +628,14 @@ func SendCallbackFailedRetry(merchantURL string, transactionID string, secret st
 	}
 
 	// Update status ke "processing" untuk mencegah transaksi dipilih lagi selama retry
-	if err := repository.UpdateTransactionCallbackTimestamps(context.Background(), transactionID, statusCode, nil, "processing"); err != nil {
-		log.Printf("Failed to update transaction status to processing: %v", err)
+	// Use atomic claim to prevent race condition
+	claimed, err := repository.ClaimTransactionForCallback(context.Background(), transactionID, statusCode)
+	if err != nil {
+		log.Printf("Failed to claim transaction %s: %v", transactionID, err)
+		return err
+	}
+	if !claimed {
+		return nil
 	}
 
 	for i := 0; i < retries; i++ {
