@@ -30,9 +30,7 @@
       }
     </style>
   </head>
-  <body
-    class="flex items-center justify-center min-h-screen p-4"
-    data-payment-provider="{{ or .PaymentProvider `midtrans` }}">
+  <body class="flex items-center justify-center min-h-screen p-4">
     <div class="bg-white rounded-xl shadow-lg w-full max-w-2xl overflow-hidden">
       <!-- Header Section -->
       <div
@@ -69,15 +67,8 @@
               type="text"
               id="clientKey"
               value="{{ .MidtransClientKey }}"
+              required
               hidden />
-            <input
-              type="hidden"
-              id="paymentProvider"
-              value="{{ or .PaymentProvider `midtrans` }}" />
-            <input
-              type="hidden"
-              id="harsyaEncryptionKey"
-              value="{{ .EncryptionKey }}" />
 
             <!-- Card Number -->
             <div class="relative">
@@ -126,7 +117,7 @@
                   type="number"
                   id="cardExpYear"
                   inputmode="numeric"
-                  placeholder="26"
+                  placeholder="2026"
                   class="w-full px-4 py-2 mt-2 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required />
               </div>
@@ -152,13 +143,13 @@
             <!-- Name on Card -->
             <div class="relative">
               <label
-                for="cardHolderName"
+                for="cardName"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
                 >Nama
               </label>
               <input
                 type="text"
-                id="cardHolderName"
+                id="cardName"
                 placeholder="Nama sesuai kartu"
                 class="w-full px-4 py-2 mt-2 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
@@ -294,82 +285,6 @@
     </div>
 
     <script>
-      function base64ToArrayBuffer(base64) {
-        const binaryString = atob(base64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        return bytes.buffer;
-      }
-
-      function arrayBufferToBase64(buffer) {
-        const bytes = new Uint8Array(buffer);
-        let binary = "";
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        return btoa(binary);
-      }
-
-      async function encryptHarsyaCard(plaintext, base64PublicKey) {
-        try {
-          const publicKeyBytes = base64ToArrayBuffer(base64PublicKey);
-
-          // Import the public key (PKIX format)
-          const publicKey = await crypto.subtle.importKey(
-            "spki", // PKIX/SubjectPublicKeyInfo format
-            publicKeyBytes,
-            { name: "RSA-OAEP", hash: "SHA-256" },
-            false,
-            ["encrypt"]
-          );
-
-          // Generate 32-byte AES key
-          const aesKey = await crypto.subtle.generateKey(
-            { name: "AES-GCM", length: 256 },
-            true,
-            ["encrypt"]
-          );
-
-          // Generate 12-byte nonce for AES-GCM
-          const nonce = crypto.getRandomValues(new Uint8Array(12));
-
-          // Encrypt plaintext with AES-GCM
-          const plaintextBuffer = new TextEncoder().encode(plaintext);
-          const ciphertext = await crypto.subtle.encrypt(
-            { name: "AES-GCM", iv: nonce },
-            aesKey,
-            plaintextBuffer
-          );
-
-          // Export AES key as raw bytes
-          const aesKeyBytes = await crypto.subtle.exportKey("raw", aesKey);
-
-          // Encrypt AES key with RSA-OAEP
-          const encryptedKey = await crypto.subtle.encrypt(
-            { name: "RSA-OAEP" },
-            publicKey,
-            aesKeyBytes
-          );
-
-          // Create response payload
-          const payload = {
-            encryptedKey: arrayBufferToBase64(encryptedKey),
-            nonce: arrayBufferToBase64(nonce),
-            ciphertext: arrayBufferToBase64(ciphertext),
-          };
-
-          // Convert to JSON and encode as base64
-          const jsonString = JSON.stringify(payload);
-          const jsonBuffer = new TextEncoder().encode(jsonString);
-
-          return arrayBufferToBase64(jsonBuffer);
-        } catch (error) {
-          throw new Error(`Encryption failed: ${error.message}`);
-        }
-      }
-
       // Popup modal for 3DS iframe
       var popupModal = (function () {
         var modal = null;
@@ -403,220 +318,149 @@
           e.target.value = value;
         });
 
-      const paymentForm = document.getElementById("paymentForm");
-      const submitBtn = document.getElementById("submitBtn");
-      const loading = document.getElementById("loading");
+      document
+        .getElementById("paymentForm")
+        .addEventListener("submit", async function (e) {
+          e.preventDefault();
 
-      paymentForm.addEventListener("submit", async function (e) {
-        e.preventDefault();
+          var submitBtn = document.getElementById("submitBtn");
+          var loading = document.getElementById("loading");
+          submitBtn.disabled = true;
+          loading.classList.remove("hidden");
 
-        submitBtn.disabled = true;
-        loading.classList.remove("hidden");
+          var clientKey = document.getElementById("clientKey").value.trim();
+          var cardNumber = document
+            .getElementById("cardNumber")
+            .value.replace(/\s+/g, "");
+          var cardExpMonth = document
+            .getElementById("cardExpMonth")
+            .value.trim();
+          var cardExpYear = document.getElementById("cardExpYear").value.trim();
+          var cardCvv = document.getElementById("cardCvv").value.trim();
 
-        const cardNumber = document
-          .getElementById("cardNumber")
-          .value.replace(/\s+/g, "");
-        const cardExpMonth = document
-          .getElementById("cardExpMonth")
-          .value.trim();
-        const cardHolderName = document
-          .getElementById("cardHolderName")
-          .value.trim();
-        const cardExpYear = document.getElementById("cardExpYear").value.trim();
-        const cardCvv = document.getElementById("cardCvv").value.trim();
-        const paymentProvider =
-          document.getElementById("paymentProvider").value || "midtrans";
-
-        if (!cardNumber || !cardExpMonth || !cardExpYear || !cardCvv) {
-          alert("Mohon lengkapi semua data kartu.");
-          submitBtn.disabled = false;
-          loading.classList.add("hidden");
-          return;
-        }
-
-        try {
-          if (paymentProvider === "harsya") {
-            await handleHarsyaPayment({
-              cardNumber,
-              cardHolderName,
-              cardExpMonth,
-              cardExpYear,
-              cardCvv,
-            });
-          } else {
-            await handleMidtransPayment({
-              cardNumber,
-              cardHolderName,
-              cardExpMonth,
-              cardExpYear,
-              cardCvv,
-            });
+          if (
+            !clientKey ||
+            !cardNumber ||
+            !cardExpMonth ||
+            !cardExpYear ||
+            !cardCvv
+          ) {
+            alert("Mohon lengkapi semua data kartu.");
+            submitBtn.disabled = false;
+            loading.classList.add("hidden");
+            return;
           }
-        } catch (error) {
-          console.error("Error:", error);
-          alert("Terjadi kesalahan: " + error.message);
-          submitBtn.disabled = false;
-          loading.classList.add("hidden");
-        }
-      });
 
-      async function handleHarsyaPayment(cardData) {
-        var encryptionKey =
-          document.getElementById("harsyaEncryptionKey").value || "";
+          try {
+            // Tokenize card
+            var script = document.querySelector(
+              'script[src*="midtrans-new-3ds"]'
+            );
+            var env =
+              (script && script.dataset && script.dataset.environment) ||
+              "sandbox";
+            var base =
+              env === "production"
+                ? "https://api.midtrans.com"
+                : "https://api.sandbox.midtrans.com";
 
-        if (!encryptionKey) {
-          throw new Error("Encryption key tidak tersedia.");
-        }
+            var qs = new URLSearchParams({
+              client_key: clientKey,
+              card_number: cardNumber,
+              card_exp_month: cardExpMonth,
+              card_exp_year: cardExpYear,
+              card_cvv: cardCvv,
+              secure: "true",
+            });
 
-        // Prepare card data in Pivot API format
-        var payload = {
-          card: {
-            number: cardData.cardNumber,
-            expiryMonth: cardData.cardExpMonth.padStart(2, "0"),
-            expiryYear: cardData.cardExpYear,
-            cvc: cardData.cardCvv,
-            nameOnCard: cardData.cardHolderName || "",
-          },
-          deviceInformations: {
-            type: "",
-            userAgent: navigator.userAgent,
-            ipAddress: "",
-            acceptLanguage: navigator.language || "EN",
-            cookieToken: "",
-            deviceId: "",
-            browserWidth: window.innerWidth.toString(),
-            browserHeight: window.innerHeight.toString(),
-            country: "ID",
-          },
-          metadata: {},
-        };
+            var tokenResp = await fetch(base + "/v2/token?" + qs.toString(), {
+              method: "GET",
+            });
+            var tokenData = await tokenResp.json();
 
-        var cardDataJson = JSON.stringify(payload);
-        console.log("cardDataJson:", cardDataJson);
+            if (!tokenData || !tokenData.token_id) {
+              alert(
+                "Gagal tokenisasi kartu: " +
+                  (tokenData.status_message || "Unknown error")
+              );
+              submitBtn.disabled = false;
+              loading.classList.add("hidden");
+              return;
+            }
 
-        var encryptedCard = await encryptHarsyaCard(
-          cardDataJson,
-          encryptionKey
-        );
+            var tokenId = tokenData.token_id;
 
-        var confirmResp = await fetch(
-          "/api/payment-card/{{ .Token }}/confirm-harsya",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              encrypted_card: encryptedCard,
-            }),
+            // Charge ke backend
+            var chargeResp = await fetch(
+              "/api/payment-card/{{ .Token }}/charge",
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                  token_id: tokenId,
+                }),
+              }
+            );
+
+            var chargeData = await chargeResp.json();
+
+            if (!chargeData || !chargeData.success) {
+              alert(
+                "Gagal melakukan charge: " +
+                  (chargeData.message || "Unknown error")
+              );
+              submitBtn.disabled = false;
+              loading.classList.add("hidden");
+              return;
+            }
+
+            var redirectUrl =
+              chargeData.redirect_url || chargeData.data?.redirect_url;
+            if (!redirectUrl) {
+              alert("Tidak ada redirect_url dari server.");
+              submitBtn.disabled = false;
+              loading.classList.add("hidden");
+              return;
+            }
+
+            var options = {
+              performAuthentication: function (url) {
+                popupModal.openPopup(url);
+              },
+              onSuccess: function (response) {
+                console.log("3DS success:", response);
+                popupModal.closePopup();
+                window.location.reload();
+              },
+              onFailure: function (response) {
+                console.log("3DS failure:", response);
+                popupModal.closePopup();
+                window.location.reload();
+              },
+              onPending: function (response) {
+                console.log("3DS pending:", response);
+                popupModal.closePopup();
+                window.location.reload();
+              },
+            };
+
+            MidtransNew3ds.authenticate(redirectUrl, options);
+          } catch (error) {
+            console.error("Error:", error);
+            alert("Terjadi kesalahan: " + error.message);
+            submitBtn.disabled = false;
+            loading.classList.add("hidden");
           }
-        );
-
-        var confirmData = await confirmResp.json();
-
-        if (!confirmData || !confirmData.success) {
-          throw new Error(
-            confirmData.message || "Gagal mengkonfirmasi payment session."
-          );
-        }
-
-        var paymentUrl =
-          confirmData.payment_url || confirmData.data?.payment_url;
-        if (!paymentUrl) {
-          throw new Error("Tidak ada payment_url dari server.");
-        }
-
-        console.log("paymentUrl: ", paymentUrl);
-        window.location.href = paymentUrl;
-      }
-
-      async function handleMidtransPayment(cardData) {
-        var clientKey = document.getElementById("clientKey").value.trim();
-        if (!clientKey) {
-          throw new Error("Midtrans client key tidak ditemukan.");
-        }
-
-        var script = document.querySelector('script[src*="midtrans-new-3ds"]');
-        var env =
-          (script && script.dataset && script.dataset.environment) || "sandbox";
-        var base =
-          env === "production"
-            ? "https://api.midtrans.com"
-            : "https://api.sandbox.midtrans.com";
-
-        var qs = new URLSearchParams({
-          client_key: clientKey,
-          card_number: cardData.cardNumber,
-          card_exp_month: cardData.cardExpMonth,
-          card_exp_year: cardData.cardExpYear,
-          card_cvv: cardData.cardCvv,
-          secure: "true",
         });
-
-        var tokenResp = await fetch(base + "/v2/token?" + qs.toString(), {
-          method: "GET",
-        });
-        var tokenData = await tokenResp.json();
-
-        if (!tokenData || !tokenData.token_id) {
-          throw new Error(
-            tokenData.status_message || "Gagal tokenisasi kartu."
-          );
-        }
-
-        var tokenId = tokenData.token_id;
-
-        var chargeResp = await fetch("/api/payment-card/{{ .Token }}/charge", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            token_id: tokenId,
-          }),
-        });
-
-        var chargeData = await chargeResp.json();
-
-        if (!chargeData || !chargeData.success) {
-          throw new Error(chargeData.message || "Gagal melakukan charge.");
-        }
-
-        var redirectUrl =
-          chargeData.redirect_url || chargeData.data?.redirect_url;
-        if (!redirectUrl) {
-          throw new Error("Tidak ada redirect_url dari server.");
-        }
-
-        var options = {
-          performAuthentication: function (url) {
-            popupModal.openPopup(url);
-          },
-          onSuccess: function (response) {
-            console.log("3DS success:", response);
-            popupModal.closePopup();
-            window.location.reload();
-          },
-          onFailure: function (response) {
-            console.log("3DS failure:", response);
-            popupModal.closePopup();
-            window.location.reload();
-          },
-          onPending: function (response) {
-            console.log("3DS pending:", response);
-            popupModal.closePopup();
-            window.location.reload();
-          },
-        };
-
-        MidtransNew3ds.authenticate(redirectUrl, options);
-      }
 
       window.addEventListener("pageshow", function (event) {
         if (event.persisted) {
           window.location.reload();
         }
       });
+
       (function () {
         var navEntries = performance.getEntriesByType("navigation");
         if (navEntries && navEntries.length > 0) {
@@ -634,6 +478,7 @@
           return;
         }
       })();
+
       (function () {
         var countdownEl = document.getElementById("countdownDisplay");
         var submitBtn = document.getElementById("submitBtn");

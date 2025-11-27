@@ -1796,6 +1796,10 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 
 	var inputReq model.InputPaymentRequest
 	var createdTransId string
+	var paymentProvider string
+	var encryptionKey string
+	var paymentSessionId string
+	var chargingPrice uint
 	remainingSeconds := int64((24 * time.Hour).Seconds())
 
 	// 1. Coba ambil dari Redis (khusus credit card)
@@ -1808,6 +1812,10 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 			if err := json.Unmarshal([]byte(val), &ccCached); err == nil {
 				inputReq = ccCached.Transaction
 				createdTransId = ccCached.CreatedTransId
+				paymentProvider = ccCached.PaymentProvider
+				encryptionKey = ccCached.EncryptionKey
+				paymentSessionId = ccCached.PaymentSessionId
+				chargingPrice = ccCached.ChargingPrice
 				cachedFound = true
 			} else {
 				log.Println("failed unmarshal credit card cache from redis:", err)
@@ -1821,6 +1829,10 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 			if ccCached, ok := cachedData.(model.CreditCardCachedTransaction); ok {
 				inputReq = ccCached.Transaction
 				createdTransId = ccCached.CreatedTransId
+				paymentProvider = ccCached.PaymentProvider
+				encryptionKey = ccCached.EncryptionKey
+				paymentSessionId = ccCached.PaymentSessionId
+				chargingPrice = ccCached.ChargingPrice
 				cachedFound = true
 			} else if cachedMap, ok := cachedData.(map[string]interface{}); ok {
 				if trans, exists := cachedMap["transaction"]; exists {
@@ -1830,10 +1842,31 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 							createdTransId = idStr
 						}
 					}
+					if v, exists := cachedMap["payment_provider"]; exists {
+						if providerStr, ok := v.(string); ok {
+							paymentProvider = providerStr
+						}
+					}
+					if v, exists := cachedMap["encryption_key"]; exists {
+						if keyStr, ok := v.(string); ok {
+							encryptionKey = keyStr
+						}
+					}
+					if v, exists := cachedMap["payment_session_id"]; exists {
+						if sessionStr, ok := v.(string); ok {
+							paymentSessionId = sessionStr
+						}
+					}
+					if v, exists := cachedMap["charging_price"]; exists {
+						if price, ok := v.(uint); ok {
+							chargingPrice = price
+						}
+					}
 					cachedFound = true
 				}
 			} else if oldReq, ok := cachedData.(model.InputPaymentRequest); ok {
 				inputReq = oldReq
+				paymentProvider = "" // default untuk backward compatibility
 				cachedFound = true
 			}
 		}
@@ -1847,8 +1880,9 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 				elapsed := time.Since(tx.CreatedAt)
 				expired := elapsed >= 24*time.Hour
 
-				// Jika transaksi sudah selesai (success/pending/failed) atau expired, tampilkan halaman status
-				if tx.StatusCode == 1000 || tx.StatusCode == 1003 || expired {
+				// Jika transaksi sudah selesai (success/pending) atau (failed DAN expired), tampilkan halaman status
+				// Jika transaksi failed tapi belum expired, biarkan user retry dengan kartu lain
+				if tx.StatusCode == 1000 || tx.StatusCode == 1003 || (tx.StatusCode == 1005 && expired) {
 					currency := inputReq.Currency
 					if currency == "" {
 						currency = "IDR"
@@ -1868,6 +1902,62 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 					})
 				}
 
+				// log.Println("Transaction status:", tx.StatusCode)
+				// log.Println("Transaction expired:", expired)
+				// Jika status FAILED dan belum expired, buat session baru untuk retry
+				if tx.StatusCode == 1005 && !expired {
+					log.Printf("Transaction failed, creating new payment session for retry: %s, Amount: %d", createdTransId, chargingPrice)
+
+					retryRefId := fmt.Sprintf("%s-%d", createdTransId, time.Now().Unix())
+					sessionResp, err := lib.CreateHarsyaPaymentSession(
+						retryRefId,
+						createdTransId,
+						inputReq.CustomerName,
+						inputReq.UserMDN,
+						inputReq.RedirectURL,
+						inputReq.Email,
+						inputReq.Address,
+						inputReq.ProvinceState,
+						inputReq.Country,
+						inputReq.PostalCode,
+						inputReq.City,
+						inputReq.CountryCode,
+						inputReq.PhoneNumber,
+						chargingPrice,
+					)
+
+					if err == nil {
+						// Update local variables
+						paymentSessionId = sessionResp.Data.ID
+						encryptionKey = sessionResp.Data.EncryptionKey
+
+						// Update cache dengan session baru
+						ccCached := model.CreditCardCachedTransaction{
+							Transaction:      inputReq,
+							CreatedTransId:   createdTransId,
+							ChargingPrice:    chargingPrice,
+							PaymentSessionId: paymentSessionId,
+							EncryptionKey:    encryptionKey,
+							PaymentProvider:  paymentProvider,
+						}
+
+						if database.RedisClient != nil {
+							ctx := context.Background()
+							key := fmt.Sprintf("cc_payment:%s", token)
+							if b, err := json.Marshal(ccCached); err == nil {
+								database.RedisClient.Set(ctx, key, b, 24*time.Hour)
+							}
+						} else {
+							TransactionCache.Set(token, ccCached, cache.DefaultExpiration)
+						}
+
+						// Update MidtransTransactionId di DB
+						_ = repository.UpdateMidtransId(context.Background(), createdTransId, paymentSessionId)
+					} else {
+						log.Println("Failed to create new payment session for retry:", err)
+					}
+				}
+
 				// Jika masih dalam proses, hitung remaining time untuk countdown
 				if elapsed < 24*time.Hour {
 					remainingSeconds = int64((24*time.Hour - elapsed).Seconds())
@@ -1883,12 +1973,17 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 			currency = "IDR"
 		}
 
+		// Default payment provider ke midtrans jika tidak ada
+		if paymentProvider == "" {
+			paymentProvider = ""
+		}
+
 		midtransClientKey := config.Config("MIDTRANS_CLIENT_KEY", "")
 		midtransEnvironment := config.Config("MIDTRANS_ENVIRONMENT", "")
 
 		return c.Render("payment_card_checkout", fiber.Map{
 			"AppName":             inputReq.AppName,
-			"PaymentMethod":       "credit_card_midtrans",
+			"PaymentMethod":       inputReq.PaymentMethod,
 			"PaymentMethodStr":    "Credit Card",
 			"ItemName":            inputReq.ItemName,
 			"ItemId":              inputReq.ItemId,
@@ -1908,6 +2003,9 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 			"MidtransClientKey":   midtransClientKey,
 			"MidtransEnvironment": midtransEnvironment,
 			"ExpirySeconds":       remainingSeconds,
+			"PaymentProvider":     paymentProvider,
+			"EncryptionKey":       encryptionKey,
+			"PaymentSessionId":    paymentSessionId,
 		})
 	}
 
@@ -2023,5 +2121,98 @@ func ChargeCreditCardMidtrans(c *fiber.Ctx) error {
 		"redirect_url":   ccRes.RedirectURL,
 		"retcode":        "0000",
 		"message":        "Successful Created Transaction",
+	})
+}
+
+func ChargeCreditCardHarsya(c *fiber.Ctx) error {
+	span, _ := apm.StartSpan(c.Context(), "ChargeCreditCardHarsya", "handler")
+	defer span.End()
+
+	token := c.Params("token")
+	var chargeRequest struct {
+		EncryptedCard string `json:"encrypted_card"`
+	}
+
+	if err := c.BodyParser(&chargeRequest); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	if chargeRequest.EncryptedCard == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0008",
+			"message": "Missing encrypted_card for credit card payment",
+		})
+	}
+
+	// Get transaction from cache
+	var paymentSessionId string
+	var cachedFound bool
+
+	// 1. Coba ambil dari Redis
+	if database.RedisClient != nil {
+		ctx := context.Background()
+		key := fmt.Sprintf("cc_payment:%s", token)
+		if val, err := database.RedisClient.Get(ctx, key).Result(); err == nil {
+			var ccCached model.CreditCardCachedTransaction
+			if err := json.Unmarshal([]byte(val), &ccCached); err == nil {
+				paymentSessionId = ccCached.PaymentSessionId
+				cachedFound = true
+			} else {
+				log.Println("failed unmarshal credit card cache from redis:", err)
+			}
+		}
+	}
+
+	// 2. Fallback ke in-memory cache
+	if !cachedFound {
+		if cachedData, found := TransactionCache.Get(token); found {
+			if ccCached, ok := cachedData.(model.CreditCardCachedTransaction); ok {
+				paymentSessionId = ccCached.PaymentSessionId
+				cachedFound = true
+			} else if cachedMap, ok := cachedData.(map[string]interface{}); ok {
+				if v, exists := cachedMap["payment_session_id"]; exists {
+					if sessionStr, ok := v.(string); ok {
+						paymentSessionId = sessionStr
+						cachedFound = true
+					}
+				}
+			}
+		}
+	}
+
+	if !cachedFound || paymentSessionId == "" {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Transaction not found or payment session not available",
+		})
+	}
+
+	// Confirm payment session dengan encrypted card
+	confirmResp, err := lib.ConfirmHarsyaPaymentSession(paymentSessionId, chargeRequest.EncryptedCard)
+	if err != nil {
+		log.Println("Confirm payment session harsya failed:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"retcode": "E0000",
+			"message": "Failed to confirm payment session",
+			"data":    []interface{}{},
+		})
+	}
+
+	// NOTE: Cache TIDAK dihapus di sini untuk memungkinkan retry jika 3DS gagal
+	// Cache akan dihapus otomatis saat:
+	// 1. Transaksi berhasil (status PAID dari callback)
+	// 2. Session expired (24 jam)
+	// 3. User successfully completes payment
+
+	return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+		"success":     true,
+		"payment_url": confirmResp.Data.PaymentURL,
+		"retcode":     "0000",
+		"message":     "Payment session confirmed, redirect to 3DS",
 	})
 }

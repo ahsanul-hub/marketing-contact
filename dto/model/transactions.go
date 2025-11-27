@@ -276,4 +276,8 @@ type CreditCardCachedTransaction struct {
 	Transaction    InputPaymentRequest `json:"transaction"`
 	CreatedTransId string              `json:"created_trans_id"`
 	ChargingPrice  uint                `json:"charging_price"`
+	// Harsya specific fields
+	PaymentSessionId string `json:"payment_session_id,omitempty"`
+	EncryptionKey    string `json:"encryption_key,omitempty"`
+	PaymentProvider  string `json:"payment_provider,omitempty"` // "midtrans" or "harsya"
 }

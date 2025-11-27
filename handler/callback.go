@@ -282,6 +282,7 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 		if err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1003, nil, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error updating transaction status for %s: %s", transactionId, err)
 		}
+
 	case "2":
 		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionId, 1005, "", "Insufficient balance"); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", transactionId, err)
@@ -836,6 +837,15 @@ func CallbackHarsya(c *fiber.Ctx) error {
 
 	transactionID := req.Data.ClientReferenceID
 
+	if strings.Count(transactionID, "-") == 5 {
+		if lastIdx := strings.LastIndex(transactionID, "-"); lastIdx != -1 {
+			suffix := transactionID[lastIdx+1:]
+			if _, err := strconv.Atoi(suffix); err == nil {
+				transactionID = transactionID[:lastIdx]
+			}
+		}
+	}
+
 	helper.HarsyaLogger.LogCallback(transactionID, true,
 		map[string]interface{}{
 			"transaction_id":   transactionID,
@@ -866,6 +876,32 @@ func CallbackHarsya(c *fiber.Ctx) error {
 		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "Payment completed", receiveCallbackDate)
 		if err != nil {
 			log.Printf("Error updating transaction %s to PAID: %s", transactionID, err)
+		}
+
+		// Hapus cache setelah pembayaran berhasil untuk mencegah retry
+		if database.RedisClient != nil {
+			ctx := context.Background()
+
+			// Dapatkan token dari reverse mapping
+			reverseKey := fmt.Sprintf("cc_token_map:%s", transactionID)
+			token, err := database.RedisClient.Get(ctx, reverseKey).Result()
+			if err == nil && token != "" {
+				// Hapus cache utama
+				cacheKey := fmt.Sprintf("cc_payment:%s", token)
+				if err := database.RedisClient.Del(ctx, cacheKey).Err(); err != nil {
+					log.Printf("Error deleting cache for token %s: %s", token, err)
+				}
+
+				// Hapus reverse mapping
+				if err := database.RedisClient.Del(ctx, reverseKey).Err(); err != nil {
+					log.Printf("Error deleting reverse mapping for transaction %s: %s", transactionID, err)
+				}
+
+				// Juga coba hapus dari in-memory cache jika ada
+				TransactionCache.Delete(token)
+			} else {
+				log.Printf("No token mapping found for transaction %s", transactionID)
+			}
 		}
 	case "FAILED":
 		err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, nil, nil, "Transaction failed", receiveCallbackDate)

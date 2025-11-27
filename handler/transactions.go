@@ -1029,6 +1029,82 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":        "0000",
 			"message":        "Please complete payment on payment page",
 		})
+	case "credit_card_harsya", "visa_master_harsya":
+		// Create Harsya payment session dengan mode API untuk mendapatkan encryption key
+		sessionResp, err := lib.CreateHarsyaPaymentSession(
+			createdTransId,
+			createdTransId,
+			transaction.CustomerName,
+			transaction.UserMDN,
+			transaction.RedirectURL,
+			transaction.Email,
+			transaction.Address,
+			transaction.ProvinceState,
+			transaction.Country,
+			transaction.PostalCode,
+			transaction.City,
+			transaction.CountryCode,
+			transaction.PhoneNumber,
+			chargingPrice,
+		)
+		if err != nil {
+			log.Println("Charging request credit card harsya failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"retcode": "E0000",
+				"message": "Failed to create payment session",
+				"data":    []interface{}{},
+			})
+		}
+
+		// Update MidtransTransactionId dengan payment session ID
+		if err := repository.UpdateMidtransId(context.Background(), createdTransId, sessionResp.Data.ID); err != nil {
+			log.Println("Updated Harsya Payment Session ID error:", err)
+		}
+
+		// Save transaction to Redis for payment page dengan encryption key
+		transactionToken := fmt.Sprintf("cc-%d", time.Now().UnixNano())
+		ccCached := model.CreditCardCachedTransaction{
+			Transaction:      transaction,
+			CreatedTransId:   createdTransId,
+			ChargingPrice:    chargingPrice,
+			PaymentSessionId: sessionResp.Data.ID,
+			EncryptionKey:    sessionResp.Data.EncryptionKey,
+			PaymentProvider:  "harsya",
+		}
+
+		if database.RedisClient != nil {
+			ctx := context.Background()
+			key := fmt.Sprintf("cc_payment:%s", transactionToken)
+			if b, err := json.Marshal(ccCached); err == nil {
+				// TTL 24 jam sesuai requirement
+				if err := database.RedisClient.Set(ctx, key, b, 24*time.Hour).Err(); err != nil {
+					log.Println("failed to store credit card cache in redis:", err)
+				}
+
+				// Simpan reverse mapping: transactionID -> token untuk cleanup dari callback
+				reverseKey := fmt.Sprintf("cc_token_map:%s", createdTransId)
+				if err := database.RedisClient.Set(ctx, reverseKey, transactionToken, 24*time.Hour).Err(); err != nil {
+					log.Println("failed to store reverse mapping in redis:", err)
+				}
+			} else {
+				log.Println("failed to marshal credit card cache:", err)
+			}
+		} else {
+			// Fallback ke in-memory cache jika Redis tidak tersedia
+			TransactionCache.Set(transactionToken, ccCached, cache.DefaultExpiration)
+		}
+
+		// Return redirect URL to payment page
+		baseURL := config.Config("APIURL", "")
+		paymentPageURL := fmt.Sprintf("%s/payment-card/%s", baseURL, transactionToken)
+		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
+			"success":        true,
+			"transaction_id": createdTransId,
+			"payment_url":    paymentPageURL,
+			"retcode":        "0000",
+			"message":        "Please complete payment on payment page",
+		})
 
 	}
 
