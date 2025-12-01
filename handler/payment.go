@@ -515,9 +515,16 @@ func PaymentPage(c *fiber.Ctx) error {
 	span, _ := apm.StartSpan(c.Context(), "PaymentPage", "handler")
 	defer span.End()
 	token := c.Params("token")
+	appid := c.Params("appid")
 
 	if cachedData, found := TransactionCache.Get(token); found {
 		inputReq := cachedData.(model.InputPaymentRequest)
+
+		if inputReq.AppID != appid {
+			log.Printf("AppID mismatch in PaymentPage: token=%s url_appid=%s cached_appid=%s", token, appid, inputReq.AppID)
+			return c.Render("notfound", fiber.Map{})
+		}
+
 		var StrPaymentMethod string
 
 		currency := inputReq.Currency
