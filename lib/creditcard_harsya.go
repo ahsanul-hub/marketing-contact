@@ -150,7 +150,10 @@ func CreateHarsyaPaymentSession(clientRefId, transactionId, customerName, userMd
 	timeNow := time.Now().In(loc)
 	expiryAt := timeNow.Add(24 * time.Hour)
 
-	successUrl := fmt.Sprintf("%s/return/dana", config.Config("APIURL", ""))
+	baseURL := config.Config("APIURL", "")
+	successUrl := fmt.Sprintf("%s/payment/success?transaction_id=%s", baseURL, clientRefId)
+
+	// Use custom redirect URL if provided
 	if redirectUrl != "" {
 		successUrl = redirectUrl
 	}
@@ -169,9 +172,12 @@ func CreateHarsyaPaymentSession(clientRefId, transactionId, customerName, userMd
 	requestBody.Amount.Currency = "IDR"
 	requestBody.PaymentMethod.Type = "CARD"
 
+	failureUrl := fmt.Sprintf("%s/payment/failure?transaction_id=%s", baseURL, clientRefId)
+	expirationUrl := fmt.Sprintf("%s/payment/expiration?transaction_id=%s", baseURL, clientRefId)
+
 	requestBody.RedirectUrl.SuccessReturnUrl = successUrl
-	requestBody.RedirectUrl.FailureReturnUrl = "https://merchant.com/failure"
-	requestBody.RedirectUrl.ExpirationReturnUrl = "https://merchant.com/expiration"
+	requestBody.RedirectUrl.FailureReturnUrl = failureUrl
+	requestBody.RedirectUrl.ExpirationReturnUrl = expirationUrl
 
 	requestBody.Customer.GivenName = customerName
 	if email != "" {
