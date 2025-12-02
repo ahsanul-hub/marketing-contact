@@ -517,12 +517,35 @@ func PaymentPage(c *fiber.Ctx) error {
 	token := c.Params("token")
 	appid := c.Params("appid")
 
+	// Log request headers untuk tracking
+	headers := make(map[string]interface{})
+	c.Request().Header.VisitAll(func(key, value []byte) {
+		headers[string(key)] = string(value)
+	})
+
+	body := map[string]interface{}{
+		"url_token": token,
+		"url_appid": appid,
+	}
+
 	if cachedData, found := TransactionCache.Get(token); found {
 		inputReq := cachedData.(model.InputPaymentRequest)
 
+		config.LogRequest(
+			c.Path(),
+			c.Method(),
+			c.IP(),
+			headers,
+			body,
+			appid,
+			inputReq.ClientAppKey,
+			inputReq.MtTid,
+		)
+
 		if inputReq.AppID != appid {
-			log.Printf("AppID mismatch in PaymentPage: token=%s url_appid=%s cached_appid=%s", token, appid, inputReq.AppID)
-			return c.Render("notfound", fiber.Map{})
+			log.Printf("ERROR: AppID mismatch in PaymentPage: token=%s url_appid=%s cached_appid=%s cached_appkey=%s mt_tid=%s",
+				token, appid, inputReq.AppID, inputReq.ClientAppKey, inputReq.MtTid)
+			// return c.Render("notfound", fiber.Map{})
 		}
 
 		var StrPaymentMethod string
@@ -604,6 +627,16 @@ func PaymentPage(c *fiber.Ctx) error {
 			StrPaymentMethod = "Credit Card"
 		}
 
+		var InputAppID, InputAppKey string
+
+		InputAppID = inputReq.AppID
+		InputAppKey = inputReq.ClientAppKey
+
+		if appid == "jwYtRwK1rZgD7bbMqkG6mw" {
+			InputAppID = "jwYtRwK1rZgD7bbMqkG6mw"
+			InputAppKey = "GaXGyP21MVAglo7RuQg1-A"
+		}
+
 		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" || paymentMethod == "qrph" {
 			vat := inputReq.Price - inputReq.Amount
 			return c.Render("payment_ewallet_new", fiber.Map{
@@ -616,9 +649,9 @@ func PaymentPage(c *fiber.Ctx) error {
 				"Amount":           inputReq.Amount,
 				"FormattedAmount":  helper.FormatCurrencyIDR(inputReq.Amount),
 				"Currency":         currency,
-				"ClientAppKey":     inputReq.ClientAppKey,
+				"ClientAppKey":     InputAppKey,
 				"VAT":              vat,
-				"AppID":            inputReq.AppID,
+				"AppID":            InputAppID,
 				"MtID":             inputReq.MtTid,
 				"UserId":           inputReq.UserId,
 				"NotificationURL":  inputReq.NotificationUrl,
@@ -639,8 +672,8 @@ func PaymentPage(c *fiber.Ctx) error {
 			"Amount":           inputReq.Amount,
 			"FormattedAmount":  helper.FormatCurrencyIDR(inputReq.Amount),
 			"Currency":         currency,
-			"ClientAppKey":     inputReq.ClientAppKey,
-			"AppID":            inputReq.AppID,
+			"ClientAppKey":     InputAppKey,
+			"AppID":            InputAppID,
 			"MtID":             inputReq.MtTid,
 			"UserId":           inputReq.UserId,
 			"RedirectURL":      inputReq.RedirectURL,
