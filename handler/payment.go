@@ -2164,6 +2164,148 @@ func ChargeCreditCardMidtrans(c *fiber.Ctx) error {
 	})
 }
 
+func InitHarsyaPaymentSession(c *fiber.Ctx) error {
+	token := c.Params("token")
+	var req struct {
+		CustomerName string `json:"customer_name"`
+		Email        string `json:"email"`
+		Phone        string `json:"phone"`
+		Country      string `json:"country"`
+		AddressLine  string `json:"addressLine"`
+		City         string `json:"city"`
+		State        string `json:"state"`
+		PostalCode   string `json:"postalCode"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid input",
+		})
+	}
+
+	// Get transaction from cache
+	var ccCached model.CreditCardCachedTransaction
+	var cachedFound bool
+
+	if database.RedisClient != nil {
+		ctx := context.Background()
+		key := fmt.Sprintf("cc_payment:%s", token)
+		if val, err := database.RedisClient.Get(ctx, key).Result(); err == nil {
+			if err := json.Unmarshal([]byte(val), &ccCached); err == nil {
+				cachedFound = true
+			}
+		}
+	}
+
+	if !cachedFound {
+		if cachedData, found := TransactionCache.Get(token); found {
+			if cached, ok := cachedData.(model.CreditCardCachedTransaction); ok {
+				ccCached = cached
+				cachedFound = true
+			}
+		}
+	}
+
+	if !cachedFound {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"success": false,
+			"message": "Transaction not found",
+		})
+	}
+
+	customerName := req.CustomerName
+	if customerName == "" {
+		customerName = ccCached.Transaction.CustomerName
+	}
+	email := req.Email
+	if email == "" {
+		email = ccCached.Transaction.Email
+	}
+	phone := req.Phone
+	if phone == "" {
+		phone = ccCached.Transaction.PhoneNumber
+	}
+
+	// Use billing address from request, fallback to cached transaction data
+	country := req.Country
+	if country == "" {
+		country = ccCached.Transaction.Country
+	}
+	addressLine := req.AddressLine
+	if addressLine == "" {
+		addressLine = ccCached.Transaction.Address
+	}
+	city := req.City
+	if city == "" {
+		city = ccCached.Transaction.City
+	}
+	state := req.State
+	if state == "" {
+		state = ccCached.Transaction.ProvinceState
+	}
+	postalCode := req.PostalCode
+	if postalCode == "" {
+		postalCode = ccCached.Transaction.PostalCode
+	}
+
+	// Generate unique client ref ID for this session attempt
+	clientRefId := fmt.Sprintf("%s-%d", ccCached.CreatedTransId, time.Now().Unix())
+
+	sessionResp, err := lib.CreateHarsyaPaymentSession(
+		clientRefId,
+		ccCached.CreatedTransId,
+		customerName,
+		ccCached.Transaction.UserMDN,
+		ccCached.Transaction.RedirectURL,
+		email,
+		addressLine,
+		state,
+		country,
+		postalCode,
+		city,
+		ccCached.Transaction.CountryCode,
+		phone,
+		ccCached.ChargingPrice,
+	)
+
+	if err != nil {
+		log.Println("Failed to init harsya session:", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"message": "Failed to initialize payment session",
+		})
+	}
+
+	// Update cache with new session ID and encryption key
+	ccCached.PaymentSessionId = sessionResp.Data.ID
+	ccCached.EncryptionKey = sessionResp.Data.EncryptionKey
+	ccCached.PaymentProvider = "harsya"
+
+	if database.RedisClient != nil {
+		ctx := context.Background()
+		key := fmt.Sprintf("cc_payment:%s", token)
+		if b, err := json.Marshal(ccCached); err == nil {
+			database.RedisClient.Set(ctx, key, b, 24*time.Hour)
+
+			// Update reverse mapping
+			reverseKey := fmt.Sprintf("cc_token_map:%s", ccCached.CreatedTransId)
+			database.RedisClient.Set(ctx, reverseKey, token, 24*time.Hour)
+		}
+	} else {
+		TransactionCache.Set(token, ccCached, cache.DefaultExpiration)
+	}
+
+	// Update Midtrans ID in DB
+	repository.UpdateMidtransId(context.Background(), ccCached.CreatedTransId, sessionResp.Data.ID)
+
+	return c.JSON(fiber.Map{
+		"success":            true,
+		"payment_session_id": sessionResp.Data.ID,
+		"encryption_key":     sessionResp.Data.EncryptionKey,
+	})
+}
+
 func ChargeCreditCardHarsya(c *fiber.Ctx) error {
 	span, _ := apm.StartSpan(c.Context(), "ChargeCreditCardHarsya", "handler")
 	defer span.End()
@@ -2254,5 +2396,136 @@ func ChargeCreditCardHarsya(c *fiber.Ctx) error {
 		"payment_url": confirmResp.Data.PaymentURL,
 		"retcode":     "0000",
 		"message":     "Payment session confirmed, redirect to 3DS",
+	})
+}
+
+func PaymentFailurePage(c *fiber.Ctx) error {
+	transactionID := c.Query("transaction_id")
+	if transactionID == "" {
+		transactionID = c.Query("clientReferenceId")
+	}
+
+	// Strip timestamp suffix if exists
+	if strings.Count(transactionID, "-") == 5 {
+		if lastHyphen := strings.LastIndex(transactionID, "-"); lastHyphen != -1 {
+			suffix := transactionID[lastHyphen+1:]
+			if _, err := strconv.Atoi(suffix); err == nil {
+				transactionID = transactionID[:lastHyphen]
+			}
+		}
+	}
+
+	if transactionID == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("Missing transaction ID")
+	}
+
+	// Get transaction from database
+	tx, err := repository.GetTransactionByID(c.Context(), transactionID)
+	if err != nil || tx == nil {
+		return c.Status(fiber.StatusNotFound).SendString("Transaction not found")
+	}
+
+	currency := "IDR"
+	formattedAmount := helper.FormatCurrencyIDR(tx.Amount)
+
+	return c.Render("payment_card_status", fiber.Map{
+		"AppName":         tx.AppName,
+		"ItemName":        tx.ItemName,
+		"Amount":          tx.Amount,
+		"FormattedAmount": formattedAmount,
+		"Currency":        currency,
+		"TransactionID":   transactionID,
+		"MtID":            tx.MtTid,
+		"StatusCode":      1005, // Failed
+		"StatusMessage":   "Pembayaran dibatalkan atau gagal",
+		"RedirectURL":     tx.RedirectURL,
+	})
+}
+
+func PaymentExpirationPage(c *fiber.Ctx) error {
+	transactionID := c.Query("transaction_id")
+	if transactionID == "" {
+		transactionID = c.Query("clientReferenceId")
+	}
+
+	// Strip timestamp suffix if exists
+	if strings.Count(transactionID, "-") == 5 {
+		if lastHyphen := strings.LastIndex(transactionID, "-"); lastHyphen != -1 {
+			suffix := transactionID[lastHyphen+1:]
+			if _, err := strconv.Atoi(suffix); err == nil {
+				transactionID = transactionID[:lastHyphen]
+			}
+		}
+	}
+
+	if transactionID == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("Missing transaction ID")
+	}
+
+	// Get transaction from database
+	tx, err := repository.GetTransactionByID(c.Context(), transactionID)
+	if err != nil || tx == nil {
+		return c.Status(fiber.StatusNotFound).SendString("Transaction not found")
+	}
+
+	currency := "IDR"
+	formattedAmount := helper.FormatCurrencyIDR(tx.Amount)
+
+	return c.Render("payment_card_status", fiber.Map{
+		"AppName":         tx.AppName,
+		"ItemName":        tx.ItemName,
+		"Amount":          tx.Amount,
+		"FormattedAmount": formattedAmount,
+		"Currency":        currency,
+		"TransactionID":   transactionID,
+		"MtID":            tx.MtTid,
+		"StatusCode":      1006, // Expired
+		"StatusMessage":   "Sesi pembayaran telah kadaluarsa",
+		"RedirectURL":     tx.RedirectURL,
+	})
+}
+
+func PaymentSuccessPage(c *fiber.Ctx) error {
+	transactionID := c.Query("transaction_id")
+	if transactionID == "" {
+		transactionID = c.Query("clientReferenceId")
+	}
+
+	// Strip timestamp suffix if exists
+	if strings.Count(transactionID, "-") == 5 {
+		if lastHyphen := strings.LastIndex(transactionID, "-"); lastHyphen != -1 {
+			suffix := transactionID[lastHyphen+1:]
+			if _, err := strconv.Atoi(suffix); err == nil {
+				transactionID = transactionID[:lastHyphen]
+			}
+		}
+	}
+
+	if transactionID == "" {
+		return c.Status(fiber.StatusBadRequest).SendString("Missing transaction ID")
+	}
+
+	// Get transaction from database
+	tx, err := repository.GetTransactionByID(c.Context(), transactionID)
+	if err != nil || tx == nil {
+		return c.Status(fiber.StatusNotFound).SendString("Transaction not found")
+	}
+
+	currency := "IDR"
+	formattedAmount := helper.FormatCurrencyIDR(tx.Amount)
+
+	// Use actual status code from transaction
+	statusMessage := "Pembayaran berhasil"
+	return c.Render("payment_card_status", fiber.Map{
+		"AppName":         tx.AppName,
+		"ItemName":        tx.ItemName,
+		"Amount":          tx.Amount,
+		"FormattedAmount": formattedAmount,
+		"Currency":        currency,
+		"TransactionID":   transactionID,
+		"MtID":            tx.MtTid,
+		"StatusCode":      1000,
+		"StatusMessage":   statusMessage,
+		"RedirectURL":     tx.RedirectURL,
 	})
 }
