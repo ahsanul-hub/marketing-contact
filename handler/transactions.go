@@ -975,7 +975,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":        "0000",
 			"message":        "Successful Created Transaction",
 		})
-	case "visa_master":
+	case "visa_master", "visa_master_harsya":
 		res, err := lib.CardHarsyaCharging(createdTransId, transaction.CustomerName, transaction.UserMDN, transaction.RedirectURL, transaction.Email, transaction.Address, transaction.ProvinceState, transaction.Country, transaction.PostalCode, transaction.City, transaction.CountryCode, transaction.PhoneNumber, transaction.Amount)
 		if err != nil {
 			log.Println("Charging request credit card pivot failed:", err)
@@ -998,9 +998,10 @@ func CreateTransaction(c *fiber.Ctx) error {
 		// Save transaction to Redis for payment page (include createdTransId)
 		transactionToken := fmt.Sprintf("cc-%d", time.Now().UnixNano())
 		ccCached := model.CreditCardCachedTransaction{
-			Transaction:    transaction,
-			CreatedTransId: createdTransId,
-			ChargingPrice:  chargingPrice,
+			Transaction:     transaction,
+			CreatedTransId:  createdTransId,
+			ChargingPrice:   chargingPrice,
+			PaymentProvider: "midtrans",
 		}
 
 		if database.RedisClient != nil {
@@ -1029,47 +1030,16 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":        "0000",
 			"message":        "Please complete payment on payment page",
 		})
-	case "credit_card_harsya", "visa_master_harsya":
-		// Create Harsya payment session dengan mode API untuk mendapatkan encryption key
-		sessionResp, err := lib.CreateHarsyaPaymentSession(
-			createdTransId,
-			createdTransId,
-			transaction.CustomerName,
-			transaction.UserMDN,
-			transaction.RedirectURL,
-			transaction.Email,
-			transaction.Address,
-			transaction.ProvinceState,
-			transaction.Country,
-			transaction.PostalCode,
-			transaction.City,
-			transaction.CountryCode,
-			transaction.PhoneNumber,
-			chargingPrice,
-		)
-		if err != nil {
-			log.Println("Charging request credit card harsya failed:", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"success": false,
-				"retcode": "E0000",
-				"message": "Failed to create payment session",
-				"data":    []interface{}{},
-			})
-		}
-
-		// Update MidtransTransactionId dengan payment session ID
-		if err := repository.UpdateMidtransId(context.Background(), createdTransId, sessionResp.Data.ID); err != nil {
-			log.Println("Updated Harsya Payment Session ID error:", err)
-		}
-
-		// Save transaction to Redis for payment page dengan encryption key
+	case "pivot_onelink":
+		// Save transaction to Redis for payment page
+		// Payment Session Harsya akan dibuat nanti di payment page setelah user input data
 		transactionToken := fmt.Sprintf("cc-%d", time.Now().UnixNano())
 		ccCached := model.CreditCardCachedTransaction{
 			Transaction:      transaction,
 			CreatedTransId:   createdTransId,
 			ChargingPrice:    chargingPrice,
-			PaymentSessionId: sessionResp.Data.ID,
-			EncryptionKey:    sessionResp.Data.EncryptionKey,
+			PaymentSessionId: "", // Akan diisi nanti via /init-harsya
+			EncryptionKey:    "", // Akan diisi nanti via /init-harsya
 			PaymentProvider:  "harsya",
 		}
 
