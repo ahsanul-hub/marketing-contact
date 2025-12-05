@@ -1067,7 +1067,8 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 		// Return redirect URL to payment page
 		baseURL := config.Config("APIURL", "")
-		paymentPageURL := fmt.Sprintf("%s/payment-card/%s", baseURL, transactionToken)
+		lang := arrClient.Lang
+		paymentPageURL := fmt.Sprintf("%s/payment-card/%s?lang=%s", baseURL, transactionToken, lang)
 		return response.ResponseSuccess(c, fiber.StatusOK, fiber.Map{
 			"success":        true,
 			"transaction_id": createdTransId,
