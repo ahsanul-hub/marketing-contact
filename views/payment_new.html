@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Payment Page</title>
+    <title>{{ .T.PageTitle }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
@@ -43,6 +43,11 @@
           </div>
         </div>
         <div class="text-right">
+          <div class="mb-1 text-xs font-medium">
+              <a href="?lang=id" class="{{if eq .Lang "id"}}text-white{{else}}text-blue-200 hover:text-white{{end}}">ID</a>
+              <span class="text-blue-300 mx-1">|</span>
+              <a href="?lang=en" class="{{if eq .Lang "en"}}text-white{{else}}text-blue-200 hover:text-white{{end}}">EN</a>
+          </div>
           <p class="text-lg font-bold">
             {{ .Currency }} {{ .FormattedAmount }}
           </p>
@@ -73,7 +78,7 @@
           <div class="flex items-center space-x-2">
             <span class="w-2.5 h-2.5 bg-blue-500 rounded-full"></span>
             <h2 class="text-md font-semibold text-gray-800">
-              Informasi Pembayaran
+              {{ .T.PaymentInfoTitle }}
             </h2>
           </div>
 
@@ -94,13 +99,13 @@
               <label
                 for="customer_name"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >Nama Lengkap</label
+                >{{ .T.FullNameLabel }}</label
               >
               <input
                 type="text"
                 id="customer_name"
                 name="customer_name"
-                placeholder="Masukkan nama lengkap Anda"
+                placeholder="{{ .T.FullNamePlaceholder }}"
                 class="w-full px-4 py-2 mt-2 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required />
             </div>
@@ -111,17 +116,17 @@
               <label
                 for="userMdn"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >Nomor HP
+                >{{ .T.PhoneLabel }}
               </label>
               <input
                 type="number"
                 id="userMdn"
                 name="user_mdn"
-                placeholder="+6281234567899"
+                placeholder="{{ .T.PhonePlaceholder }}"
                 class="w-full px-4 py-2 mt-2 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 required />
               <p class="text-xs text-gray-400 mt-2">
-                Digunakan untuk notifikasi transaksi dan verifikasi
+                {{ .T.PhoneHelp }}
               </p>
             </div>
             <input type="hidden" name="price" value="{{ .Price }}" />
@@ -177,11 +182,11 @@
               clip-rule="evenodd"></path>
           </svg>
           <div>
-            <h3 class="font-semibold">Transaksi Aman & Terpercaya</h3>
+            <h3 class="font-semibold">{{ .T.SecurityTitle }}</h3>
             <ul class="text-xs list-disc mt-2 space-y-1">
               <!-- <li>Data Anda dilindungi enkripsi SSL 256-bit</li> -->
-              <li>Tidak ada biaya tambahan untuk transaksi ini</li>
-              <li>Item akan masuk ke akun dalam 1-3 menit</li>
+              <li>{{ .T.SecurityNoFee }}</li>
+              <li>{{ .T.SecurityInstant }}</li>
             </ul>
           </div>
         </div>
@@ -189,11 +194,11 @@
         <!-- Transaction Summary Section -->
         <div class="space-y-4 pt-4">
           <h2 class="text-md font-semibold text-gray-800">
-            Ringkasan Transaksi
+            {{ .T.SummaryTitle }}
           </h2>
           <div class="space-y-2 text-sm text-gray-600">
             <div class="flex justify-between items-center">
-              <span>Harga Coin</span>
+              <span>{{ .T.PriceLabel }}</span>
               <span class="font-semibold text-gray-800"
                 >{{ .Currency }} {{ .FormattedAmount }}</span
               >
@@ -203,13 +208,13 @@
               <span class="font-semibold">-{{ .Currency }} 2.500</span>
             </div> -->
             <div class="flex justify-between items-center">
-              <span>Biaya Admin</span>
-              <span class="font-semibold">Gratis</span>
+              <span>{{ .T.AdminFeeLabel }}</span>
+              <span class="font-semibold">{{ .T.Free }}</span>
             </div>
           </div>
           <hr class="border-t border-gray-200" />
           <div class="flex justify-between items-center font-bold text-lg">
-            <span>Total Pembayaran</span>
+            <span>{{ .T.TotalLabel }}</span>
             <span class="text-blue-600"
               >{{ .Currency }} {{ .FormattedAmount }}</span
             >
@@ -222,14 +227,14 @@
             type="button"
             onclick="window.history.back();"
             class="flex-1 px-4 py-2 border border-gray-300 rounded-xl text-gray-700 font-semibold transition-colors duration-200 hover:bg-gray-100">
-            Kembali
+            {{ .T.BackBtn }}
           </button>
           <button
             type="submit"
             form="paymentForm"
             id="btn-pay"
             class="btn-next flex-1 px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold flex items-center justify-center space-x-2 transition-colors duration-200 hover:bg-blue-700">
-            <span>Bayar</span>
+            <span>{{ .T.PayBtn }}</span>
             <svg
               class="w-4 h-4"
               fill="currentColor"
@@ -244,13 +249,13 @@
         </div>
 
         <p class="text-center text-xs text-gray-400 mt-4">
-          Dengan melanjutkan, Anda menyetujui
+          {{ .T.DisclaimerPart1 }}
           <a href="#" class="text-blue-600 hover:underline"
-            >Syarat & Ketentuan</a
+            >{{ .T.Terms }}</a
           >
-          dan
+          {{ .T.DisclaimerPart2 }}
           <a href="#" class="text-blue-600 hover:underline"
-            >Kebijakan Privasi</a
+            >{{ .T.Privacy }}</a
           >
         </p>
       </div>
@@ -269,7 +274,7 @@
               d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-8a1 1 0 11-2 0 1 1 0 012 0zm3 0a1 1 0 11-2 0 1 1 0 012 0z"
               clip-rule="evenodd"></path>
           </svg>
-          <span>SSL Secured</span>
+          <span>{{ .T.SslSecured }}</span>
         </div>
         <div class="flex items-center space-x-1">
           <svg
@@ -281,7 +286,7 @@
               d="M10 2a8 8 0 100 16 8 8 0 000-16zm-1 8a1 1 0 112 0 1 1 0 01-2 0z"
               clip-rule="evenodd"></path>
           </svg>
-          <span>PCI Compliant</span>
+          <span>{{ .T.PciCompliant }}</span>
         </div>
         <div class="flex items-center space-x-1">
           <svg
@@ -294,7 +299,7 @@
               d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-8a1 1 0 10-2 0v4a1 1 0 102 0v-4zm-1-4a1 1 0 100 2 1 1 0 000-2z"
               clip-rule="evenodd"></path>
           </svg>
-          <span>24/7 Support</span>
+          <span>{{ .T.Support }}</span>
         </div>
       </div>
     </div>
