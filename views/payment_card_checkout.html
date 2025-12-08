@@ -93,7 +93,8 @@
               <label
                 for="cardNumber"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >{{ .T.CardNumberLabel }}</label
+                >{{ .T.CardNumberLabel }}
+                <span class="text-red-500">*</span></label
               >
               <input
                 type="text"
@@ -111,7 +112,7 @@
                 <label
                   for="cardExpMonth"
                   class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                  >{{ .T.MonthLabel }}
+                  >{{ .T.MonthLabel }} <span class="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -129,7 +130,7 @@
                 <label
                   for="cardExpYear"
                   class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                  >{{ .T.YearLabel }}
+                  >{{ .T.YearLabel }} <span class="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -145,7 +146,7 @@
                 <label
                   for="cardCvv"
                   class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                  >{{ .T.CvvLabel }}</label
+                  >{{ .T.CvvLabel }} <span class="text-red-500">*</span></label
                 >
                 <input
                   type="password"
@@ -163,12 +164,12 @@
               <label
                 for="cardHolderName"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >{{ .T.NameOnCardLabel }}
+                >{{ .T.NameOnCardLabel }} <span class="text-red-500">*</span>
               </label>
               <input
                 type="text"
                 id="cardHolderName"
-                placeholder="Nama sesuai kartu"
+                placeholder="{{ .T.NameOnCardLabel }}"
                 class="w-full px-4 py-2 mt-2 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
 
@@ -192,7 +193,7 @@
               <label
                 for="phone"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >{{ .T.PhoneLabel }}</label
+                >{{ .T.PhoneLabel }} <span class="text-red-500">*</span></label
               >
               <div class="flex mt-2">
                 <select
@@ -319,7 +320,8 @@
               <label
                 for="country"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >{{ .T.CountryLabel }}</label
+                >{{ .T.CountryLabel }}
+                <span class="text-red-500">*</span></label
               >
               <select
                 id="country"
@@ -731,14 +733,12 @@
           </div>
 
           <p class="text-center text-xs text-gray-400 mt-4">
-            Dengan melanjutkan, Anda menyetujui
+            {{ .T.DisclaimerPart1 }}
+            <a href="#" class="text-blue-600 hover:underline">{{ .T.Terms }}</a>
+            {{ .T.DisclaimerPart2 }}
             <a href="#" class="text-blue-600 hover:underline"
-              >Syarat & Ketentuan</a
+              >{{ .T.Privacy }}</a
             >
-            dan
-            <a href="#" class="text-blue-600 hover:underline"
-              >Kebijakan Privasi</a
-            >.
           </p>
         </div>
       </div>

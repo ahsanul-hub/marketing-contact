@@ -69,7 +69,6 @@
           </h2>
 
           <form id="paymentForm" class="space-y-4">
-            <!-- Hidden Midtrans Client Key -->
             <input
               type="text"
               id="clientKey"
@@ -77,12 +76,12 @@
               required
               hidden />
 
-            <!-- Card Number -->
             <div class="relative">
               <label
                 for="cardNumber"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >{{ .T.CardNumberLabel }}</label
+                >{{ .T.CardNumberLabel }}
+                <span class="text-red-500">*</span></label
               >
               <input
                 type="text"
@@ -100,7 +99,7 @@
                 <label
                   for="cardExpMonth"
                   class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                  >{{ .T.MonthLabel }}
+                  >{{ .T.MonthLabel }} <span class="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -118,7 +117,7 @@
                 <label
                   for="cardExpYear"
                   class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                  >{{ .T.YearLabel }}
+                  >{{ .T.YearLabel }} <span class="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -134,7 +133,7 @@
                 <label
                   for="cardCvv"
                   class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                  >{{ .T.CvvLabel }}</label
+                  >{{ .T.CvvLabel }} <span class="text-red-500">*</span></label
                 >
                 <input
                   type="password"
@@ -152,7 +151,7 @@
               <label
                 for="cardName"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >{{ .T.NameOnCardLabel }}
+                >{{ .T.NameOnCardLabel }} <span class="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -258,14 +257,12 @@
           </div>
 
           <p class="text-center text-xs text-gray-400 mt-4">
-            Dengan melanjutkan, Anda menyetujui
+            {{ .T.DisclaimerPart1 }}
+            <a href="#" class="text-blue-600 hover:underline">{{ .T.Terms }}</a>
+            {{ .T.DisclaimerPart2 }}
             <a href="#" class="text-blue-600 hover:underline"
-              >Syarat & Ketentuan</a
+              >{{ .T.Privacy }}</a
             >
-            dan
-            <a href="#" class="text-blue-600 hover:underline"
-              >Kebijakan Privasi</a
-            >.
           </p>
         </div>
       </div>
