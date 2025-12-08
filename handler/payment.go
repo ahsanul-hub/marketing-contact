@@ -184,14 +184,14 @@ func CreateOrder(c *fiber.Ctx) error {
 	appSecret := arrClient.ClientSecret
 
 	expectedBodysign := helper.GenerateBodySign(input, appSecret)
-	log.Println("expectedBodysign", expectedBodysign)
+	// log.Println("expectedBodysign", expectedBodysign)
 
-	// if receivedBodysign != expectedBodysign {
-	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-	// 		"success": false,
-	// 		"message": "Invalid bodysign",
-	// 	})
-	// }
+	if receivedBodysign != expectedBodysign {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"success": false,
+			"message": "Invalid bodysign",
+		})
+	}
 
 	transactionID := uuid.New().String()
 
