@@ -184,7 +184,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	appSecret := arrClient.ClientSecret
 
 	expectedBodysign := helper.GenerateBodySign(input, appSecret)
-	//log.Println("expectedBodysign", expectedBodysign)
+	// log.Println("expectedBodysign", expectedBodysign)
 
 	if receivedBodysign != expectedBodysign {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -711,6 +711,15 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 	defer span.End()
 	token := c.Params("token")
 	appid := c.Params("appid")
+	lang := c.Query("lang")
+	if lang == "" {
+		lang = "id"
+	}
+	translations := GetTranslations(lang)
+	altLang := "en"
+	if lang == "en" {
+		altLang = "id"
+	}
 
 	var allowedClients = map[string]string{
 		"6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
@@ -843,6 +852,9 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 				"BodySign":         inputReq.BodySign,
 				"RedirectURL":      inputReq.RedirectURL,
 				"UserIP":           inputReq.UserIP,
+				"T":                translations,
+				"Lang":             lang,
+				"AltLang":          altLang,
 			})
 		}
 
@@ -864,6 +876,9 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 			"Token":            token,
 			"BodySign":         inputReq.BodySign,
 			"UserIP":           inputReq.UserIP,
+			"T":                translations,
+			"Lang":             lang,
+			"AltLang":          altLang,
 		})
 
 	}
