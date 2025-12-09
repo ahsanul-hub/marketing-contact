@@ -923,6 +923,19 @@
           return;
         }
 
+        if (cardNumber.startsWith("41384") || cardNumber.startsWith("54255")) {
+          const lang = "{{ .Lang }}";
+          const message =
+            lang === "en"
+              ? "Your card cannot be used for this transaction, please use another card"
+              : "Kartu anda tidak dapat digunakan untuk transaksi ini, silahkan gunakan kartu lain";
+
+          alert(message);
+          submitBtn.disabled = false;
+          loading.classList.add("hidden");
+          return;
+        }
+
         try {
           if (paymentProvider === "harsya") {
             await handleHarsyaPayment({
