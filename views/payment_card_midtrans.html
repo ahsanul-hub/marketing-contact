@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pembayaran Credit Card {{ .AppName }}</title>
+    <title>{{ .T.CardPaymentTitle }} {{ .AppName }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
@@ -37,7 +37,7 @@
         class="bg-blue-600 text-white p-6 rounded-t-xl flex flex-col space-y-3 md:flex-row md:space-y-0 md:items-center md:justify-between">
         <div class="flex items-center space-x-3">
           <div>
-            <h1 class="text-xl font-semibold">Pembayaran Kartu Kredit</h1>
+            <h1 class="text-xl font-semibold">{{ .T.CardPaymentTitle }}</h1>
             <p class="text-sm font-light opacity-80 mt-1">
               {{ .AppName }} - {{ .ItemName }}
             </p>
@@ -51,6 +51,13 @@
               24:00:00
             </p>
           </div>
+          <div>
+            <a
+              href="?lang={{ .AltLang }}"
+              class="text-sm font-medium bg-white/20 hover:bg-white/30 px-3 py-1 rounded transition-colors">
+              {{ if eq .Lang "id" }}EN{{ else }}ID{{ end }}
+            </a>
+          </div>
         </div>
       </div>
 
@@ -58,11 +65,10 @@
         <!-- Card Form Section -->
         <div class="space-y-4">
           <h2 class="text-md font-semibold text-gray-800">
-            Detail Kartu Kredit
+            {{ .T.CardDetailTitle }}
           </h2>
 
           <form id="paymentForm" class="space-y-4">
-            <!-- Hidden Midtrans Client Key -->
             <input
               type="text"
               id="clientKey"
@@ -70,12 +76,12 @@
               required
               hidden />
 
-            <!-- Card Number -->
             <div class="relative">
               <label
                 for="cardNumber"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >Nomor Kartu</label
+                >{{ .T.CardNumberLabel }}
+                <span class="text-red-500">*</span></label
               >
               <input
                 type="text"
@@ -93,7 +99,7 @@
                 <label
                   for="cardExpMonth"
                   class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                  >Bulan
+                  >{{ .T.MonthLabel }} <span class="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -111,7 +117,7 @@
                 <label
                   for="cardExpYear"
                   class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                  >Tahun
+                  >{{ .T.YearLabel }} <span class="text-red-500">*</span>
                 </label>
                 <input
                   type="number"
@@ -127,7 +133,7 @@
                 <label
                   for="cardCvv"
                   class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                  >CVV</label
+                  >{{ .T.CvvLabel }} <span class="text-red-500">*</span></label
                 >
                 <input
                   type="password"
@@ -145,7 +151,7 @@
               <label
                 for="cardName"
                 class="absolute -top-3 left-3 bg-white px-1 text-sm text-gray-500"
-                >Nama
+                >{{ .T.NameOnCardLabel }} <span class="text-red-500">*</span>
               </label>
               <input
                 type="text"
@@ -169,16 +175,13 @@
                    001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z"
                   clip-rule="evenodd"></path>
               </svg>
-              <p>
-                Data kartu tidak disimpan di server dan langsung ditokenisasi
-                oleh principal menggunakan standar keamanan PCI DSS.
-              </p>
+              <p>{{ .T.CardSecurityMsg }}</p>
             </div>
 
             <div
               id="loading"
               class="hidden text-center text-sm text-gray-500 py-2">
-              Memproses pembayaran...
+              {{ .T.ProcessingPayment }}
             </div>
 
             <div class="flex space-x-3 pt-2">
@@ -192,7 +195,7 @@
                 type="submit"
                 id="submitBtn"
                 class="flex-1 px-4 py-2 rounded-xl bg-blue-600 text-white font-semibold flex items-center justify-center space-x-2 transition-colors duration-200 hover:bg-blue-700">
-                <span>Bayar Sekarang</span>
+                <span>{{ .T.PayNowBtn }}</span>
               </button>
             </div>
           </form>
@@ -221,7 +224,7 @@
           </div>
           <hr class="border-t border-gray-200" />
           <div class="flex justify-between items-center font-bold text-lg">
-            <span>Total Pembayaran</span>
+            <span>{{ .T.TotalPayment }}</span>
             <span class="text-blue-600"
               >{{ .Currency }} {{ .FormattedAmount }}</span
             >
@@ -246,7 +249,7 @@
             <div>
               <h3 class="font-semibold">Transaksi Aman & Terpercaya</h3>
               <ul class="text-xs list-disc mt-2 space-y-1">
-                <li>Proses pembayaran melalui (PCI DSS compliant).</li>
+                <li>{{ .T.PciDssMsg }}</li>
                 <li>Tidak ada biaya tambahan untuk transaksi ini.</li>
                 <li>Item akan masuk ke akun dalam 1–3 menit.</li>
               </ul>
@@ -254,14 +257,12 @@
           </div>
 
           <p class="text-center text-xs text-gray-400 mt-4">
-            Dengan melanjutkan, Anda menyetujui
+            {{ .T.DisclaimerPart1 }}
+            <a href="#" class="text-blue-600 hover:underline">{{ .T.Terms }}</a>
+            {{ .T.DisclaimerPart2 }}
             <a href="#" class="text-blue-600 hover:underline"
-              >Syarat & Ketentuan</a
+              >{{ .T.Privacy }}</a
             >
-            dan
-            <a href="#" class="text-blue-600 hover:underline"
-              >Kebijakan Privasi</a
-            >.
           </p>
         </div>
       </div>
@@ -279,7 +280,15 @@
         </div>
         <div class="flex items-center space-x-1">
           <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
-          <span>3D Secure Enabled</span>
+          <span>{{ .T.SslSecured }}</span>
+        </div>
+        <div class="flex items-center space-x-1">
+          <span class="w-2 h-2 bg-blue-500 rounded-full"></span>
+          <span>{{ .T.PciCompliant }}</span>
+        </div>
+        <div class="flex items-center space-x-1">
+          <span class="w-2 h-2 bg-yellow-500 rounded-full"></span>
+          <span>{{ .T.SecureEnabled }}</span>
         </div>
       </div>
     </div>

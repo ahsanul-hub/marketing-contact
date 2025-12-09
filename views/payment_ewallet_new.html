@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pembayaran E-Wallet {{ .PaymentMethodStr}}</title>
+    <title>{{ .T.EWalletPageTitle }} {{ .PaymentMethodStr}}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
@@ -53,11 +53,16 @@
           <div>
             <h1 class="text-xl font-semibold">{{ .PaymentMethodStr }}</h1>
             <p class="text-sm font-light opacity-80 mt-1">
-              Pembayaran: Redigame - {{ .ItemName }}
+              {{ .T.PaymentPrefix }}: Redigame - {{ .ItemName }}
             </p>
           </div>
         </div>
         <div class="text-right">
+          <div class="mb-1 text-xs font-medium">
+              <a href="?lang=id" class="{{if eq .Lang "id"}}text-white{{else}}text-blue-200 hover:text-white{{end}}">ID</a>
+              <span class="text-blue-300 mx-1">|</span>
+              <a href="?lang=en" class="{{if eq .Lang "en"}}text-white{{else}}text-blue-200 hover:text-white{{end}}">EN</a>
+          </div>
           <p class="text-lg font-bold">
             {{ .Currency }} {{ .FormattedAmount }}
           </p>
@@ -68,19 +73,19 @@
         <!-- Transaction Summary Section -->
         <div class="space-y-4 pt-2">
           <h2 class="text-md font-semibold text-gray-800">
-            Ringkasan Transaksi
+            {{ .T.SummaryTitle }}
           </h2>
           <div class="space-y-2 text-sm text-gray-600">
             <!-- Display breakdown based on payment type -->
             {{ if and (ne .PaymentMethod "qris") (ne .PaymentMethod "qrph") }}
             <div class="flex justify-between items-center">
-              <span>Sub Total</span>
+              <span>{{ .T.SubTotalLabel }}</span>
               <span class="font-semibold text-gray-800"
                 >{{ .Currency }} {{ .FormattedAmount }}</span
               >
             </div>
             <div class="flex justify-between items-center">
-              <span>Pajak (VAT)</span>
+              <span>{{ .T.VatLabel }}</span>
               <span class="font-semibold text-gray-800"
                 >{{ .Currency }} {{ .VAT }}</span
               >
@@ -88,7 +93,7 @@
             {{ else }}
             <!-- For QRIS/QRPH, display the Amount as the base item price -->
             <div class="flex justify-between items-center">
-              <span>Harga Item</span>
+              <span>{{ .T.ItemPriceLabel }}</span>
               <span class="font-semibold text-gray-800"
                 >{{ .Currency }} {{ .FormattedAmount }}</span
               >
@@ -96,16 +101,16 @@
             {{ end }}
 
             <div class="flex justify-between items-center">
-              <span>Biaya Admin</span>
+              <span>{{ .T.AdminFeeLabel }}</span>
               <span class="font-semibold"
-                >{{ if gt .VAT 0 }} Termasuk Pajak {{ else }} Gratis {{ end
+                >{{ if gt .VAT 0 }} {{ .T.TaxIncluded }} {{ else }} {{ .T.Free }} {{ end
                 }}</span
               >
             </div>
           </div>
           <hr class="border-t border-gray-200" />
           <div class="flex justify-between items-center font-bold text-xl">
-            <span>Total Pembayaran</span>
+            <span>{{ .T.TotalLabel }}</span>
             <span class="text-blue-600"
               >{{ .Currency }} {{ .FormattedAmount }}</span
             >
@@ -120,17 +125,17 @@
             <label
               for="userMdn"
               class="absolute -top-1 left-3 bg-white px-1 text-sm text-gray-500"
-              >Nomor HP OVO</label
+              >{{ .T.OvoPhoneLabel }}</label
             >
             <input
               type="number"
               id="userMdn"
               name="user_mdn"
-              placeholder="081234567899"
+              placeholder="{{ .T.OvoPhonePlaceholder }}"
               class="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               required />
             <p class="text-xs text-gray-400 mt-2">
-              Pastikan nomor ini terdaftar dan aktif di aplikasi OVO Anda.
+              {{ .T.OvoPhoneHelp }}
             </p>
           </div>
           {{end}}
@@ -175,20 +180,20 @@
               type="button"
               onclick="window.history.back();"
               class="flex-1 px-4 py-3 border border-gray-300 rounded-xl text-gray-700 font-semibold transition-colors duration-200 hover:bg-gray-100">
-              Kembali
+              {{ .T.BackBtn }}
             </button>
             <button
               type="submit"
               id="btn-submit"
               class="btn-submit flex-1 px-4 py-3 rounded-xl bg-blue-600 text-white font-semibold flex items-center justify-center space-x-2 transition-colors duration-200 hover:bg-blue-700">
               <span class="btn-content">
-                {{ if eq .PaymentMethod "ovo" }} Bayar {{ else }} Bayar dengan
+                {{ if eq .PaymentMethod "ovo" }} {{ .T.PayBtn }} {{ else }} {{ .T.PayWithBtn }}
                 {{ .PaymentMethodStr }}* {{ end }}
               </span>
             </button>
           </div>
           <p class="text-center text-xs text-gray-400 pt-2">
-            *Selanjutnya akan membuka aplikasi {{ .PaymentMethodStr}}.<br />
+            {{ printf .T.OvoNextStep .PaymentMethodStr }}<br />
           </p>
           {{ end }}
         </form>
@@ -199,7 +204,7 @@
         .PaymentMethod "qrph") }}
         <p
           class="text-center text-sm text-gray-500 mt-4 border-t pt-4 border-gray-200">
-          Atau Gunakan QR Code
+          {{ .T.OrUseQr }}
         </p>
         {{ else }}
         <p class="text-sm text-gray-500 mt-4 border-t pt-4 border-gray-200"></p>
@@ -216,14 +221,14 @@
             <label
               for="customer_name_qr"
               class="absolute -top-1 left-3 bg-white px-1 text-sm text-gray-500"
-              >Nama Pelanggan (QRPH)</label
+              >{{ .T.CustomerNameQrLabel }}</label
             >
             <input
               type="text"
               id="customer_name_qr"
               class="w-full px-4 py-3 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               name="customer_name_qr"
-              placeholder="Masukan nama lengkap"
+              placeholder="{{ .T.CustomerNameQrPlaceholder }}"
               required />
           </div>
           {{ else }}
@@ -239,7 +244,7 @@
             id="btn-submit-qr"
             class="btn-submit w-full px-4 py-3 rounded-xl bg-blue-50 text-white bg-blue-600 font-semibold flex items-center justify-center space-x-2 transition-colors duration-200 hover:bg-blue-700">
             <span class="btn-content"
-              >Bayar dengan {{ .PaymentMethodStr}} (QR Code)**</span
+              >{{ printf .T.PayWithQrBtn .PaymentMethodStr }}**</span
             >
           </button>
           {{ else }}
@@ -249,13 +254,13 @@
             id="btn-submit-qr"
             class="btn-submit w-full px-4 py-3 rounded-xl bg-blue-50 text-blue-600 border border-blue-600 font-semibold flex items-center justify-center space-x-2 transition-colors duration-200 hover:bg-blue-100">
             <span class="btn-content"
-              >Bayar dengan {{ .PaymentMethodStr}} (QR Code)**</span
+              >{{ printf .T.PayWithQrBtn .PaymentMethodStr }}**</span
             >
           </button>
           {{ end }}
 
           <p class="text-center text-xs text-gray-400 pt-2">
-            **Selanjutnya akan menampilkan QR code.
+            {{ .T.QrNextStep }}
           </p>
         </form>
         {{ end }}
@@ -273,24 +278,24 @@
               clip-rule="evenodd"></path>
           </svg>
           <div>
-            <h3 class="font-semibold">Transaksi Aman & Terpercaya</h3>
+            <h3 class="font-semibold">{{ .T.SecurityTitle }}</h3>
             <ul class="text-xs list-disc mt-2 space-y-1">
               <!-- <li>Data Anda dilindungi enkripsi SSL 256-bit</li> -->
-              <li>Tidak ada biaya tambahan untuk transaksi ini</li>
-              <li>Item akan masuk ke akun dalam 1-3 menit</li>
+              <li>{{ .T.SecurityNoFee }}</li>
+              <li>{{ .T.SecurityInstant }}</li>
             </ul>
           </div>
         </div>
 
         <!-- General Disclaimers -->
         <p class="text-center text-xs text-gray-400">
-          Dengan melanjutkan, Anda menyetujui
+          {{ .T.DisclaimerPart1 }}
           <a href="#" class="text-blue-600 hover:underline"
-            >Syarat & Ketentuan</a
+            >{{ .T.Terms }}</a
           >
-          dan
+          {{ .T.DisclaimerPart2 }}
           <a href="#" class="text-blue-600 hover:underline"
-            >Kebijakan Privasi</a
+            >{{ .T.Privacy }}</a
           >
         </p>
       </div>
@@ -309,7 +314,7 @@
               d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-8a1 1 0 11-2 0 1 1 0 012 0zm3 0a1 1 0 11-2 0 1 1 0 012 0z"
               clip-rule="evenodd"></path>
           </svg>
-          <span>SSL Secured</span>
+          <span>{{ .T.SslSecured }}</span>
         </div>
         <div class="flex items-center space-x-1">
           <svg
@@ -321,7 +326,7 @@
               d="M10 2a8 8 0 100 16 8 8 0 000-16zm-1 8a1 1 0 112 0 1 1 0 01-2 0z"
               clip-rule="evenodd"></path>
           </svg>
-          <span>PCI Compliant</span>
+          <span>{{ .T.PciCompliant }}</span>
         </div>
         <div class="flex items-center space-x-1">
           <svg
@@ -334,7 +339,7 @@
               d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-8a1 1 0 10-2 0v4a1 1 0 102 0v-4zm-1-4a1 1 0 100 2 1 1 0 000-2z"
               clip-rule="evenodd"></path>
           </svg>
-          <span>24/7 Support</span>
+          <span>{{ .T.Support }}</span>
         </div>
       </div>
     </div>

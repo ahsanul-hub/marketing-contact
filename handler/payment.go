@@ -184,7 +184,7 @@ func CreateOrder(c *fiber.Ctx) error {
 	appSecret := arrClient.ClientSecret
 
 	expectedBodysign := helper.GenerateBodySign(input, appSecret)
-	//log.Println("expectedBodysign", expectedBodysign)
+	// log.Println("expectedBodysign", expectedBodysign)
 
 	if receivedBodysign != expectedBodysign {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -516,6 +516,10 @@ func PaymentPage(c *fiber.Ctx) error {
 	defer span.End()
 	token := c.Params("token")
 	appid := c.Params("appid")
+	lang := c.Query("lang")
+	if lang == "" {
+		lang = "id"
+	}
 
 	// Log request headers untuk tracking
 	headers := make(map[string]interface{})
@@ -637,6 +641,14 @@ func PaymentPage(c *fiber.Ctx) error {
 			InputAppKey = "GaXGyP21MVAglo7RuQg1-A"
 		}
 
+		translations := GetTranslations(lang)
+
+		// Determine alternate language for the switch button
+		altLang := "en"
+		if lang == "en" {
+			altLang = "id"
+		}
+
 		if paymentMethod == "shopeepay" || paymentMethod == "gopay" || paymentMethod == "qris" || paymentMethod == "dana" || paymentMethod == "ovo" || paymentMethod == "qrph" {
 			vat := inputReq.Price - inputReq.Amount
 			return c.Render("payment_ewallet_new", fiber.Map{
@@ -659,6 +671,9 @@ func PaymentPage(c *fiber.Ctx) error {
 				"BodySign":         inputReq.BodySign,
 				"RedirectURL":      inputReq.RedirectURL,
 				"UserIP":           inputReq.UserIP,
+				"T":                translations,
+				"Lang":             lang,
+				"AltLang":          altLang,
 			})
 		}
 
@@ -681,6 +696,9 @@ func PaymentPage(c *fiber.Ctx) error {
 			"Token":            token,
 			"BodySign":         inputReq.BodySign,
 			"UserIP":           inputReq.UserIP,
+			"T":                translations,
+			"Lang":             lang,
+			"AltLang":          altLang,
 		})
 
 	}
@@ -693,6 +711,15 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 	defer span.End()
 	token := c.Params("token")
 	appid := c.Params("appid")
+	lang := c.Query("lang")
+	if lang == "" {
+		lang = "id"
+	}
+	translations := GetTranslations(lang)
+	altLang := "en"
+	if lang == "en" {
+		altLang = "id"
+	}
 
 	var allowedClients = map[string]string{
 		"6078feb8764f1ba30a8b4569": "xUkAmrJoE9C0XvUE8Di3570TT0FYwju4",
@@ -825,6 +852,9 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 				"BodySign":         inputReq.BodySign,
 				"RedirectURL":      inputReq.RedirectURL,
 				"UserIP":           inputReq.UserIP,
+				"T":                translations,
+				"Lang":             lang,
+				"AltLang":          altLang,
 			})
 		}
 
@@ -846,6 +876,9 @@ func PaymentPageLegacy(c *fiber.Ctx) error {
 			"Token":            token,
 			"BodySign":         inputReq.BodySign,
 			"UserIP":           inputReq.UserIP,
+			"T":                translations,
+			"Lang":             lang,
+			"AltLang":          altLang,
 		})
 
 	}
@@ -1833,6 +1866,15 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 	span, _ := apm.StartSpan(c.Context(), "PaymentPageCreditCard", "handler")
 	defer span.End()
 	token := c.Params("token")
+	lang := c.Query("lang")
+	if lang == "" {
+		lang = "id"
+	}
+	translations := GetTranslations(lang)
+	altLang := "en"
+	if lang == "en" {
+		altLang = "id"
+	}
 
 	var inputReq model.InputPaymentRequest
 	var createdTransId string
@@ -1939,6 +1981,9 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 						"StatusCode":      tx.StatusCode,
 						"StatusMessage":   tx.FailReason,
 						"RedirectURL":     inputReq.RedirectURL,
+						"T":               translations,
+						"Lang":            lang,
+						"AltLang":         altLang,
 					})
 				}
 
@@ -2046,6 +2091,9 @@ func PaymentPageCreditCard(c *fiber.Ctx) error {
 			"PaymentProvider":     paymentProvider,
 			"EncryptionKey":       encryptionKey,
 			"PaymentSessionId":    paymentSessionId,
+			"T":                   translations,
+			"Lang":                lang,
+			"AltLang":             altLang,
 		})
 	}
 
@@ -2400,6 +2448,16 @@ func ChargeCreditCardHarsya(c *fiber.Ctx) error {
 }
 
 func PaymentFailurePage(c *fiber.Ctx) error {
+	lang := c.Query("lang")
+	if lang == "" {
+		lang = "id"
+	}
+	translations := GetTranslations(lang)
+	altLang := "en"
+	if lang == "en" {
+		altLang = "id"
+	}
+
 	transactionID := c.Query("transaction_id")
 	if transactionID == "" {
 		transactionID = c.Query("clientReferenceId")
@@ -2439,10 +2497,23 @@ func PaymentFailurePage(c *fiber.Ctx) error {
 		"StatusCode":      1005, // Failed
 		"StatusMessage":   "Pembayaran dibatalkan atau gagal",
 		"RedirectURL":     tx.RedirectURL,
+		"T":               translations,
+		"Lang":            lang,
+		"AltLang":         altLang,
 	})
 }
 
 func PaymentExpirationPage(c *fiber.Ctx) error {
+	lang := c.Query("lang")
+	if lang == "" {
+		lang = "id"
+	}
+	translations := GetTranslations(lang)
+	altLang := "en"
+	if lang == "en" {
+		altLang = "id"
+	}
+
 	transactionID := c.Query("transaction_id")
 	if transactionID == "" {
 		transactionID = c.Query("clientReferenceId")
@@ -2482,10 +2553,23 @@ func PaymentExpirationPage(c *fiber.Ctx) error {
 		"StatusCode":      1006, // Expired
 		"StatusMessage":   "Sesi pembayaran telah kadaluarsa",
 		"RedirectURL":     tx.RedirectURL,
+		"T":               translations,
+		"Lang":            lang,
+		"AltLang":         altLang,
 	})
 }
 
 func PaymentSuccessPage(c *fiber.Ctx) error {
+	lang := c.Query("lang")
+	if lang == "" {
+		lang = "id"
+	}
+	translations := GetTranslations(lang)
+	altLang := "en"
+	if lang == "en" {
+		altLang = "id"
+	}
+
 	transactionID := c.Query("transaction_id")
 	if transactionID == "" {
 		transactionID = c.Query("clientReferenceId")
@@ -2527,5 +2611,8 @@ func PaymentSuccessPage(c *fiber.Ctx) error {
 		"StatusCode":      1000,
 		"StatusMessage":   statusMessage,
 		"RedirectURL":     tx.RedirectURL,
+		"T":               translations,
+		"Lang":            lang,
+		"AltLang":         altLang,
 	})
 }
