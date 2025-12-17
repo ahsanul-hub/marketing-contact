@@ -130,7 +130,7 @@ func RequestMoTsel(msisdn, itemID, itemDesc, transactionId string, denom string)
 	// log.Println("cacheKey request mo tsel", cacheKey)
 
 	if database.RedisClient != nil {
-		if err := database.RedisClient.Set(ctx, cacheKey, jsonData, 10*time.Minute).Err(); err != nil {
+		if err := database.RedisClient.Set(ctx, cacheKey, jsonData, 20*time.Minute).Err(); err != nil {
 			log.Printf("Error saving transaction %s to Redis: %s", transactionId, err)
 		}
 	}

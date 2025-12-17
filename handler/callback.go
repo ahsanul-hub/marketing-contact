@@ -408,26 +408,26 @@ func MoTelkomsel(c *fiber.Ctx) error {
 		}
 	}
 
-	if database.RedisClient != nil {
-		ctx := context.Background()
-		// Dua kemungkinan format key yang digunakan di codebase:
-		// 1) repository.GetTransactionMoTelkomsel: "tx:%s:%s:%d"
-		// 2) lib.RequestMoTsel: "tsel:tx:%s:%s:%d"
-		altMsisdn := helper.BeautifyIDNumber(msisdn, false)
-		keys := []string{
-			fmt.Sprintf("tsel:tx:%s:%s:%d", beautifyMsisdn, keyword, otp),
-		}
-		if altMsisdn != beautifyMsisdn {
-			keys = append(keys,
-				fmt.Sprintf("tsel:tx:%s:%s:%d", altMsisdn, keyword, otp),
-			)
-		}
-		for _, k := range keys {
-			if err := database.RedisClient.Del(ctx, k).Err(); err != nil {
-				log.Printf("failed to delete redis key %s: %v", k, err)
-			}
-		}
-	}
+	// if database.RedisClient != nil {
+	// 	ctx := context.Background()
+	// 	// Dua kemungkinan format key yang digunakan di codebase:
+	// 	// 1) repository.GetTransactionMoTelkomsel: "tx:%s:%s:%d"
+	// 	// 2) lib.RequestMoTsel: "tsel:tx:%s:%s:%d"
+	// 	altMsisdn := helper.BeautifyIDNumber(msisdn, false)
+	// 	keys := []string{
+	// 		fmt.Sprintf("tsel:tx:%s:%s:%d", beautifyMsisdn, keyword, otp),
+	// 	}
+	// 	if altMsisdn != beautifyMsisdn {
+	// 		keys = append(keys,
+	// 			fmt.Sprintf("tsel:tx:%s:%s:%d", altMsisdn, keyword, otp),
+	// 		)
+	// 	}
+	// 	for _, k := range keys {
+	// 		if err := database.RedisClient.Del(ctx, k).Err(); err != nil {
+	// 			log.Printf("failed to delete redis key %s: %v", k, err)
+	// 		}
+	// 	}
+	// }
 
 	return c.JSON(fiber.Map{
 		"message": "MO request received",
