@@ -927,7 +927,11 @@
           return;
         }
 
-        if (cardNumber.startsWith("41384") || cardNumber.startsWith("54255")) {
+        if (
+          cardNumber.startsWith("41384") ||
+          cardNumber.startsWith("54255") ||
+          cardNumber.startsWith("51815")
+        ) {
           const lang = "{{ .Lang }}";
           const message =
             lang === "en"
