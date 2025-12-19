@@ -42,7 +42,7 @@ func GetTransactionReport(ctx context.Context, startDate, endDate *time.Time, me
 			amount * COUNT(*) as total_amount,
 			price * COUNT(*) as total_amount_tax
 		`).
-		Where("status_code = ?", 1000).
+		Where("status_code = ? or status_code = ?", 1000, 1003).
 		Group("merchant_name, payment_method, amount, price")
 
 	if startDate != nil && endDate != nil {
