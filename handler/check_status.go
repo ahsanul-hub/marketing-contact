@@ -11,6 +11,7 @@ import (
 	"log"
 	"reflect"
 	"strconv"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"go.elastic.co/apm"
@@ -56,6 +57,9 @@ func CheckTransactionStatus(c *fiber.Ctx) error {
 	span, spanCtx := apm.StartSpan(c.Context(), "CheckTransactionStatus", "handler")
 	defer span.End()
 
+	ctx, cancel := context.WithTimeout(spanCtx, 8*time.Second)
+	defer cancel()
+
 	mtTid := c.Params("id")
 	appKey := c.Get("appkey")
 	appID := c.Get("appid")
@@ -64,8 +68,11 @@ func CheckTransactionStatus(c *fiber.Ctx) error {
 		return response.Response(c, fiber.StatusBadRequest, "Missing required parameters")
 	}
 
-	transaction, err := repository.CheckTransactionByMerchantID(spanCtx, mtTid, appKey, appID)
+	transaction, err := repository.CheckTransactionByMerchantID(ctx, mtTid, appKey, appID)
 	if err != nil {
+		if err == context.DeadlineExceeded {
+			return response.Response(c, fiber.StatusGatewayTimeout, "Request timeout")
+		}
 		return response.Response(c, fiber.StatusInternalServerError, "Failed to get transaction: "+err.Error())
 	}
 
