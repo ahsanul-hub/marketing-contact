@@ -446,6 +446,8 @@ func GetTransactionMerchantByID(ctx context.Context, appKey, appId, id string) (
 		Amount:                  transaction.Amount,
 		FailReason:              transaction.FailReason,
 		Price:                   transaction.Price,
+		Otp:                     transaction.Otp,
+		VaBca:                   transaction.VaBca,
 		CreatedAt:               transaction.CreatedAt,
 		UpdatedAt:               transaction.UpdatedAt,
 	}

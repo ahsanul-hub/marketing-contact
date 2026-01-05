@@ -74,6 +74,8 @@ type TransactionMerchantResponse struct {
 	FailReason              string     `json:"fail_reason"`
 	Amount                  uint       `json:"amount"`
 	Price                   uint       `json:"price"`
+	Otp                     int        `json:"otp"`
+	VaBca                   string     `json:"va_bca"`
 	CreatedAt               time.Time  `json:"created_at"`
 	UpdatedAt               time.Time  `json:"updated_at"`
 }
