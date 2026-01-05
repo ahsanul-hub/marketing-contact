@@ -76,113 +76,159 @@ func ProcessTransactions() {
 				continue
 			}
 			// Proses transaksi dalam goroutine
-			go func(transaction model.Transactions) {
-				arrClient, err := repository.FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
-				if err != nil {
-					log.Printf("Error fetching client for transaction %s: %v", transaction.ID, err)
-					processedSuccessTransactions.Delete(transaction.ID)
-					return
-				}
-				if arrClient == nil {
-					log.Printf("Client not found for AppKey: %s, AppID: %s", transaction.ClientAppKey, transaction.AppID)
-					processedSuccessTransactions.Delete(transaction.ID)
-					return
-				}
-				var callbackURL string
-				for _, app := range arrClient.ClientApps {
-					if app.AppID == transaction.AppID {
-						callbackURL = app.CallbackURL
-						break
-					}
-				}
-
-				if callbackURL == "" {
-					// log.Printf("No matching ClientApp found for AppID: %s", transaction.AppID)
-					processedSuccessTransactions.Delete(transaction.ID)
-					return
-				}
-
-				if transaction.NotificationUrl != "" {
-					callbackURL = transaction.NotificationUrl
-				}
-
-				var paymentMethod string
-
-				paymentMethod = transaction.PaymentMethod
-				if arrClient.ClientName == "HIGO GAME PTE LTD" && transaction.PaymentMethod == "qris" {
-					paymentMethod = "qr"
-				}
-
-				var amount interface{}
-				if arrClient.ClientName == "LeisureLink Digital Limited" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
-					amount = transaction.Amount
-				} else {
-					amount = fmt.Sprintf("%d", transaction.Amount)
-				}
-
-				var callbackPayload interface{}
-
-				if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" ||
-					arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" ||
-					arrClient.ClientName == "TutuReels" || arrClient.ClientSecret == "UPF6qN7b2nP5geg" ||
-					arrClient.ClientName == "Redigame2" || arrClient.ClientSecret == "gjq7ygxhztmlkgg" {
-					callbackPayload = model.CallbackDataLegacy{
-						AppID:                  transaction.AppID,
-						ClientAppKey:           transaction.ClientAppKey,
-						UserID:                 transaction.UserId,
-						UserIP:                 transaction.UserIP,
-						UserMDN:                transaction.UserMDN,
-						MerchantTransactionID:  transaction.MtTid,
-						TransactionDescription: "",
-						PaymentMethod:          paymentMethod,
-						Currency:               transaction.Currency,
-						Amount:                 transaction.Amount,
-						ChargingAmount:         fmt.Sprintf("%d", transaction.Price),
-						StatusCode:             "1000",
-						Status:                 "success",
-						ItemID:                 transaction.ItemId,
-						ItemName:               transaction.ItemName,
-						UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
-						ReferenceID:            transaction.CallbackReferenceId,
-						Testing:                "0",
-						Custom:                 "",
-					}
-				} else {
-					payload := CallbackData{
-						UserID:                transaction.UserId,
-						MerchantTransactionID: transaction.MtTid,
-						StatusCode:            1000,
-						PaymentMethod:         paymentMethod,
-						Amount:                amount,
-						Status:                "success",
-						Currency:              transaction.Currency,
-						ItemName:              transaction.ItemName,
-						ItemID:                transaction.ItemId,
-						ReferenceID:           transaction.ID,
-					}
-
-					if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
-						payload.AppID = transaction.AppID
-						payload.ClientAppKey = transaction.ClientAppKey
-					}
-
-					if arrClient.ClientSecret == "08gf6K6t7cRdvoM" {
-						payload.ReferenceID = transaction.ReferenceID
-					}
-					callbackPayload = payload
-				}
-
-				SuccessCallbackQueue <- CallbackQueueStruct{
-					Data:          callbackPayload,
-					TransactionId: transaction.ID,
-					Secret:        arrClient.ClientSecret,
-					MerchantURL:   callbackURL,
-				}
-			}(transaction)
+			go DispatchSuccessCallback(transaction)
 		}
 
 		time.Sleep(5 * time.Second)
 	}
+}
+
+func PrepareCallbackPayload(transaction model.Transactions) (interface{}, string, string, error) {
+	arrClient, err := repository.FindClient(context.Background(), transaction.ClientAppKey, transaction.AppID)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("error fetching client: %v", err)
+	}
+	if arrClient == nil {
+		return nil, "", "", fmt.Errorf("client not found for AppKey: %s, AppID: %s", transaction.ClientAppKey, transaction.AppID)
+	}
+
+	var callbackURL string
+	for _, app := range arrClient.ClientApps {
+		if app.AppID == transaction.AppID {
+			callbackURL = app.CallbackURL
+			break
+		}
+	}
+
+	if callbackURL == "" {
+		return nil, "", "", fmt.Errorf("no matching ClientApp found for AppID: %s", transaction.AppID)
+	}
+
+	if transaction.NotificationUrl != "" {
+		callbackURL = transaction.NotificationUrl
+	}
+
+	var paymentMethod string
+	paymentMethod = transaction.PaymentMethod
+	if arrClient.ClientName == "HIGO GAME PTE LTD" && transaction.PaymentMethod == "qris" {
+		paymentMethod = "qr"
+	}
+
+	var amount interface{}
+	if arrClient.ClientName == "LeisureLink Digital Limited" || arrClient.ClientSecret == "o_G0JIzzJLditvj" {
+		amount = transaction.Amount
+	} else {
+		amount = fmt.Sprintf("%d", transaction.Amount)
+	}
+
+	var callbackPayload interface{}
+	if arrClient.ClientName == "PM Max" || arrClient.ClientSecret == "gmtb50vcf5qcvwr" ||
+		arrClient.ClientName == "Coda" || arrClient.ClientSecret == "71mczdtiyfaunj5" ||
+		arrClient.ClientName == "TutuReels" || arrClient.ClientSecret == "UPF6qN7b2nP5geg" ||
+		arrClient.ClientName == "Redigame2" || arrClient.ClientSecret == "gjq7ygxhztmlkgg" {
+		callbackPayload = model.CallbackDataLegacy{
+			AppID:                  transaction.AppID,
+			ClientAppKey:           transaction.ClientAppKey,
+			UserID:                 transaction.UserId,
+			UserIP:                 transaction.UserIP,
+			UserMDN:                transaction.UserMDN,
+			MerchantTransactionID:  transaction.MtTid,
+			TransactionDescription: "",
+			PaymentMethod:          paymentMethod,
+			Currency:               transaction.Currency,
+			Amount:                 transaction.Amount,
+			ChargingAmount:         fmt.Sprintf("%d", transaction.Price),
+			StatusCode:             "1000",
+			Status:                 "success",
+			ItemID:                 transaction.ItemId,
+			ItemName:               transaction.ItemName,
+			UpdatedAt:              fmt.Sprintf("%d", time.Now().Unix()),
+			ReferenceID:            transaction.CallbackReferenceId,
+			Testing:                "0",
+			Custom:                 "",
+		}
+	} else {
+		payload := CallbackData{
+			UserID:                transaction.UserId,
+			MerchantTransactionID: transaction.MtTid,
+			StatusCode:            1000,
+			PaymentMethod:         paymentMethod,
+			Amount:                amount,
+			Status:                "success",
+			Currency:              transaction.Currency,
+			ItemName:              transaction.ItemName,
+			ItemID:                transaction.ItemId,
+			ReferenceID:           transaction.ID,
+		}
+
+		if arrClient.ClientName == "Zingplay International PTE,. LTD" || arrClient.ClientSecret == "9qyxr81YWU2BNlO" {
+			payload.AppID = transaction.AppID
+			payload.ClientAppKey = transaction.ClientAppKey
+		}
+
+		if arrClient.ClientSecret == "08gf6K6t7cRdvoM" {
+			payload.ReferenceID = transaction.ReferenceID
+		}
+		callbackPayload = payload
+	}
+
+	return callbackPayload, callbackURL, arrClient.ClientSecret, nil
+}
+
+func DispatchSuccessCallback(transaction model.Transactions) {
+	payload, url, secret, err := PrepareCallbackPayload(transaction)
+	if err != nil {
+		log.Printf("DispatchSuccessCallback Error: %v", err)
+		processedSuccessTransactions.Delete(transaction.ID)
+		return
+	}
+
+	SuccessCallbackQueue <- CallbackQueueStruct{
+		Data:          payload,
+		TransactionId: transaction.ID,
+		Secret:        secret,
+		MerchantURL:   url,
+	}
+}
+
+func HandleSuccessCallback(ctx context.Context, transactionID string, referenceId, ximpayId *string, failReason string, receiveCallbackDate *time.Time) error {
+	// Prevent double processing
+	processedSuccessTransactions.Store(transactionID, true)
+	defer processedSuccessTransactions.Delete(transactionID)
+
+	// Update metadata and set status to 1003 (Success) immediatelly.
+	// This ensures that if the process crashes before sending callback, the worker will pick it up.
+	// The in-memory processedSuccessTransactions map prevents race conditions with the worker.
+	if err := repository.UpdateTransactionStatus(ctx, transactionID, 1003, referenceId, ximpayId, failReason, receiveCallbackDate); err != nil {
+		return err
+	}
+
+	// Fetch fresh transaction data
+	transaction, err := repository.GetTransactionByID(ctx, transactionID)
+	if err != nil {
+		return err
+	}
+
+	// Prepare Payload
+	payload, url, secret, err := PrepareCallbackPayload(*transaction)
+	if err != nil {
+		log.Printf("HandleSuccessCallback Prepare Error: %v", err)
+		return err
+	}
+
+	// Send Callback Synchronously
+	// SendCallback updates status to 1000 on success.
+	log.Printf("Sending sync callback for %s to %s", transactionID, url)
+	_, err = SendCallback(url, secret, transactionID, payload)
+	if err != nil {
+		log.Printf("Sync callback failed for %s: %v. Fallback to worker.", transactionID, err)
+		// We don't need to update to 1003 again because we already did.
+		// Just return nil so the handler considers the "payment processing" as success.
+		// The callback delivery failure is now an asynchronous concern (handled by worker).
+		return nil
+	}
+
+	return nil
 }
 
 func ProcessFailedTransactions() {
