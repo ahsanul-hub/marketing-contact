@@ -822,11 +822,11 @@ func ClaimTransactionForCallback(ctx context.Context, transactionID string, stat
 
 	// Atomic update: only update if timestamp_callback_result is empty
 	// This prevents other workers from picking up the same transaction
+	// Note: We don't update status_code here to avoid overwriting successful callbacks (1000) back to 1003
 	result := db.WithContext(ctx).Model(&model.Transactions{}).
 		Where("id = ? AND (timestamp_callback_result IS NULL OR timestamp_callback_result = '')", transactionID).
 		Updates(map[string]interface{}{
 			"timestamp_callback_result": "processing",
-			"status_code":               statusCode,
 		})
 
 	if result.Error != nil {
