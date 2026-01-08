@@ -7,6 +7,7 @@ import (
 	"app/helper"
 	"app/lib"
 	"app/repository"
+	"app/worker"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -485,9 +486,10 @@ func MidtransCallback(c *fiber.Ctx) error {
 
 	switch *req.TransactionStatus {
 	case "settlement", "capture":
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
-			log.Printf("Error updating transaction status for %s: %s", *req.TransactionID, err)
+		if err := worker.HandleSuccessCallback(context.Background(), transactionID, nil, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error processing success callback for %s: %s", *req.TransactionID, err)
 		}
+
 	case "expire":
 		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Transaction expired"); err != nil {
 			log.Printf("Error updating transaction status for %s to expired: %s", *req.TransactionID, err)
