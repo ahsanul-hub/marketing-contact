@@ -7,6 +7,7 @@ import (
 	"app/lib"
 	"app/pkg/response"
 	"app/repository"
+	"app/worker"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -756,7 +757,6 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 				// Kamu bisa retry atau simpan log error ke DB jika perlu
 				_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, nil, nil, "Charging request failed", nil)
 			case res := <-resultChan:
-				log.Println("res charge ovo:", res)
 
 				referenceId := fmt.Sprintf("%s-%s", res.ApprovalCode, res.TransactionRequestData.MerchantInvoice)
 				now := time.Now()
@@ -764,7 +764,9 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 
 				switch res.ResponseCode {
 				case "00":
-					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1003, &referenceId, nil, "", receiveCallbackDate)
+					if err := worker.HandleSuccessCallback(context.Background(), createdTransId, nil, nil, "", receiveCallbackDate); err != nil {
+						log.Printf("Error processing success callback for %s: %s", createdTransId, err)
+					}
 				case "13":
 					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Invalid amount", receiveCallbackDate)
 				case "14":

@@ -280,8 +280,8 @@ func CallbackTriyakom(c *fiber.Ctx) error {
 
 	switch ximpayStatus {
 	case "1":
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionId, 1003, nil, nil, "", receiveCallbackDate); err != nil {
-			log.Printf("Error updating transaction status for %s: %s", transactionId, err)
+		if err := worker.HandleSuccessCallback(context.Background(), transactionId, nil, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error processing success callback for %s: %s", transactionId, err)
 		}
 
 	case "2":
@@ -580,8 +580,8 @@ func XLCallback(c *fiber.Ctx) error {
 
 	switch *req.ResultCode {
 	case "00":
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
-			log.Printf("Error updating transaction status for %s: %s", *req.TransactionId, err)
+		if err := worker.HandleSuccessCallback(context.Background(), transactionID, nil, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error processing success callback for %s: %s", transactionID, err)
 		}
 	case "11", "12":
 		if err := repository.UpdateTransactionStatusExpired(context.Background(), transactionID, 1005, "", "Insufficient Balance"); err != nil {
@@ -671,8 +671,8 @@ func DanaCallback(c *fiber.Ctx) error {
 
 	switch status {
 	case "SUCCESS":
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, &referenceId, nil, "", receiveCallbackDate); err != nil {
-			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		if err := worker.HandleSuccessCallback(context.Background(), transactionID, nil, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error processing success callback for %s: %s", transactionID, err)
 		}
 	case "CLOSED":
 		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, &referenceId, nil, "order is closed", receiveCallbackDate); err != nil {
@@ -757,8 +757,8 @@ func DanaFaspayCallback(c *fiber.Ctx) error {
 	switch status {
 	case "2":
 		log.Println("Success Request Body:\n", string(body))
-		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1003, nil, nil, "", receiveCallbackDate); err != nil {
-			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		if err := worker.HandleSuccessCallback(context.Background(), transactionID, nil, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error processing success callback for %s: %s", transactionID, err)
 		}
 	case "0":
 		log.Println("CLOSED Request Body:\n", string(body))

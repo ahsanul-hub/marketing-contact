@@ -686,7 +686,9 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 				switch res.ResponseCode {
 				case "00":
-					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1003, &referenceId, nil, "", receiveCallbackDate)
+					if err := worker.HandleSuccessCallback(context.Background(), createdTransId, nil, nil, "", receiveCallbackDate); err != nil {
+						log.Printf("Error processing success callback for %s: %s", createdTransId, err)
+					}
 				case "13":
 					_ = repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Invalid amount", receiveCallbackDate)
 				case "14":
@@ -1648,8 +1650,8 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 
 		switch res.ResponseCode {
 		case "00":
-			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1003, &referenceId, nil, "", receiveCallbackDate); err != nil {
-				log.Printf("Error updating transaction status for %s: %s", createdTransId, err)
+			if err := worker.HandleSuccessCallback(context.Background(), createdTransId, nil, nil, "", receiveCallbackDate); err != nil {
+				log.Printf("Error processing success callback for %s: %s", createdTransId, err)
 			}
 		case "13":
 			if err := repository.UpdateTransactionStatus(context.Background(), createdTransId, 1005, &referenceId, nil, "Invalid amount", receiveCallbackDate); err != nil {
