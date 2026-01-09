@@ -384,8 +384,8 @@ func MoTelkomsel(c *fiber.Ctx) error {
 
 	switch res.Status {
 	case "1":
-		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1003, &trxId, nil, "", receiveCallbackDate); err != nil {
-			log.Printf("Error updating transaction status for %s: %s", transaction.ID, err)
+		if err := worker.HandleSuccessCallback(context.Background(), transaction.ID, nil, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error processing success callback for %s: %s", transaction.ID, err)
 		}
 	case "3:3:21":
 		if err := repository.UpdateTransactionStatus(context.Background(), transaction.ID, 1005, &trxId, nil, "Not enough credit", receiveCallbackDate); err != nil {
