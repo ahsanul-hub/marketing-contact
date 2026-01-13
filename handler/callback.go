@@ -384,7 +384,7 @@ func MoTelkomsel(c *fiber.Ctx) error {
 
 	switch res.Status {
 	case "1":
-		if err := worker.HandleSuccessCallback(context.Background(), transaction.ID, nil, nil, "", receiveCallbackDate); err != nil {
+		if err := worker.HandleSuccessCallback(context.Background(), transaction.ID, &trxId, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error processing success callback for %s: %s", transaction.ID, err)
 		}
 	case "3:3:21":
@@ -671,7 +671,7 @@ func DanaCallback(c *fiber.Ctx) error {
 
 	switch status {
 	case "SUCCESS":
-		if err := worker.HandleSuccessCallback(context.Background(), transactionID, nil, nil, "", receiveCallbackDate); err != nil {
+		if err := worker.HandleSuccessCallback(context.Background(), transactionID, &referenceId, nil, "", receiveCallbackDate); err != nil {
 			log.Printf("Error processing success callback for %s: %s", transactionID, err)
 		}
 	case "CLOSED":

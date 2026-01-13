@@ -686,7 +686,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 
 				switch res.ResponseCode {
 				case "00":
-					if err := worker.HandleSuccessCallback(context.Background(), createdTransId, nil, nil, "", receiveCallbackDate); err != nil {
+					if err := worker.HandleSuccessCallback(context.Background(), createdTransId, &referenceId, nil, "", receiveCallbackDate); err != nil {
 						log.Printf("Error processing success callback for %s: %s", createdTransId, err)
 					}
 				case "13":
@@ -1650,7 +1650,7 @@ func CreateTransactionNonTelco(c *fiber.Ctx) error {
 
 		switch res.ResponseCode {
 		case "00":
-			if err := worker.HandleSuccessCallback(context.Background(), createdTransId, nil, nil, "", receiveCallbackDate); err != nil {
+			if err := worker.HandleSuccessCallback(context.Background(), createdTransId, &referenceId, nil, "", receiveCallbackDate); err != nil {
 				log.Printf("Error processing success callback for %s: %s", createdTransId, err)
 			}
 		case "13":
