@@ -543,8 +543,76 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		})
 
 	case "smartfren_airtime", "smartfren_triyakom":
-		validAmounts, exists := routes["smartfren_triyakom"]
+		// validAmounts, exists := routes["smartfren_triyakom"]
+		// if !exists {
+		// 	return c.JSON(fiber.Map{
+		// 		"success": false,
+		// 		"retcode": "E0008",
+		// 		"message": "This denom is not supported for this payment method",
+		// 		"data":    []interface{}{},
+		// 	})
+		// }
+
+		// validAmount := false
+		// for _, route := range validAmounts {
+		// 	if transactionAmountStr == route {
+		// 		validAmount = true
+		// 		break
+		// 	}
+		// }
+
+		// if !validAmount && !paymentMethodClient.Flexible {
+		// 	return c.JSON(fiber.Map{
+		// 		"success": false,
+		// 		"retcode": "E0008",
+		// 		"message": "This denom is not supported for this payment method",
+		// 		"data":    []interface{}{},
+		// 	})
+		// }
+
+		// ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
+		// if err != nil {
+		// 	log.Println("Charging request smartfren failed:", err)
+		// 	return c.JSON(fiber.Map{
+		// 		"success": false,
+		// 		"retcode": "E0000",
+		// 		"message": "Failed charging request",
+		// 		"data":    []interface{}{},
+		// 	})
+		// }
+
+		// err = repository.UpdateXimpayID(context.Background(), createdTransId, ximpayId)
+		// if err != nil {
+		// 	log.Println("Updated Ximpay ID error:", err)
+		// }
+
+		// data := map[string]interface{}{
+		// 	"phone_number": transaction.UserMDN,
+		// 	"keyword":      "",
+		// 	"sms_code":     "",
+		// 	"shortcode":    "",
+		// 	"url":          "",
+		// 	"qr":           "",
+		// 	"html":         "",
+		// 	"bankcode":     "",
+		// 	"vaid":         "",
+		// 	"code":         "",
+		// 	"trx_type":     "reply",
+		// }
+
+		// return c.JSON(fiber.Map{
+		// 	"success":                 true,
+		// 	"data":                    data,
+		// 	"appid":                   appid,
+		// 	"appkey":                  expectedAppKey,
+		// 	"token":                   token,
+		// 	"timestamp":               time.Now().Unix(),
+		// 	"merchant_transaction_id": transaction.MtTid,
+		// })
+
+		validAmounts, exists := routes["smartfren_airtime"]
 		if !exists {
+
 			return c.JSON(fiber.Map{
 				"success": false,
 				"retcode": "E0008",
@@ -570,9 +638,9 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			})
 		}
 
-		ximpayId, err := lib.RequestChargingSfTriyakom(transaction.UserMDN, transaction.ItemName, createdTransId, chargingPrice)
+		_, err := lib.RequestChargingXL(transaction.UserMDN, transaction.MtTid, transaction.ItemName, createdTransId, chargingPrice)
 		if err != nil {
-			log.Println("Charging request smartfren failed:", err)
+			log.Println("Charging request failed:", err)
 			return c.JSON(fiber.Map{
 				"success": false,
 				"retcode": "E0000",
@@ -581,16 +649,11 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 			})
 		}
 
-		err = repository.UpdateXimpayID(context.Background(), createdTransId, ximpayId)
-		if err != nil {
-			log.Println("Updated Ximpay ID error:", err)
-		}
-
 		data := map[string]interface{}{
 			"phone_number": transaction.UserMDN,
 			"keyword":      "",
 			"sms_code":     "",
-			"shortcode":    "",
+			"shortcode":    "99899",
 			"url":          "",
 			"qr":           "",
 			"html":         "",
@@ -603,6 +666,7 @@ func CreateTransactionLegacy(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{
 			"success":                 true,
 			"data":                    data,
+			"error_message":           "",
 			"appid":                   appid,
 			"appkey":                  expectedAppKey,
 			"token":                   token,

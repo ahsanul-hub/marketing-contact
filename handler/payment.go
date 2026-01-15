@@ -954,8 +954,8 @@ func SuccessPage(c *fiber.Ctx) error {
 		}
 
 		switch inputReq.PaymentMethod {
-		case "xl_airtime":
-			StrPaymentMethod = "XL"
+		case "xl_airtime", "smartfren_airtime":
+			StrPaymentMethod = "XLSmart"
 			steps = []string{
 				"Cek SMS yang masuk ke nomor anda dari nomor 99899",
 				"Cek kembali informasi yang diterima di sms, kemudian balas sms dengan kode OTP yang diterima ke nomor 99899",
