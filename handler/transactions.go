@@ -1994,6 +1994,7 @@ func ExportTransactions(c *fiber.Ctx) error {
 
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
+	userMDN := helper.BeautifyIDNumber(c.Query("user_mdn"), true)
 
 	statusStr := c.Query("status")
 	paymentMethod := c.Query("payment_method")
@@ -2033,7 +2034,7 @@ func ExportTransactions(c *fiber.Ctx) error {
 		}
 	}
 
-	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, paymentMethod, merchants, appIDs)
+	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, paymentMethod, userMDN, merchants, appIDs)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -2058,8 +2059,11 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
 	paymentMethod := c.Query("paymentMethod")
+	userMDN := helper.BeautifyIDNumber(c.Query("user_mdn"), true)
 
 	statusStr := c.Query("status")
+	appIDStrFilter := c.Query("app_id")
+
 	appKey := c.Get("appkey")
 	appID := c.Get("appid")
 
@@ -2107,10 +2111,17 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 		})
 	}
 
-	clientNames := []string{arrClient.ClientName}
 	appIDs := []string{targetAppID}
 
-	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, paymentMethod, clientNames, appIDs)
+	if appIDStrFilter != "" {
+		appIDs = strings.Split(appIDStrFilter, ",")
+	} else {
+		appIDs = []string{}
+	}
+
+	clientNames := []string{arrClient.ClientName}
+
+	transactions, err := repository.GetTransactionsByDateRange(spanCtx, status, startDate, endDate, paymentMethod, userMDN, clientNames, appIDs)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}
@@ -3049,6 +3060,7 @@ func TestEmailService(c *fiber.Ctx) error {
 		&startDate,
 		&endDate,
 		"", // payment method kosong = semua payment method
+		"", // userMDN kosong = semua userMDN
 		[]string{"Zingplay International PTE,. LTD"},
 		[]string{"CKxpZpt29Cx3BjOJ0CItnQ"}, // appID untuk Redision
 	)

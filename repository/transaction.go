@@ -289,7 +289,7 @@ func GetAllTransactions(
 	return transactions, totalItems, nil
 }
 
-func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endDate *time.Time, paymentMethod string, clientName, appID []string) ([]model.Transactions, error) {
+func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endDate *time.Time, paymentMethod, userMDN string, clientName, appID []string) ([]model.Transactions, error) {
 	span, _ := apm.StartSpan(ctx, "GetTransactionsByDateRange", "repository")
 	defer span.End()
 
@@ -310,6 +310,10 @@ func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endD
 
 	if paymentMethod != "" {
 		query = query.Where("payment_method = ?", paymentMethod)
+	}
+
+	if userMDN != "" {
+		query = query.Where("user_mdn = ?", userMDN)
 	}
 
 	if startDate != nil && endDate != nil {

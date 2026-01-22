@@ -196,6 +196,7 @@ func (ts *TransactionScheduler) processMerchantReport(merchant service.MerchantS
 		&startDate,
 		&endDate,
 		"", // payment method kosong = semua payment method
+		"", // userMDN kosong = semua userMDN
 		[]string{merchant.ClientName},
 		[]string{merchant.AppID}, // appID kosong = semua app
 	)
@@ -249,6 +250,7 @@ func (ts *TransactionScheduler) processEmailMerchantReport(merchant service.Merc
 		&startDate,
 		&endDate,
 		"", // payment method kosong = semua payment method
+		"", // userMDN kosong = semua userMDN
 		[]string{merchant.ClientName},
 		[]string{merchant.AppID}, // appID kosong = semua app
 	)
