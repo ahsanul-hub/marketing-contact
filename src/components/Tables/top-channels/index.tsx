@@ -6,13 +6,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { compactFormat, standardFormat } from "@/lib/format-number";
+import { formatIDR } from "@/lib/currency";
+import { compactFormat } from "@/lib/format-number";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
-import { getTopChannels } from "../fetch";
+import { getTopProfit } from "../fetch";
 
 export async function TopChannels({ className }: { className?: string }) {
-  const data = await getTopChannels();
+  const data = await getTopProfit();
 
   return (
     <div
@@ -22,49 +22,48 @@ export async function TopChannels({ className }: { className?: string }) {
       )}
     >
       <h2 className="mb-4 text-body-2xlg font-bold text-dark dark:text-white">
-        Top Channels
+        Top Profit
       </h2>
 
       <Table>
         <TableHeader>
           <TableRow className="border-none uppercase [&>th]:text-center">
-            <TableHead className="min-w-[120px] !text-left">Source</TableHead>
-            <TableHead>Visitors</TableHead>
-            <TableHead className="!text-right">Revenues</TableHead>
-            <TableHead>Sales</TableHead>
-            <TableHead>Conversion</TableHead>
+            <TableHead className="min-w-[180px] !text-left">Phone Number</TableHead>
+            <TableHead className="!text-right">Total Deposit</TableHead>
+            <TableHead className="!text-right">Total Profit</TableHead>
           </TableRow>
         </TableHeader>
 
         <TableBody>
-          {data.map((channel, i) => (
-            <TableRow
-              className="text-center text-base font-medium text-dark dark:text-white"
-              key={channel.name + i}
-            >
-              <TableCell className="flex min-w-fit items-center gap-3">
-                <Image
-                  src={channel.logo}
-                  className="size-8 rounded-full object-cover"
-                  width={40}
-                  height={40}
-                  alt={channel.name + " Logo"}
-                  role="presentation"
-                />
-                <div className="">{channel.name}</div>
+          {data.length === 0 ? (
+            <TableRow>
+              <TableCell
+                className="text-center text-neutral-500 dark:text-neutral-300"
+                colSpan={3}
+              >
+                Belum ada data transaksi.
               </TableCell>
-
-              <TableCell>{compactFormat(channel.visitors)}</TableCell>
-
-              <TableCell className="!text-right text-green-light-1">
-                ${standardFormat(channel.revenues)}
-              </TableCell>
-
-              <TableCell>{channel.sales}</TableCell>
-
-              <TableCell>{channel.conversion}%</TableCell>
             </TableRow>
-          ))}
+          ) : (
+            data.map((item, i) => (
+              <TableRow
+                className="text-center text-base font-medium text-dark dark:text-white"
+                key={item.phoneNumber + i}
+              >
+                <TableCell className="!text-left font-medium">
+                  {item.phoneNumber || "-"}
+                </TableCell>
+
+                <TableCell className="!text-right">
+                  {formatIDR(item.totalDeposit)}
+                </TableCell>
+
+                <TableCell className="!text-right text-green-light-1">
+                  {formatIDR(item.totalProfit)}
+                </TableCell>
+              </TableRow>
+            ))
+          )}
         </TableBody>
       </Table>
     </div>

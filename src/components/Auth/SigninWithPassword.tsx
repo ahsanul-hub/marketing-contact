@@ -1,18 +1,23 @@
 "use client";
-import { EmailIcon, PasswordIcon } from "@/assets/icons";
+import { UserIcon, PasswordIcon } from "@/assets/icons";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import React, { useState } from "react";
 import InputGroup from "../FormElements/InputGroup";
 import { Checkbox } from "../FormElements/checkbox";
+import { signIn } from "next-auth/react";
 
 export default function SigninWithPassword() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [data, setData] = useState({
-    email: process.env.NEXT_PUBLIC_DEMO_USER_MAIL || "",
-    password: process.env.NEXT_PUBLIC_DEMO_USER_PASS || "",
+    username: "",
+    password: "",
     remember: false,
   });
 
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setData({
@@ -21,28 +26,53 @@ export default function SigninWithPassword() {
     });
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    // You can remove this code block
     setLoading(true);
+    setError(null);
 
-    setTimeout(() => {
+    try {
+      const callbackUrl = searchParams.get("callbackUrl") || "/";
+      const result = await signIn("credentials", {
+        username: data.username,
+        password: data.password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        // Handle specific error messages
+        if (result.error === "CredentialsSignin") {
+          setError("Username atau password salah");
+        } else {
+          setError(result.error || "Terjadi kesalahan saat login");
+        }
+      } else if (result?.ok) {
+        // Login berhasil, redirect ke callback URL atau home
+        router.push(callbackUrl);
+        router.refresh();
+      } else {
+        // Fallback jika result tidak jelas
+        setError("Terjadi kesalahan saat login");
+      }
+    } catch (err: any) {
+      console.error("Login error:", err);
+      setError(err?.message || "Terjadi kesalahan saat login. Pastikan server berjalan dan database terhubung.");
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
     <form onSubmit={handleSubmit}>
       <InputGroup
-        type="email"
-        label="Email"
+        type="text"
+        label="Username"
         className="mb-4 [&_input]:py-[15px]"
-        placeholder="Enter your email"
-        name="email"
+        placeholder="Enter your username"
+        name="username"
         handleChange={handleChange}
-        value={data.email}
-        icon={<EmailIcon />}
+        value={data.username}
+        icon={<UserIcon />}
       />
 
       <InputGroup
@@ -90,6 +120,12 @@ export default function SigninWithPassword() {
           )}
         </button>
       </div>
+
+      {error && (
+        <p className="mt-2 text-center text-sm text-red-500 dark:text-red-400">
+          {error}
+        </p>
+      )}
     </form>
   );
 }

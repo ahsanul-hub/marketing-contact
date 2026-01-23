@@ -1,18 +1,26 @@
+import { formatIDR } from "@/lib/currency";
 import { compactFormat } from "@/lib/format-number";
 import { getOverviewData } from "../../fetch";
 import { OverviewCard } from "./card";
 import * as icons from "./icons";
 
-export async function OverviewCardsGroup() {
-  const { views, profit, products, users } = await getOverviewData();
+type Props = {
+  startDate?: Date;
+  endDate?: Date;
+  clientId?: bigint;
+  isOrganic?: boolean;
+};
+
+export async function OverviewCardsGroup(filter?: Props) {
+  const { deposit, profit, registrations, clients } = await getOverviewData(filter);
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 sm:gap-6 xl:grid-cols-4 2xl:gap-7.5">
       <OverviewCard
-        label="Total Views"
+        label="Total Deposit"
         data={{
-          ...views,
-          value: compactFormat(views.value),
+          ...deposit,
+          value: formatIDR(deposit.value),
         }}
         Icon={icons.Views}
       />
@@ -21,25 +29,25 @@ export async function OverviewCardsGroup() {
         label="Total Profit"
         data={{
           ...profit,
-          value: "$" + compactFormat(profit.value),
+          value: formatIDR(profit.value),
         }}
         Icon={icons.Profit}
       />
 
       <OverviewCard
-        label="Total Products"
+        label="Registrations"
         data={{
-          ...products,
-          value: compactFormat(products.value),
+          ...registrations,
+          value: compactFormat(registrations.value),
         }}
         Icon={icons.Product}
       />
 
       <OverviewCard
-        label="Total Users"
+        label="Contacts"
         data={{
-          ...users,
-          value: compactFormat(users.value),
+          ...clients,
+          value: compactFormat(clients.value),
         }}
         Icon={icons.Users}
       />

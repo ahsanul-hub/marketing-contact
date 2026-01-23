@@ -5,8 +5,8 @@ import dynamic from "next/dynamic";
 
 type PropsType = {
   data: {
-    sales: { x: string; y: number }[];
-    revenue: { x: string; y: number }[];
+    deposit: { x: string; y: number }[];
+    profit: { x: string; y: number }[];
   };
 };
 
@@ -97,12 +97,12 @@ export function WeeksProfitChart({ data }: PropsType) {
         options={options}
         series={[
           {
-            name: "Sales",
-            data: data.sales,
+            name: "Deposit",
+            data: data.deposit,
           },
           {
-            name: "Revenue",
-            data: data.revenue,
+            name: "Profit",
+            data: data.profit,
           },
         ]}
         type="bar"

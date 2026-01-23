@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Registration {
+  id          BigInt    @id @default(autoincrement())
+  phoneNumber String?   @map("phone_number")
+  createdAt   DateTime? @map("created_at")
+
+  @@map("registration")
+}
+
+model Transaction {
+  id              BigInt   @id @default(autoincrement())
+  phoneNumber     String?  @map("phone_number")
+  transactionDate DateTime @map("transaction_date")
+  totalDeposit    BigInt   @map("total_deposit")
+  totalProfit     BigInt   @map("total_profit")
+
+  @@map("transaction")
+}
+
+model Data {
+  id        BigInt    @id @default(autoincrement())
+  whatsapp  String?
+  name      String?
+  nik       String?
+  createdAt DateTime? @map("created_at")
+  clientId  BigInt?   @map("id_client")
+  client    Client?   @relation(fields: [clientId], references: [id])
+
+  @@map("data")
+}
+
+model Client {
+  id        BigInt    @id @default(autoincrement())
+  name      String?
+  createdAt DateTime? @map("created_at")
+  data      Data[]
+
+  @@map("client")
+}
+
+model Admin {
+  id           Int           @id @default(autoincrement())
+  username     String        @unique @db.VarChar(30)
+  password     Bytes
+  role         String        @default("user")
+  active       Boolean       @default(true)
+  created_at   DateTime      @default(now())
+  updated_at   DateTime
+  activityLogs ActivityLog[]
+
+  @@map("admin")
+}
+
+model ActivityLog {
+  id        BigInt   @id @default(autoincrement())
+  adminId   Int      @map("admin_id")
+  action    String
+  details   String?
+  createdAt DateTime @default(now()) @map("created_at")
+  admin     Admin    @relation(fields: [adminId], references: [id])
+
+  @@map("activity_log")
+}

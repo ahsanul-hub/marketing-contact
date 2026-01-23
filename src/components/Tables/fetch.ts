@@ -72,50 +72,31 @@ export async function getInvoiceTableData() {
   ];
 }
 
-export async function getTopChannels() {
-  // Fake delay
-  await new Promise((resolve) => setTimeout(resolve, 1500));
+import { prisma } from "@/lib/prisma";
 
-  return [
+export async function getTopProfit() {
+  // Get top profit by phone number, aggregated
+  const topProfit = await prisma.$queryRaw<
     {
-      name: "Google",
-      visitors: 3456,
-      revenues: 4220,
-      sales: 3456,
-      conversion: 2.59,
-      logo: logos.google,
-    },
-    {
-      name: "X.com",
-      visitors: 3456,
-      revenues: 4220,
-      sales: 3456,
-      conversion: 2.59,
-      logo: logos.x,
-    },
-    {
-      name: "Github",
-      visitors: 3456,
-      revenues: 4220,
-      sales: 3456,
-      conversion: 2.59,
-      logo: logos.github,
-    },
-    {
-      name: "Vimeo",
-      visitors: 3456,
-      revenues: 4220,
-      sales: 3456,
-      conversion: 2.59,
-      logo: logos.vimeo,
-    },
-    {
-      name: "Facebook",
-      visitors: 3456,
-      revenues: 4220,
-      sales: 3456,
-      conversion: 2.59,
-      logo: logos.facebook,
-    },
-  ];
+      phone_number: string | null;
+      total_deposit: bigint;
+      total_profit: bigint;
+    }[]
+  >`
+    SELECT 
+      phone_number,
+      SUM(total_deposit)::bigint as total_deposit,
+      SUM(total_profit)::bigint as total_profit
+    FROM transaction
+    WHERE phone_number IS NOT NULL
+    GROUP BY phone_number
+    ORDER BY total_profit DESC
+    LIMIT 10
+  `;
+
+  return topProfit.map((item) => ({
+    phoneNumber: item.phone_number || "-",
+    totalDeposit: Number(item.total_deposit),
+    totalProfit: Number(item.total_profit),
+  }));
 }

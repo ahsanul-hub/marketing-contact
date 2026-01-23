@@ -1,15 +1,16 @@
 import { PeriodPicker } from "@/components/period-picker";
 import { cn } from "@/lib/utils";
-import { getWeeksProfitData } from "@/services/charts.services";
+import { AnalyticsFilter, getWeeklyProfitBars } from "@/services/analytics";
 import { WeeksProfitChart } from "./chart";
 
 type PropsType = {
   timeFrame?: string;
   className?: string;
+  filter?: AnalyticsFilter;
 };
 
-export async function WeeksProfit({ className, timeFrame }: PropsType) {
-  const data = await getWeeksProfitData(timeFrame);
+export async function WeeksProfit({ className, timeFrame, filter }: PropsType) {
+  const data = await getWeeklyProfitBars(timeFrame, filter);
 
   return (
     <div
@@ -20,7 +21,7 @@ export async function WeeksProfit({ className, timeFrame }: PropsType) {
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-body-2xlg font-bold text-dark dark:text-white">
-          Profit {timeFrame || "this week"}
+          Deposit vs Profit {timeFrame || "this week"}
         </h2>
 
         <PeriodPicker

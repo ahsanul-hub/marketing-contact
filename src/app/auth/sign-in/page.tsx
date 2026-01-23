@@ -1,3 +1,14 @@
+/**
+ * Sign In Page
+ * 
+ * Halaman login untuk authentication.
+ * User harus login terlebih dahulu sebelum bisa mengakses dashboard.
+ * 
+ * Setelah login berhasil, user akan di-redirect ke:
+ * - callbackUrl (jika ada di query params)
+ * - Home page (/)
+ */
+
 import Signin from "@/components/Auth/Signin";
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import type { Metadata } from "next";
@@ -7,6 +18,8 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Sign in",
 };
+
+export const dynamic = "force-dynamic";
 
 export default function SignIn() {
   return (

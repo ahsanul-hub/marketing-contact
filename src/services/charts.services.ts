@@ -1,38 +1,121 @@
+import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
+
+export async function getTopClientsData() {
+  // Get top 10 clients by total deposit and profit from transactions
+  const topClients = await prisma.$queryRaw<
+    {
+      client_id: bigint | null;
+      client_name: string | null;
+      total_deposit: bigint;
+      total_profit: bigint;
+    }[]
+  >`
+    SELECT 
+      c.id as client_id,
+      c.name as client_name,
+      COALESCE(SUM(t.total_deposit), 0)::bigint as total_deposit,
+      COALESCE(SUM(t.total_profit), 0)::bigint as total_profit
+    FROM client c
+    LEFT JOIN data d ON d.id_client = c.id
+    LEFT JOIN transaction t ON t.phone_number = d.whatsapp
+    GROUP BY c.id, c.name
+    ORDER BY total_profit DESC, total_deposit DESC
+    LIMIT 10
+  `;
+
+  // Get organic (no client) data
+  const organicData = await prisma.$queryRaw<{
+    total_deposit: bigint;
+    total_profit: bigint;
+  }[]>`
+    SELECT 
+      COALESCE(SUM(t.total_deposit), 0)::bigint as total_deposit,
+      COALESCE(SUM(t.total_profit), 0)::bigint as total_profit
+    FROM transaction t
+    WHERE t.phone_number IS NOT NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM data d WHERE d.whatsapp = t.phone_number
+      )
+  `;
+
+  const organic = organicData[0] || { total_deposit: 0n, total_profit: 0n };
+
+  // Combine and sort all data
+  const allClients = [
+    ...(Number(organic.total_profit) > 0 || Number(organic.total_deposit) > 0
+      ? [
+          {
+            name: "Organic",
+            totalDeposit: Number(organic.total_deposit),
+            totalProfit: Number(organic.total_profit),
+          },
+        ]
+      : []),
+    ...topClients.map((item) => ({
+      name: item.client_name || `Client #${item.client_id?.toString()}`,
+      totalDeposit: Number(item.total_deposit),
+      totalProfit: Number(item.total_profit),
+    })),
+  ];
+
+  // Sort by profit descending and take top 10
+  return allClients
+    .sort((a, b) => b.totalProfit - a.totalProfit)
+    .slice(0, 10);
+}
+
 export async function getDevicesUsedData(
   timeFrame?: "monthly" | "yearly" | (string & {}),
 ) {
-  // Fake delay
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  // Get client data with registration count
+  const clients = await prisma.client.findMany({
+    orderBy: [{ name: "asc" }, { id: "asc" }],
+    select: {
+      id: true,
+      name: true,
+    },
+  });
 
+  // Count registrations per client (those with data.whatsapp matching registration.phone_number)
+  const clientData = await Promise.all(
+    clients.map(async (client) => {
+      const count = await prisma.$queryRaw<{ count: bigint }[]>`
+        SELECT COUNT(DISTINCT r.phone_number)::bigint as count
+        FROM registration r
+        INNER JOIN data d ON d.whatsapp = r.phone_number
+        WHERE d.id_client = ${client.id}
+      `;
+      return {
+        name: client.name || `Client #${client.id.toString()}`,
+        amount: Number(count[0]?.count ?? 0n),
+      };
+    }),
+  );
+
+  // Count organic registrations (those without matching data)
+  const organicCount = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(DISTINCT r.phone_number)::bigint as count
+    FROM registration r
+    WHERE NOT EXISTS (
+      SELECT 1 FROM data d WHERE d.whatsapp = r.phone_number
+    )
+  `;
+
+  const organicAmount = Number(organicCount[0]?.count ?? 0n);
+
+  // Combine all data
   const data = [
-    {
-      name: "Desktop",
-      percentage: 0.65,
-      amount: 1625,
-    },
-    {
-      name: "Tablet",
-      percentage: 0.1,
-      amount: 250,
-    },
-    {
-      name: "Mobile",
-      percentage: 0.2,
-      amount: 500,
-    },
-    {
-      name: "Unknown",
-      percentage: 0.05,
-      amount: 125,
-    },
+    ...(organicAmount > 0
+      ? [
+          {
+            name: "Organic",
+            amount: organicAmount,
+          },
+        ]
+      : []),
+    ...clientData.filter((item) => item.amount > 0),
   ];
-
-  if (timeFrame === "yearly") {
-    data[0].amount = 19500;
-    data[1].amount = 3000;
-    data[2].amount = 6000;
-    data[3].amount = 1500;
-  }
 
   return data;
 }

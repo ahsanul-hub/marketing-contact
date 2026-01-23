@@ -23,7 +23,7 @@ export async function UsedDevices({
     >
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h2 className="text-body-2xlg font-bold text-dark dark:text-white">
-          Used Devices
+          Clients Distribution
         </h2>
 
         <PeriodPicker defaultValue={timeFrame} sectionKey="used_devices" />

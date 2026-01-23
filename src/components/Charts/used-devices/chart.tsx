@@ -29,7 +29,8 @@ export function DonutChart({ data }: PropsType) {
       },
       formatter: (legendName, opts) => {
         const { seriesPercent } = opts.w.globals;
-        return `${legendName}: ${seriesPercent[opts.seriesIndex]}%`;
+        const percent = Number(seriesPercent?.[opts.seriesIndex] || 0);
+        return `${legendName}: ${percent.toFixed(2)}%`;
       },
     },
     plotOptions: {
@@ -42,7 +43,7 @@ export function DonutChart({ data }: PropsType) {
             total: {
               show: true,
               showAlways: true,
-              label: "Visitors",
+              label: "Total Contacts",
               fontSize: "16px",
               fontWeight: "400",
             },

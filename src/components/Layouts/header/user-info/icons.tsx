@@ -43,6 +43,21 @@ export function SettingsIcon(props: SVGPropsType) {
   );
 }
 
+export function LogInIcon(props: SVGPropsType) {
+  return (
+    <svg
+      width={20}
+      height={20}
+      viewBox="0 0 18 18"
+      fill="currentColor"
+      {...props}
+    >
+      <path d="M9 1.5a.75.75 0 00-.75.75v6.75H3.75a.75.75 0 000 1.5h4.5V15a.75.75 0 001.5 0V2.25A.75.75 0 009 1.5z" />
+      <path d="M15.75 9a.75.75 0 00-.75-.75H12a.75.75 0 000 1.5h3a.75.75 0 00.75-.75z" />
+    </svg>
+  );
+}
+
 export function LogOutIcon(props: SVGPropsType) {
   return (
     <svg
