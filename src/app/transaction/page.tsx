@@ -13,6 +13,7 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { PaginationControls } from "@/components/pagination-controls";
 import { TransactionImportForm } from "@/components/transaction-import-form";
+import { DownloadButtonWrapper } from "@/components/DownloadButtonWrapper";
 import {
   Table,
   TableBody,
@@ -167,6 +168,8 @@ export default async function TransactionPage({ searchParams }: PageProps) {
           >
             Reset
           </a>
+
+          <DownloadButtonWrapper type="transaction" />
         </form>
 
         <Table>

@@ -23,6 +23,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { RegistrationImportForm } from "@/components/registration-import-form";
+import { DownloadButtonWrapper } from "@/components/DownloadButtonWrapper";
+import { DownloadButton } from "@/components/DownloadButton";
 import {
   MIN_LIMIT,
   MAX_LIMIT,
@@ -104,7 +106,7 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
       ${typeFilterSql}
   `;
 
-  const totalCount = Number(totalCountRow?.[0]?.count ?? 0n);
+  const totalCount = Number(totalCountRow?.[0]?.count ?? Number(0));
   const totalPages = Math.max(1, Math.ceil(totalCount / limit));
   const page = Math.min(rawPage, totalPages);
   const skip = (page - 1) * limit;
@@ -223,6 +225,8 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
           >
             Reset
           </a>
+
+          <DownloadButtonWrapper type="registration" />
         </form>
 
         <Table>

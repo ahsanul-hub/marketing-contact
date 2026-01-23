@@ -23,6 +23,29 @@ export function downloadExcelTemplate(
   XLSX.writeFile(workbook, filename);
 }
 
+export function generateExcelBuffer(
+  headers: string[],
+  data: any[][],
+  sheetName: string = "Data",
+) {
+  // Create workbook
+  const workbook = XLSX.utils.book_new();
+
+  // Create worksheet with headers and data
+  const worksheetData = [headers, ...data];
+  const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+  // Set column widths
+  const colWidths = headers.map(() => ({ wch: 20 }));
+  worksheet["!cols"] = colWidths;
+
+  // Add worksheet to workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+  // Generate buffer
+  return XLSX.write(workbook, { type: "buffer", bookType: "xlsx" });
+}
+
 export function downloadRegistrationTemplate() {
   const headers = ["phone_number"];
   const sampleData = [

@@ -13,6 +13,7 @@
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
 import { PaginationControls } from "@/components/pagination-controls";
 import { DataImportForm } from "@/components/data-import-form";
+import { DownloadButtonWrapper } from "@/components/DownloadButtonWrapper";
 import {
   Table,
   TableBody,
@@ -170,6 +171,8 @@ export default async function DataPage({ searchParams }: PageProps) {
           >
             Reset
           </a>
+
+          <DownloadButtonWrapper type="data" />
         </form>
 
         <Table>
