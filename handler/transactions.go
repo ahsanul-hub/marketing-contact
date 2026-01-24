@@ -2239,7 +2239,7 @@ func exportTransactionsToCSV(c *fiber.Ctx, transactions []model.Transactions, se
 			if clientUID != "" {
 				if cached, ok := settlementCache[clientUID]; ok {
 					currentSettlement = helper.FindSettlementByPaymentMethod(&cached, transaction.PaymentMethod)
-		} else {
+				} else {
 					if sett, errSett := repository.GetSettlementConfig(clientUID); errSett == nil {
 						settlementCache[clientUID] = sett
 						currentSettlement = helper.FindSettlementByPaymentMethod(&sett, transaction.PaymentMethod)
@@ -3093,7 +3093,7 @@ func TestEmailService(c *fiber.Ctx) error {
 	// Ambil data transaksi untuk merchant Redision
 	transactions, err := repository.GetTransactionsByDateRange(
 		context.Background(),
-		0, // status 0 = semua status
+		[]int{}, // status 0 = semua status
 		&startDate,
 		&endDate,
 		"", // payment method kosong = semua payment method
