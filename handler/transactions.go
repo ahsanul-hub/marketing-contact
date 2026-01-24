@@ -2015,9 +2015,23 @@ func ExportTransactions(c *fiber.Ctx) error {
 		appIDs = []string{}
 	}
 
-	status, err := strconv.Atoi(statusStr)
-	if err != nil {
-		fmt.Println("error convert status")
+	// denom, err := strconv.Atoi(denomStr)
+	// if err != nil {
+	// 	fmt.Println("error convert denom")
+	// }
+
+	var status []int
+	if statusStr != "" {
+		statusStrs := strings.Split(statusStr, ",")
+		for _, s := range statusStrs {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				statusInt, err := strconv.Atoi(s)
+				if err == nil {
+					status = append(status, statusInt)
+				}
+			}
+		}
 	}
 
 	var startDate, endDate *time.Time
@@ -2058,7 +2072,7 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
-	paymentMethod := c.Query("paymentMethod")
+	paymentMethod := c.Query("payment_method")
 	userMDN := helper.BeautifyIDNumber(c.Query("user_mdn"), true)
 
 	statusStr := c.Query("status")
@@ -2073,9 +2087,18 @@ func ExportTransactionsMerchant(c *fiber.Ctx) error {
 		})
 	}
 
-	status, err := strconv.Atoi(statusStr)
-	if err != nil {
-		fmt.Println("error convert status")
+	var status []int
+	if statusStr != "" {
+		statusStrs := strings.Split(statusStr, ",")
+		for _, s := range statusStrs {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				statusInt, err := strconv.Atoi(s)
+				if err == nil {
+					status = append(status, statusInt)
+				}
+			}
+		}
 	}
 
 	var startDate, endDate *time.Time
@@ -2523,9 +2546,23 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 	}
 	statusStr := c.Query("status")
 
-	status, err := strconv.Atoi(statusStr)
-	if err != nil {
-		fmt.Println("error convert status")
+	// status, err := strconv.Atoi(statusStr)
+	// if err != nil {
+	// 	fmt.Println("error convert status")
+	// }
+
+	var status []int
+	if statusStr != "" {
+		statusStrs := strings.Split(statusStr, ",")
+		for _, s := range statusStrs {
+			s = strings.TrimSpace(s)
+			if s != "" {
+				statusInt, err := strconv.Atoi(s)
+				if err == nil {
+					status = append(status, statusInt)
+				}
+			}
+		}
 	}
 
 	startDateStr := c.Query("start_date")
@@ -2562,7 +2599,7 @@ func GetTransactionsMerchant(c *fiber.Ctx) error {
 		fmt.Println("Error fetching client:", err)
 	}
 
-	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, status, denom, merchantTransactionId, arrClient.ClientName, userMDN, userId, appName, paymentMethods, startDate, endDate)
+	transactions, totalItems, err := repository.GetTransactionsMerchant(context.Background(), limit, offset, denom, status, merchantTransactionId, arrClient.ClientName, userMDN, userId, appName, paymentMethods, startDate, endDate)
 	if err != nil {
 		return response.Response(c, fiber.StatusInternalServerError, err.Error())
 	}

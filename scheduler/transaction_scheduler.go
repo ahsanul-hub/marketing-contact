@@ -176,11 +176,11 @@ func (ts *TransactionScheduler) getMerchantsWithSFTP() []service.MerchantSFTPCon
 func (ts *TransactionScheduler) getMerchantsWithEmail() []service.MerchantEmailConfig {
 	// Daftar merchant yang memerlukan laporan Email
 	return []service.MerchantEmailConfig{
-		{
-			ClientName: "PM Max",
-			AppID:      "6078feb8764f1ba30a8b4569",
-			EmailTo:    config.Config("TO_EMAILS", "john.jojon888@gmail.com,aldi@redision.com"),
-		},
+		// {
+		// 	ClientName: "PM Max",
+		// 	AppID:      "6078feb8764f1ba30a8b4569",
+		// 	EmailTo:    config.Config("TO_EMAILS", "john.jojon888@gmail.com,aldi@redision.com"),
+		// },
 	}
 }
 
@@ -192,7 +192,7 @@ func (ts *TransactionScheduler) processMerchantReport(merchant service.MerchantS
 	// Ambil data transaksi untuk merchant ini
 	transactions, err := repository.GetTransactionsByDateRange(
 		ctx,
-		0, // status 0 = semua status
+		[]int{0}, // status 0 = semua status
 		&startDate,
 		&endDate,
 		"", // payment method kosong = semua payment method
@@ -246,7 +246,7 @@ func (ts *TransactionScheduler) processEmailMerchantReport(merchant service.Merc
 	// Ambil data transaksi untuk merchant ini
 	transactions, err := repository.GetTransactionsByDateRange(
 		ctx,
-		0, // status 0 = semua status
+		[]int{0}, // status 0 = semua status
 		&startDate,
 		&endDate,
 		"", // payment method kosong = semua payment method

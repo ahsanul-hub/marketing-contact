@@ -289,15 +289,15 @@ func GetAllTransactions(
 	return transactions, totalItems, nil
 }
 
-func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endDate *time.Time, paymentMethod, userMDN string, clientName, appID []string) ([]model.Transactions, error) {
+func GetTransactionsByDateRange(ctx context.Context, status []int, startDate, endDate *time.Time, paymentMethod, userMDN string, clientName, appID []string) ([]model.Transactions, error) {
 	span, _ := apm.StartSpan(ctx, "GetTransactionsByDateRange", "repository")
 	defer span.End()
 
 	var transactions []model.Transactions
 	query := database.GetReadDB()
 
-	if status != 0 {
-		query = query.Where("status_code = ?", status)
+	if len(status) > 0 {
+		query = query.Where("status_code IN ?", status)
 	}
 
 	if len(clientName) > 0 {
@@ -330,7 +330,7 @@ func GetTransactionsByDateRange(ctx context.Context, status int, startDate, endD
 	return transactions, nil
 }
 
-func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom int, merchantTransactionId, clientName, userMDN, userId, appName string, paymentMethods []string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
+func GetTransactionsMerchant(ctx context.Context, limit, offset, denom int, status []int, merchantTransactionId, clientName, userMDN, userId, appName string, paymentMethods []string, startDate, endDate *time.Time) ([]model.TransactionMerchantResponse, int64, error) {
 	var transactions []model.Transactions
 	query := database.GetReadDB()
 	var totalItems int64
@@ -338,8 +338,8 @@ func GetTransactionsMerchant(ctx context.Context, limit, offset, status, denom i
 	if merchantTransactionId != "" {
 		query = query.Where("mt_tid = ?", merchantTransactionId)
 	}
-	if status != 0 {
-		query = query.Where("status_code = ?", status)
+	if len(status) > 0 {
+		query = query.Where("status_code IN ?", status)
 	}
 	if denom != 0 {
 		query = query.Where("amount = ?", denom)
