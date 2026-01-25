@@ -38,16 +38,16 @@ export default async function UsersPage() {
     redirect("/");
   }
 
-  // Fetch admins dari database
-  const admins = await prisma.admin.findMany({
+  // Fetch users dari database
+  const users = await prisma.user.findMany({
     select: {
       id: true,
       username: true,
       role: true,
-      isActive: true,
-      createdAt: true,
+      active: true,
+      created_at: true,
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { created_at: "desc" },
   });
 
   return (
@@ -83,53 +83,55 @@ export default async function UsersPage() {
             </TableHeader>
 
             <TableBody>
-              {admins.length === 0 ? (
+              {users.length === 0 ? (
                 <TableRow>
                   <TableCell
                     className="text-center text-neutral-500 dark:text-neutral-300"
                     colSpan={5}
                   >
-                    Belum ada admin.
+                    Belum ada user.
                   </TableCell>
                 </TableRow>
               ) : (
-                admins.map((admin: typeof admins[0]) => (
+                users.map((user: typeof users[0]) => (
                   <TableRow
-                    key={admin.id}
+                    key={user.id}
                     className="border-[#eee] dark:border-dark-3"
                   >
                     <TableCell className="font-medium text-dark dark:text-white">
-                      {admin.username}
+                      {user.username}
                     </TableCell>
                     <TableCell>
                       <span
                         className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${
-                          admin.role === "admin"
+                          user.role === "admin"
                             ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200"
-                            : "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                            : user.role === "client"
+                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200"
+                            : "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200"
                         }`}
                       >
-                        {admin.role}
+                        {user.role}
                       </span>
                     </TableCell>
                     <TableCell>
                       <span
                         className={`inline-block rounded-full px-3 py-1 text-xs font-medium ${
-                          admin.isActive
+                          user.active
                             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
                             : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
                         }`}
                       >
-                        {admin.isActive ? "Active" : "Inactive"}
+                        {user.active ? "Active" : "Inactive"}
                       </span>
                     </TableCell>
                     <TableCell className="text-neutral-600 dark:text-neutral-300">
-                      {dayjs(admin.createdAt).format("YYYY-MM-DD HH:mm")}
+                      {dayjs(user.created_at).format("YYYY-MM-DD HH:mm")}
                     </TableCell>
                     <TableCell>
                       <ResetPasswordButton
-                        userId={admin.id}
-                        userEmail={admin.username}
+                        userId={user.id}
+                        userEmail={user.username}
                       />
                     </TableCell>
                   </TableRow>

@@ -16,7 +16,7 @@ export async function GET() {
       take: 20,
       orderBy: { createdAt: "desc" },
       include: {
-        admin: {
+        user: {
           select: {
             id: true,
             username: true,

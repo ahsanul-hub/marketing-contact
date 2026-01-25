@@ -46,26 +46,26 @@ model Client {
   @@map("client")
 }
 
-model Admin {
+model User {
   id           Int           @id @default(autoincrement())
   username     String        @unique @db.VarChar(30)
   password     Bytes
-  role         String        @default("user")
+  role         String        @default("client")
   active       Boolean       @default(true)
   created_at   DateTime      @default(now())
   updated_at   DateTime
   activityLogs ActivityLog[]
 
-  @@map("admin")
+  @@map("user")
 }
 
 model ActivityLog {
   id        BigInt   @id @default(autoincrement())
-  adminId   Int      @map("admin_id")
+  userId    Int      @map("user_id")
   action    String
   details   String?
   createdAt DateTime @default(now()) @map("created_at")
-  admin     Admin    @relation(fields: [adminId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 
   @@map("activity_log")
 }

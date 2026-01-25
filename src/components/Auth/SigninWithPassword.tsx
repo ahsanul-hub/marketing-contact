@@ -122,10 +122,22 @@ export default function SigninWithPassword() {
       </div>
 
       {error && (
-        <p className="mt-2 text-center text-sm text-red-500 dark:text-red-400">
+        <p className="mb-4 text-center text-sm text-red-500 dark:text-red-400">
           {error}
         </p>
       )}
+
+      <div className="text-center text-sm">
+        <span className="text-neutral-600 dark:text-neutral-300">
+          Belum punya akun?{" "}
+        </span>
+        <Link
+          href="/auth/sign-up"
+          className="font-medium text-primary hover:underline"
+        >
+          Daftar
+        </Link>
+      </div>
     </form>
   );
 }

@@ -18,11 +18,11 @@ import bcrypt from "bcryptjs";
 export async function POST(request: Request) {
   try {
     // Check if admin already exists
-    const existingAdmin = await prisma.admin.findFirst({
+    const existingUser = await prisma.user.findFirst({
       where: { role: "admin" },
     });
 
-    if (existingAdmin) {
+    if (existingUser) {
       return NextResponse.json(
         { error: "Admin already exists. Please use /admin/users to add more admins." },
         { status: 400 },
@@ -59,13 +59,14 @@ export async function POST(request: Request) {
     // Convert string hash to Buffer (bytea)
     const passwordBuffer = Buffer.from(hashedPassword, "utf-8");
 
-    // Create admin
-    const admin = await prisma.admin.create({
+    // Create admin user
+    const user = await prisma.user.create({
       data: {
         username,
         password: passwordBuffer,
         role: "admin",
-        isActive: true,
+        active: true,
+        updated_at: new Date(),
       },
       select: {
         id: true,
@@ -77,7 +78,7 @@ export async function POST(request: Request) {
     return NextResponse.json(
       {
         message: "Admin created successfully",
-        admin: admin,
+        user: user,
       },
       { status: 201 },
     );

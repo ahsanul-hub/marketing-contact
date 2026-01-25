@@ -55,7 +55,7 @@ export function CreateUserForm() {
       setUsername("");
       setPassword("");
       setRole("user");
-      setSuccess("Admin berhasil dibuat!");
+      setSuccess("User berhasil dibuat!");
       router.refresh();
 
       setTimeout(() => setSuccess(null), 3000);
@@ -122,6 +122,7 @@ export function CreateUserForm() {
           onChange={(e) => setRole(e.target.value)}
           className="h-10 w-32 rounded-md border border-stroke px-3 text-sm dark:border-dark-3 dark:bg-dark-2"
         >
+          <option value="client">Client</option>
           <option value="user">User</option>
           <option value="admin">Admin</option>
         </select>
@@ -132,7 +133,7 @@ export function CreateUserForm() {
         disabled={loading}
         className="h-10 rounded-md bg-primary px-4 font-medium text-white transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:bg-opacity-60"
       >
-        {loading ? "Menyimpan..." : "Tambah Admin"}
+        {loading ? "Menyimpan..." : "Tambah User"}
       </button>
 
       {error && (

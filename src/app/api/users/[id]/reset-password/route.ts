@@ -53,14 +53,14 @@ export async function PUT(
       );
     }
 
-    // Check if admin exists
-    const existingAdmin = await prisma.admin.findUnique({
+    // Check if user exists
+    const existingUser = await prisma.user.findUnique({
       where: { id: userId },
     });
 
-    if (!existingAdmin) {
+    if (!existingUser) {
       return NextResponse.json(
-        { error: "Admin not found" },
+        { error: "User not found" },
         { status: 404 },
       );
     }
@@ -71,17 +71,18 @@ export async function PUT(
     const passwordBuffer = Buffer.from(hashedPassword, "utf-8");
 
     // Update password
-    const admin = await prisma.admin.update({
+    const user = await prisma.user.update({
       where: { id: userId },
       data: {
         password: passwordBuffer,
+        updated_at: new Date(),
       },
       select: {
         id: true,
         username: true,
         role: true,
-        isActive: true,
-        updatedAt: true,
+        active: true,
+        updated_at: true,
       },
     });
 
@@ -89,17 +90,17 @@ export async function PUT(
     if (session?.user?.id) {
       await createActivityLog(
         Number(session.user.id),
-        `Reset password for admin: ${admin.username}`,
+        `Reset password for user: ${user.username}`,
       );
     }
 
     return NextResponse.json(
       {
         message: "Password reset successfully",
-        admin: {
-          id: admin.id,
-          username: admin.username,
-          role: admin.role,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
         },
       },
       { status: 200 },

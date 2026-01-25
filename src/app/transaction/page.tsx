@@ -73,7 +73,10 @@ export default async function TransactionPage({ searchParams }: PageProps) {
   const skip = (page - 1) * limit;
 
   const transactions = await prisma.transaction.findMany({
-    orderBy: { transactionDate: "desc" },
+    orderBy: [
+      { transactionDate: "desc" },
+      { id: "desc" }, // Secondary sort untuk konsistensi pagination
+    ],
     skip,
     take: limit,
     where,

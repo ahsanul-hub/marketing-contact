@@ -29,6 +29,8 @@ import {
   parsePaginationParams,
 } from "@/lib/pagination";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/auth";
+import { redirect } from "next/navigation";
 import dayjs from "dayjs";
 import type { Metadata } from "next";
 
@@ -44,6 +46,12 @@ type PageProps = {
 };
 
 export default async function DataPage({ searchParams }: PageProps) {
+  // Auth check - pastikan user sudah login
+  const session = await auth();
+  if (!session || !session.user) {
+    redirect("/auth/sign-in?callbackUrl=/data");
+  }
+
   const resolved = await searchParams;
   const { page: rawPage, limit } = parsePaginationParams(resolved);
   const { startDate, endDate, startParam, endParam } =
@@ -71,7 +79,10 @@ export default async function DataPage({ searchParams }: PageProps) {
   const skip = (page - 1) * limit;
 
   const rows = await prisma.data.findMany({
-    orderBy: { createdAt: "desc" },
+    orderBy: [
+      { createdAt: "desc" },
+      { id: "desc" }, // Secondary sort untuk konsistensi pagination
+    ],
     skip,
     take: limit,
     where,

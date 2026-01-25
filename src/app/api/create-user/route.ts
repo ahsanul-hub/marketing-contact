@@ -40,14 +40,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if admin already exists
-    const existingAdmin = await prisma.admin.findUnique({
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
       where: { username },
     });
 
-    if (existingAdmin) {
+    if (existingUser) {
       return NextResponse.json(
-        { error: "Admin with this username already exists" },
+        { error: "User with this username already exists" },
         { status: 400 },
       );
     }
@@ -57,27 +57,28 @@ export async function POST(request: Request) {
     // Convert string hash to Buffer (bytea)
     const passwordBuffer = Buffer.from(hashedPassword, "utf-8");
 
-    // Create admin
-    const admin = await prisma.admin.create({
+    // Create user
+    const user = await prisma.user.create({
       data: {
         username,
         password: passwordBuffer,
-        role: role === "admin" ? "admin" : "user",
-        isActive: true,
+        role: role === "admin" ? "admin" : role === "client" ? "client" : "user",
+        active: true,
+        updated_at: new Date(),
       },
       select: {
         id: true,
         username: true,
         role: true,
-        isActive: true,
-        createdAt: true,
+        active: true,
+        created_at: true,
       },
     });
 
     return NextResponse.json(
       {
-        message: "Admin created successfully",
-        admin: admin,
+        message: "User created successfully",
+        user: user,
       },
       { status: 201 },
     );

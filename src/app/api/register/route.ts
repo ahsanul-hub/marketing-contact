@@ -1,11 +1,10 @@
 /**
- * Reset Password API - Helper endpoint untuk update password admin
+ * Register API - Endpoint untuk mendaftar user baru
  * 
- * Endpoint ini bisa digunakan untuk update password admin yang sudah ada.
- * Berguna untuk reset password atau fix password yang salah.
+ * Endpoint ini digunakan untuk registrasi user baru dengan default role "client".
  * 
- * POST /api/reset-password
- * Body: { username: "admin", password: "newpassword123" }
+ * POST /api/register
+ * Body: { username: "user123", password: "password123" }
  */
 
 import { NextResponse } from "next/server";
@@ -20,27 +19,41 @@ export async function POST(request: Request) {
 
     if (!username || !password) {
       return NextResponse.json(
-        { error: "Username and password are required" },
+        { error: "Username dan password wajib diisi" },
+        { status: 400 },
+      );
+    }
+
+    if (username.length > 30) {
+      return NextResponse.json(
+        { error: "Username maksimal 30 karakter" },
+        { status: 400 },
+      );
+    }
+
+    if (username.length < 3) {
+      return NextResponse.json(
+        { error: "Username minimal 3 karakter" },
         { status: 400 },
       );
     }
 
     if (password.length < 6) {
       return NextResponse.json(
-        { error: "Password must be at least 6 characters" },
+        { error: "Password minimal 6 karakter" },
         { status: 400 },
       );
     }
 
-    // Check if user exists
+    // Check if user already exists
     const existingUser = await prisma.user.findUnique({
       where: { username },
     });
 
-    if (!existingUser) {
+    if (existingUser) {
       return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 },
+        { error: "Username sudah digunakan" },
+        { status: 400 },
       );
     }
 
@@ -49,11 +62,13 @@ export async function POST(request: Request) {
     // Convert string hash to Buffer (bytea)
     const passwordBuffer = Buffer.from(hashedPassword, "utf-8");
 
-    // Update password
-    const user = await prisma.user.update({
-      where: { username },
+    // Create user dengan default role "client"
+    const user = await prisma.user.create({
       data: {
+        username,
         password: passwordBuffer,
+        role: "client", // Default role untuk user yang daftar
+        active: true,
         updated_at: new Date(),
       },
       select: {
@@ -61,29 +76,23 @@ export async function POST(request: Request) {
         username: true,
         role: true,
         active: true,
-        updated_at: true,
+        created_at: true,
       },
     });
 
     return NextResponse.json(
       {
-        message: "Password updated successfully",
-        user: {
-          username: user.username,
-          role: user.role,
-        },
+        message: "Registrasi berhasil",
+        user: user,
       },
-      { status: 200 },
+      { status: 201 },
     );
-  } catch (error: any) {
-    console.error("Error resetting password", error);
-    
+  } catch (error) {
+    console.error("Error registering user", error);
     return NextResponse.json(
-      { 
-        error: "Failed to reset password",
-        details: error.message || String(error),
-      },
+      { error: "Gagal melakukan registrasi" },
       { status: 500 },
     );
   }
 }
+

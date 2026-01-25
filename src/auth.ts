@@ -2,19 +2,19 @@
  * NextAuth Configuration
  * 
  * This file configures authentication using NextAuth.js with Credentials provider.
- * Admins are authenticated against the Admin table in the database.
+ * Users are authenticated against the User table in the database.
  * 
  * Flow:
- * 1. Admin submits username/password via sign-in form
+ * 1. User submits username/password via sign-in form
  * 2. authorize() function checks credentials against database
  * 3. Password is verified using bcrypt (password stored as bytea)
- * 4. If valid, admin data is returned and stored in JWT token
- * 5. Session is created with admin id, username, and role
+ * 4. If valid, user data is returned and stored in JWT token
+ * 5. Session is created with user id, username, and role
  * 
  * Security:
  * - Passwords are hashed with bcrypt (10 rounds) and stored as bytea
  * - JWT tokens are signed with AUTH_SECRET
- * - Only active admins can login
+ * - Only active users can login
  */
 
 import NextAuth from "next-auth";
@@ -35,9 +35,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       /**
-       * Authorize function - validates admin credentials
+       * Authorize function - validates user credentials
        * @param credentials - Username and password from login form
-       * @returns Admin object if valid, null if invalid
+       * @returns User object if valid, null if invalid
        */
       authorize: async (credentials) => {
         try {
@@ -49,26 +49,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             return null;
           }
 
-          // Cari admin di database berdasarkan username
-          const admin = await prisma.admin.findUnique({
+          // Cari user di database berdasarkan username
+          const user = await prisma.user.findUnique({
             where: { username },
           });
 
-          // Cek apakah admin ada
-          if (!admin) {
-            console.log(`[Auth] Admin not found: ${username}`);
+          // Cek apakah user ada
+          if (!user) {
+            console.log(`[Auth] User not found: ${username}`);
             return null;
           }
 
-          // Cek apakah admin aktif
-          if (!admin.isActive) {
-            console.log(`[Auth] Admin is inactive: ${username}`);
+          // Cek apakah user aktif
+          if (!user.active) {
+            console.log(`[Auth] User is inactive: ${username}`);
             return null;
           }
 
           // Convert password bytea (Buffer) ke string untuk bcrypt.compare
           // Password di database disimpan sebagai bytea (binary), perlu di-convert ke string
-          const passwordHash = Buffer.from(admin.password).toString("utf-8");
+          const passwordHash = Buffer.from(user.password).toString("utf-8");
 
           // Verifikasi password menggunakan bcrypt
           const isValid = await bcrypt.compare(password, passwordHash);
@@ -80,12 +80,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
           console.log(`[Auth] Login successful: ${username}`);
 
-          // Return admin data yang akan disimpan di JWT token
+          // Return user data yang akan disimpan di JWT token
           return {
-            id: admin.id.toString(),
-            username: admin.username,
-            name: admin.username, // Use username as name
-            role: admin.role, // "admin" atau "user"
+            id: user.id.toString(),
+            username: user.username,
+            name: user.username, // Use username as name
+            role: user.role, // "admin", "user", atau "client"
           };
         } catch (error) {
           console.error("[Auth] Error:", error);
@@ -100,11 +100,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: {
     strategy: "jwt", // Menggunakan JWT strategy (tidak perlu database session)
+    maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   callbacks: {
     /**
      * JWT callback - dipanggil saat token dibuat/updated
-     * Menyimpan admin id dan role ke token
+     * Menyimpan user id dan role ke token
      */
     async jwt({ token, user }) {
       if (user) {

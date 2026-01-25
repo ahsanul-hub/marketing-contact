@@ -11,15 +11,28 @@ import { useState } from "react";
 import { LogOutIcon, LogInIcon } from "./icons";
 import { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 
 export function UserInfo() {
   const [isOpen, setIsOpen] = useState(false);
   const { data: session } = useSession();
+  const router = useRouter();
 
   const handleLogout = async () => {
     setIsOpen(false);
-    await signOut({ callbackUrl: "/auth/sign-in" });
+    try {
+      // Sign out dengan redirect: true untuk memastikan session dihapus dan redirect terjadi
+      await signOut({ 
+        redirect: true,
+        callbackUrl: "/auth/sign-in" 
+      });
+    } catch (error) {
+      console.error("Logout error:", error);
+      // Jika ada error, tetap redirect ke sign-in
+      router.push("/auth/sign-in");
+      router.refresh();
+    }
   };
 
   // Jika belum login, tampilkan tombol login

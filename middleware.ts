@@ -26,9 +26,11 @@ import { auth } from "@/auth";
 // Hanya routes yang benar-benar public (login page, forgot password, dan NextAuth API)
 const publicRoutes = [
   "/auth/sign-in",        // Halaman login
+  "/auth/sign-up",        // Halaman registrasi
   "/auth/forgot-password", // Halaman forgot password
   "/api/auth",            // NextAuth API endpoints (signin, signout, session, csrf)
   "/api/reset-password",  // API untuk reset password (public untuk forgot password)
+  "/api/register",        // API untuk registrasi user baru
 ];
 
 export default auth((req) => {
@@ -44,8 +46,8 @@ export default auth((req) => {
 
   // 2. API ROUTES - Handle secara khusus
   if (pathname.startsWith("/api")) {
-    // API yang bisa diakses public (untuk forgot password)
-    if (pathname.startsWith("/api/reset-password")) {
+    // API yang bisa diakses public (untuk forgot password dan register)
+    if (pathname.startsWith("/api/reset-password") || pathname.startsWith("/api/register")) {
       return NextResponse.next();
     }
 
@@ -91,7 +93,12 @@ export default auth((req) => {
     // Redirect ke login dengan callback URL
     const signInUrl = new URL("/auth/sign-in", req.url);
     signInUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(signInUrl);
+    // Set no-cache headers untuk memastikan tidak ada cache
+    const response = NextResponse.redirect(signInUrl);
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+    return response;
   }
 
   // 4. ADMIN ROUTES - Hanya role "admin" yang bisa akses

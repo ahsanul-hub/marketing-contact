@@ -14,18 +14,18 @@ export async function GET() {
       );
     }
 
-    const admins = await prisma.admin.findMany({
+    const users = await prisma.user.findMany({
       select: {
         id: true,
         username: true,
         role: true,
-        isActive: true,
-        createdAt: true,
+        active: true,
+        created_at: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { created_at: "desc" },
     });
 
-    return NextResponse.json(admins);
+    return NextResponse.json(users);
   } catch (error) {
     console.error("Error fetching admins", error);
     return NextResponse.json(
@@ -64,14 +64,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if admin already exists
-    const existingAdmin = await prisma.admin.findUnique({
+    // Check if user already exists
+    const existingUser = await prisma.user.findUnique({
       where: { username },
     });
 
-    if (existingAdmin) {
+    if (existingUser) {
       return NextResponse.json(
-        { error: "Admin with this username already exists" },
+        { error: "User with this username already exists" },
         { status: 400 },
       );
     }
@@ -81,20 +81,21 @@ export async function POST(request: Request) {
     // Convert string hash to Buffer (bytea)
     const passwordBuffer = Buffer.from(hashedPassword, "utf-8");
 
-    // Create admin
-    const admin = await prisma.admin.create({
+    // Create user
+    const user = await prisma.user.create({
       data: {
         username,
         password: passwordBuffer,
-        role: role === "admin" ? "admin" : "user",
-        isActive: true,
+        role: role === "admin" ? "admin" : role === "client" ? "client" : "user",
+        active: true,
+        updated_at: new Date(),
       },
       select: {
         id: true,
         username: true,
         role: true,
-        isActive: true,
-        createdAt: true,
+        active: true,
+        created_at: true,
       },
     });
 
@@ -102,11 +103,11 @@ export async function POST(request: Request) {
     if (session?.user?.id) {
       await createActivityLog(
         Number(session.user.id),
-        `Created ${role} admin: ${username}`,
+        `Created ${role} user: ${username}`,
       );
     }
 
-    return NextResponse.json(admin, { status: 201 });
+    return NextResponse.json(user, { status: 201 });
   } catch (error) {
     console.error("Error creating admin", error);
     return NextResponse.json(

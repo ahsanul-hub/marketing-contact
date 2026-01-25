@@ -8,10 +8,10 @@ export const NAV_DATA = [
         title: "Dashboard",
         icon: Icons.HomeIcon,
         items: [
-          {
-            title: "Summary",
-            url: "/",
-          },
+          // {
+          //   title: "Summary",
+          //   url: "/",
+          // },
           {
             title: "Registration",
             url: "/registration",
@@ -26,18 +26,18 @@ export const NAV_DATA = [
           },
         ],
       },
-      {
-        title: "Client",
-        url: "/client",
-        icon: Icons.User,
-        items: [],
-      },
-      {
-        title: "Manage Users",
-        url: "/admin/users",
-        icon: Icons.User,
-        items: [],
-      },
+      // {
+      //   title: "Client",
+      //   url: "/client",
+      //   icon: Icons.User,
+      //   items: [],
+      // },
+      // {
+      //   title: "Manage Users",
+      //   url: "/admin/users",
+      //   icon: Icons.User,
+      //   items: [],
+      // },
   //     {
   //       title: "Forms",
   //       icon: Icons.Alphabet,

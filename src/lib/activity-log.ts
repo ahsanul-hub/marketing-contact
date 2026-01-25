@@ -1,10 +1,10 @@
 /**
  * Activity Log Utility
  * 
- * Fungsi untuk mencatat aktivitas admin (insert, update, delete) ke database.
+ * Fungsi untuk mencatat aktivitas user (insert, update, delete) ke database.
  * Digunakan untuk tracking siapa yang melakukan apa dan kapan.
  * 
- * @param adminId - ID admin yang melakukan action
+ * @param userId - ID user yang melakukan action
  * @param action - Action type: "INSERT", "UPDATE", "DELETE"
  * @param details - Optional: Detail tambahan (JSON string atau text)
  * 
@@ -15,14 +15,14 @@
 import { prisma } from "@/lib/prisma";
 
 export async function createActivityLog(
-  adminId: number,
+  userId: number,
   action: string,
   details?: string,
 ) {
   try {
     await prisma.activityLog.create({
       data: {
-        adminId,
+        userId,
         action,
         details: details || null,
       },

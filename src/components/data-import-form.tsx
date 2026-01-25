@@ -19,6 +19,58 @@ export function DataImportForm() {
     setFileName(file.name);
   };
 
+  const parseCSV = (text: string): any[][] => {
+    const lines = text.split(/\r?\n/).filter((line) => line.trim());
+    return lines.map((line) => {
+      const result: string[] = [];
+      let current = "";
+      let inQuotes = false;
+
+      for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        const nextChar = line[i + 1];
+
+        if (char === '"') {
+          if (inQuotes && nextChar === '"') {
+            current += '"';
+            i++; // Skip next quote
+          } else {
+            inQuotes = !inQuotes;
+          }
+        } else if (char === "," && !inQuotes) {
+          result.push(current.trim());
+          current = "";
+        } else {
+          current += char;
+        }
+      }
+      result.push(current.trim());
+      return result;
+    });
+  };
+
+  const processFileData = async (file: File): Promise<any[][]> => {
+    const fileExtension = file.name.split(".").pop()?.toLowerCase();
+
+    if (fileExtension === "csv") {
+      const text = await file.text();
+      const rows = parseCSV(text);
+      return rows;
+    } else {
+      // Excel file
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+
+      const rows: any[] = XLSX.utils.sheet_to_json(sheet, {
+        header: 1,
+        defval: "",
+      });
+      return rows;
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setMessage(null);
@@ -30,26 +82,17 @@ export function DataImportForm() {
     const file = input?.files?.[0];
 
     if (!file) {
-      setError("Pilih file Excel terlebih dahulu");
+      setError("Pilih file CSV atau Excel terlebih dahulu");
       return;
     }
 
     try {
       setUploading(true);
 
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheetName = workbook.SheetNames[0];
-      const sheet = workbook.Sheets[sheetName];
-
-      // Convert to JSON with header row
-      const rows: any[] = XLSX.utils.sheet_to_json(sheet, {
-        header: 1,
-        defval: "",
-      });
+      const rows = await processFileData(file);
 
       if (rows.length < 2) {
-        setError("File Excel harus memiliki header dan minimal 1 baris data.");
+        setError("File harus memiliki header dan minimal 1 baris data.");
         return;
       }
 
@@ -58,7 +101,7 @@ export function DataImportForm() {
         String(h || "").toLowerCase().trim(),
       );
 
-      // Find column indices
+      // Find column indices - support both Indonesian and English
       const whatsappIdx = headers.findIndex(
         (h: string) =>
           h.includes("whatsapp") ||
@@ -83,21 +126,43 @@ export function DataImportForm() {
           h === "client",
       );
 
-      // Process data rows (skip header)
-      const dataRows = rows.slice(1).map((row: any[]) => {
-        const whatsapp =
-          whatsappIdx >= 0 ? String(row[whatsappIdx] || "").trim() : "";
-        const name = nameIdx >= 0 ? String(row[nameIdx] || "").trim() : "";
-        const nik = nikIdx >= 0 ? String(row[nikIdx] || "").trim() : "";
-        const client = clientIdx >= 0 ? String(row[clientIdx] || "").trim() : "";
+      // If no headers found, assume first 3 columns are Whatsapp, Nama, NIK (based on user's format)
+      const hasHeaders = whatsappIdx >= 0 || nameIdx >= 0 || nikIdx >= 0;
+      
+      let dataRows: any[];
+      
+      if (!hasHeaders && rows[0].length >= 3) {
+        // Assume first row is data, not header (format: Whatsapp, Nama, NIK)
+        dataRows = rows.map((row: any[]) => {
+          const whatsapp = String(row[0] || "").trim();
+          const name = String(row[1] || "").trim();
+          const nik = String(row[2] || "").trim();
+          const client = row[3] ? String(row[3] || "").trim() : "";
 
-        return {
-          whatsapp: whatsapp || null,
-          name: name || null,
-          nik: nik || null,
-          client: client || null,
-        };
-      });
+          return {
+            whatsapp: whatsapp || null,
+            name: name || null,
+            nik: nik || null,
+            client: client || null,
+          };
+        });
+      } else {
+        // Process data rows (skip header)
+        dataRows = rows.slice(1).map((row: any[]) => {
+          const whatsapp =
+            whatsappIdx >= 0 ? String(row[whatsappIdx] || "").trim() : "";
+          const name = nameIdx >= 0 ? String(row[nameIdx] || "").trim() : "";
+          const nik = nikIdx >= 0 ? String(row[nikIdx] || "").trim() : "";
+          const client = clientIdx >= 0 ? String(row[clientIdx] || "").trim() : "";
+
+          return {
+            whatsapp: whatsapp || null,
+            name: name || null,
+            nik: nik || null,
+            client: client || null,
+          };
+        });
+      }
 
       if (dataRows.length === 0) {
         setError("Tidak ditemukan data.");
@@ -121,6 +186,12 @@ export function DataImportForm() {
       setMessage(
         `Berhasil import ${result.inserted} dari ${result.totalSent} data.`,
       );
+      
+      // Reset file input
+      if (input) {
+        input.value = "";
+        setFileName(null);
+      }
     } catch (err: any) {
       console.error(err);
       setError(err.message || "Terjadi kesalahan saat import.");
@@ -132,12 +203,13 @@ export function DataImportForm() {
   return (
     <div className="rounded-[10px] border border-dashed border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card sm:p-5">
       <h3 className="mb-2 text-base font-semibold text-dark dark:text-white">
-        Bulk import Data dari Excel
+        Bulk import Data dari CSV/Excel
       </h3>
       <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-300">
-        Gunakan file Excel (.xlsx). Format: kolom <strong>whatsapp</strong> (opsional),{" "}
-        <strong>name</strong> (opsional), <strong>nik</strong> (opsional),{" "}
-        <strong>client</strong> (opsional). Client akan dibuat otomatis jika belum ada.
+        Gunakan file CSV (.csv) atau Excel (.xlsx, .xls). Format: kolom <strong>Whatsapp</strong>,{" "}
+        <strong>Nama</strong>, <strong>NIK</strong> (opsional: <strong>Client</strong>). 
+        Client akan dibuat otomatis jika belum ada. Header opsional - jika tidak ada header, 
+        akan diasumsikan kolom pertama adalah Whatsapp, kedua Nama, ketiga NIK.
       </p>
 
       <div className="mb-4">
@@ -149,7 +221,7 @@ export function DataImportForm() {
           <input
             type="file"
             name="file"
-            accept=".xlsx,.xls"
+            accept=".csv,.xlsx,.xls"
             onChange={handleFileChange}
             className="block w-64 text-sm text-neutral-700 file:mr-4 file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-opacity-90 dark:text-neutral-200"
           />
