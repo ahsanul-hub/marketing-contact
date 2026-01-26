@@ -1,32 +1,18 @@
-/**
- * NextAuth Configuration
- * 
- * This file configures authentication using NextAuth.js with Credentials provider.
- * Users are authenticated against the User table in the database.
- * 
- * Flow:
- * 1. User submits username/password via sign-in form
- * 2. authorize() function checks credentials against database
- * 3. Password is verified using bcrypt (password stored as bytea)
- * 4. If valid, user data is returned and stored in JWT token
- * 5. Session is created with user id, username, and role
- * 
- * Security:
- * - Passwords are hashed with bcrypt (10 rounds) and stored as bytea
- * - JWT tokens are signed with AUTH_SECRET
- * - Only active users can login
- */
-
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
+import { authConfig } from "./auth.config";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  ...authConfig,
   // Secret untuk sign JWT tokens
   // IMPORTANT: Set AUTH_SECRET di .env.local untuk production!
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "default-secret-change-in-production",
-  
+  secret:
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    "default-secret-change-in-production",
+
   providers: [
     Credentials({
       name: "Credentials",
@@ -95,38 +81,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       },
     }),
   ],
-  pages: {
-    signIn: "/auth/sign-in", // Custom sign-in page
-  },
-  session: {
-    strategy: "jwt", // Menggunakan JWT strategy (tidak perlu database session)
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-  callbacks: {
-    /**
-     * JWT callback - dipanggil saat token dibuat/updated
-     * Menyimpan user id dan role ke token
-     */
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = (user as any).role;
-        token.username = (user as any).username;
-      }
-      return token;
-    },
-    /**
-     * Session callback - dipanggil saat session diakses
-     * Menambahkan id, username, dan role ke session object
-     */
-    async session({ session, token }) {
-      if (session.user) {
-        (session.user as any).id = token.id;
-        (session.user as any).role = token.role;
-        (session.user as any).username = token.username;
-      }
-      return session;
-    },
-  },
 });
-
