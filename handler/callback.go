@@ -1054,3 +1054,110 @@ func ProcessUpdateTransactionPending() {
 		time.Sleep(15 * time.Minute)
 	}
 }
+
+// DokuCallbackRequest represents the callback payload from DOKU
+type DokuCallbackRequest struct {
+	Order struct {
+		InvoiceNumber string  `json:"invoice_number"`
+		Amount        float64 `json:"amount"`
+	} `json:"order"`
+	Customer struct {
+		ID    string `json:"id"`
+		Name  string `json:"name"`
+		Email string `json:"email"`
+	} `json:"customer"`
+	Transaction struct {
+		Type              string `json:"type"`
+		Status            string `json:"status"`
+		Date              string `json:"date"`
+		OriginalRequestID string `json:"original_request_id"`
+	} `json:"transaction"`
+	Service struct {
+		ID string `json:"id"`
+	} `json:"service"`
+	Acquirer struct {
+		ID string `json:"id"`
+	} `json:"acquirer"`
+	Channel struct {
+		ID string `json:"id"`
+	} `json:"channel"`
+	CardPayment struct {
+		MaskedCardNumber string `json:"masked_card_number"`
+		ApprovalCode     string `json:"approval_code"`
+		ResponseCode     string `json:"response_code"`
+		ResponseMessage  string `json:"response_message"`
+		Issuer           string `json:"issuer"`
+	} `json:"card_payment"`
+	AuthorizeID string `json:"authorize_id"`
+}
+
+func DokuCallback(c *fiber.Ctx) error {
+	ipClient := c.IP()
+
+	var req DokuCallbackRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid request body",
+		})
+	}
+
+	transactionID := req.Order.InvoiceNumber
+	if transactionID == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Missing invoice number",
+		})
+	}
+
+	transaction, err := repository.GetTransactionByID(context.Background(), transactionID)
+	if err != nil || transaction == nil {
+		log.Printf("Transaction not found: %s", transactionID)
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Transaction not found",
+		})
+	}
+
+	helper.DokuLogger.LogCallback(transactionID, true,
+		map[string]interface{}{
+			"transaction_id":   transactionID,
+			"ip":               ipClient,
+			"request_callback": req,
+		},
+	)
+
+	now := time.Now()
+	receiveCallbackDate := &now
+
+	switch req.Transaction.Status {
+	case "SUCCESS":
+		referenceID := req.AuthorizeID
+		if err := worker.HandleSuccessCallback(context.Background(), transactionID, &referenceID, nil, "", receiveCallbackDate); err != nil {
+			log.Printf("Error processing success callback for %s: %s", transactionID, err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Failed to process callback",
+			})
+		}
+	case "FAILED":
+		failureReason := req.CardPayment.ResponseMessage
+		if failureReason == "" {
+			failureReason = "Payment failed"
+		}
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, &req.AuthorizeID, nil, failureReason, receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	case "EXPIRED":
+		if err := repository.UpdateTransactionStatus(context.Background(), transactionID, 1005, &req.AuthorizeID, nil, "Payment expired", receiveCallbackDate); err != nil {
+			log.Printf("Error updating transaction status for %s: %s", transactionID, err)
+		}
+	default:
+		log.Printf("Unknown transaction status from DOKU: %s", req.Transaction.Status)
+	}
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Callback processed successfully",
+	})
+}

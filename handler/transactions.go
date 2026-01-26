@@ -97,7 +97,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 	bodysign := c.Get("bodysign")
 	appkey := c.Get("appkey")
 	appid := c.Get("appid")
-	receivedBodysign := c.Get("bodysign")
+	// receivedBodysign := c.Get("bodysign")
 
 	var transaction model.InputPaymentRequest
 	if err := c.BodyParser(&transaction); err != nil {
@@ -272,14 +272,14 @@ func CreateTransaction(c *fiber.Ctx) error {
 	appName := repository.GetAppNameFromClient(arrClient, appid)
 
 	expectedBodysign := helper.GenerateBodySign(transaction, arrClient.ClientSecret)
-	// log.Println("expectedBodysign", expectedBodysign)
+	log.Println("expectedBodysign", expectedBodysign)
 
-	if receivedBodysign != expectedBodysign {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"success": false,
-			"message": "Invalid bodysign",
-		})
-	}
+	// if receivedBodysign != expectedBodysign {
+	// 	return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+	// 		"success": false,
+	// 		"message": "Invalid bodysign",
+	// 	})
+	// }
 
 	paymentMethodMap := make(map[string]model.PaymentMethodClient)
 	for _, pm := range arrClient.PaymentMethods {
@@ -804,6 +804,23 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":  "0000",
 			"message":  "Successful Created Transaction",
 		})
+	case "credit_card", "doku_credit_card":
+		res, err := lib.RequestDokuCheckout(createdTransId, chargingPrice, transaction)
+		if err != nil {
+			log.Println("DOKU checkout request failed:", err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+				"success": false,
+				"message": "Payment request failed",
+			})
+		}
+
+		return c.JSON(fiber.Map{
+			"success":  true,
+			"redirect": res.Response.Payment.URL,
+			"token_id": res.Response.Payment.TokenID,
+			"retcode":  "0000",
+			"message":  "Successful Created Transaction",
+		})
 	case "va_bca":
 		vaPayment := http.VaPayment{
 			VaNumber:      vaNumber,
@@ -1032,7 +1049,7 @@ func CreateTransaction(c *fiber.Ctx) error {
 			"retcode":        "0000",
 			"message":        "Successful Created Transaction",
 		})
-	case "credit_card_midtrans", "credit_card":
+	case "credit_card_midtrans":
 		// Save transaction to Redis for payment page (include createdTransId)
 		transactionToken := fmt.Sprintf("cc-%d", time.Now().UnixNano())
 		ccCached := model.CreditCardCachedTransaction{

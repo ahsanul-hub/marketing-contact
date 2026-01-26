@@ -82,6 +82,7 @@ func SetupRoutes(app *fiber.App, db *gorm.DB) {
 
 	api.Post("/callback/dana", handler.DanaCallback)
 	api.Post("/callback/faspay", handler.DanaFaspayCallback)
+	api.Post("/callback/doku", handler.DokuCallback)
 	api.Get("/success-payment/:msisdn/:token", handler.SuccessPage)
 	api.Get("/v1/success-payment/:msisdn/:token", handler.SuccessPageLegacy)
 	api.Get("/success-otp/:token", handler.SuccessPageOTP)
