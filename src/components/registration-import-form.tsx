@@ -47,8 +47,9 @@ export function RegistrationImportForm() {
         defval: "",
       });
 
-      // Ambil semua nilai di kolom pertama (A) sebagai phone_number
+      // Ambil semua nilai di kolom pertama (A) sebagai phone_number, skip header
       const phones = rows
+        .slice(1) // Skip the header row
         .map((row) => String(row[0] ?? "").trim())
         .filter((v) => v.length > 0);
 

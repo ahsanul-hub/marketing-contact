@@ -74,12 +74,11 @@ export function downloadTransactionTemplate() {
 }
 
 export function downloadDataTemplate() {
-  // Format sesuai contoh: Whatsapp, Nama, NIK (Client opsional)
-  const headers = ["Whatsapp", "Nama", "NIK"];
+  const headers = ["whatsapp", "name", "nik", "client"];
   const sampleData = [
-    ["6281217402830", "SYAHRIZAL", "1116041012880000"],
-    ["6281217402831", "ROBIN ZUMASDA", "1116041012880001"],
-    ["6281217402832", "GEDE SUGIANJAR", "1116041012880002"],
+    ["081234567890", "John Doe", "3201010101010001", "Client A"],
+    ["081234567891", "Jane Smith", "3201010101010002", "Client B"],
+    ["081234567892", "Bob Johnson", "3201010101010003", "Client A"],
   ];
 
   downloadExcelTemplate(headers, sampleData, "template-data.xlsx");

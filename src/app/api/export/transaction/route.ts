@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
 
     // Use today as default if no dates provided
     const filterStartDate = startDate || dayjs().startOf("day").toDate();
-    const filterEndDate = endDate || dayjs().endOf("day").toDate();
+    const filterEndDate = endDate || dayjs().add(1, "day").startOf("day").toDate();
 
     const where = {
       transactionDate: {

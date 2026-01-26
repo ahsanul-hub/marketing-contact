@@ -58,7 +58,7 @@ export default async function TransactionPage({ searchParams }: PageProps) {
 
   // Use today as default if no dates provided
   const filterStartDate = startDate || dayjs().startOf("day").toDate();
-  const filterEndDate = endDate || dayjs().endOf("day").toDate();
+  const filterEndDate = endDate || dayjs().add(1, "day").startOf("day").toDate();
 
   const where = {
     transactionDate: {
@@ -73,10 +73,7 @@ export default async function TransactionPage({ searchParams }: PageProps) {
   const skip = (page - 1) * limit;
 
   const transactions = await prisma.transaction.findMany({
-    orderBy: [
-      { transactionDate: "desc" },
-      { id: "desc" }, // Secondary sort untuk konsistensi pagination
-    ],
+    orderBy: { transactionDate: "desc" },
     skip,
     take: limit,
     where,
