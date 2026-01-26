@@ -16,10 +16,7 @@ export async function POST(request: Request) {
     }
 
     if (rawList.length === 0) {
-      return NextResponse.json(
-        { error: "No data provided" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "No data provided" }, { status: 400 });
     }
 
     const now = new Date();
@@ -41,7 +38,11 @@ export async function POST(request: Request) {
     // Get or create clients
     const clientMap = new Map<string, bigint>();
     const uniqueClientNames = Array.from(
-      new Set(cleaned.map((item) => item.clientName).filter(Boolean)),
+      new Set(
+        cleaned
+          .map((item: any) => item.clientName)
+          .filter((name: any): name is string => !!name),
+      ),
     );
 
     if (uniqueClientNames.length > 0) {

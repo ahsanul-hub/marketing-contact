@@ -17,6 +17,7 @@ type InputGroupProps = {
   iconPosition?: "left" | "right";
   height?: "sm" | "default";
   defaultValue?: string;
+  minLength?: number;
 };
 
 const InputGroup: React.FC<InputGroupProps> = ({
@@ -29,6 +30,7 @@ const InputGroup: React.FC<InputGroupProps> = ({
   active,
   handleChange,
   icon,
+  minLength,
   ...props
 }) => {
   const id = useId();
@@ -70,6 +72,7 @@ const InputGroup: React.FC<InputGroupProps> = ({
           required={required}
           disabled={disabled}
           data-active={active}
+          minLength={minLength}
         />
 
         {icon}

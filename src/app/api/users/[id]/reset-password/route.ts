@@ -1,9 +1,9 @@
 /**
  * Reset Password API - Admin Only
- * 
+ *
  * Endpoint ini digunakan oleh admin untuk reset password user.
  * Hanya admin yang bisa mengakses endpoint ini.
- * 
+ *
  * PUT /api/users/[id]/reset-password
  * Body: { password: "newpassword123" }
  */
@@ -16,24 +16,19 @@ import { createActivityLog } from "@/lib/activity-log";
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     // Auth check - pastikan user sudah login dan admin
     const session = await auth();
     if (!session || (session.user as any)?.role !== "admin") {
-      return NextResponse.json(
-        { error: "Unauthorized" },
-        { status: 401 },
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const userId = parseInt(params.id);
+    const userId = parseInt(id);
     if (isNaN(userId)) {
-      return NextResponse.json(
-        { error: "Invalid user ID" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
     }
 
     const body = await request.json();
@@ -59,10 +54,7 @@ export async function PUT(
     });
 
     if (!existingUser) {
-      return NextResponse.json(
-        { error: "User not found" },
-        { status: 404 },
-      );
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Hash password
@@ -107,9 +99,9 @@ export async function PUT(
     );
   } catch (error: any) {
     console.error("Error resetting password", error);
-    
+
     return NextResponse.json(
-      { 
+      {
         error: "Failed to reset password",
         details: error.message || String(error),
       },
