@@ -54,15 +54,28 @@ export default async function DataPage({ searchParams }: PageProps) {
   const defaultStartDate = startParam || today;
   const defaultEndDate = endParam || today;
 
-  // Use today as default if no dates provided
-  const filterStartDate = startDate || dayjs().startOf("day").toDate();
-  const filterEndDate = endDate || dayjs().add(1, "day").startOf("day").toDate();
+  const searchParam = resolved?.search ? String(resolved.search) : undefined;
+
+  const filterStartDate = startDate
+    ? dayjs(startDate).startOf("day").toDate()
+    : dayjs().startOf("day").toDate();
+  const filterEndDate = endDate
+    ? dayjs(endDate).endOf("day").toDate()
+    : dayjs().endOf("day").toDate();
 
   const where = {
     createdAt: {
       gte: filterStartDate,
       lte: filterEndDate,
     },
+    ...(searchParam && {
+      OR: [
+        { whatsapp: { contains: searchParam, mode: "insensitive" } },
+        { name: { contains: searchParam, mode: "insensitive" } },
+        { nik: { contains: searchParam, mode: "insensitive" } },
+        { client: { name: { contains: searchParam, mode: "insensitive" } } },
+      ],
+    }),
   };
 
   const totalCount = await prisma.data.count({ where });
@@ -156,6 +169,20 @@ export default async function DataPage({ searchParams }: PageProps) {
             </select>
           </div>
 
+          <div className="flex flex-col gap-1">
+            <label className="text-neutral-600 dark:text-neutral-300" htmlFor="search">
+              Search
+            </label>
+            <input
+              id="search"
+              name="search"
+              type="text"
+              placeholder="Whatsapp, Name, NIK or Client"
+              defaultValue={searchParam || ""}
+              className="h-10 w-56 rounded-md border border-stroke px-3 text-sm dark:border-dark-3 dark:bg-dark-2"
+            />
+          </div>
+
           <input type="hidden" name="page" value="1" />
 
           <button
@@ -230,7 +257,7 @@ export default async function DataPage({ searchParams }: PageProps) {
           limit={limit}
           page={page}
           total={totalCount}
-          params={{ start: startParam, end: endParam }}
+          params={{ start: startParam, end: endParam, search: searchParam }}
         />
       </div>
     </div>

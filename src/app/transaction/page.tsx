@@ -56,6 +56,8 @@ export default async function TransactionPage({ searchParams }: PageProps) {
   const defaultStartDate = startParam || today;
   const defaultEndDate = endParam || today;
 
+  const searchParam = resolved?.search ? String(resolved.search) : undefined;
+
   // Use today as default if no dates provided
   const filterStartDate = startDate
     ? dayjs(startDate).startOf("day").toDate()
@@ -69,6 +71,12 @@ export default async function TransactionPage({ searchParams }: PageProps) {
       gte: filterStartDate,
       lte: filterEndDate,
     },
+    ...(searchParam && {
+      OR: [
+        { phoneNumber: { contains: searchParam, mode: "insensitive" } },
+        { client: { name: { contains: searchParam, mode: "insensitive" } } },
+      ],
+    }),
   };
 
   const totalCount = await prisma.transaction.count({ where });
@@ -164,6 +172,20 @@ export default async function TransactionPage({ searchParams }: PageProps) {
             </select>
           </div>
 
+          <div className="flex flex-col gap-1">
+            <label className="text-neutral-600 dark:text-neutral-300" htmlFor="search">
+              Search
+            </label>
+            <input
+              id="search"
+              name="search"
+              type="text"
+              placeholder="Phone or Client"
+              defaultValue={searchParam || ""}
+              className="h-10 w-48 rounded-md border border-stroke px-3 text-sm dark:border-dark-3 dark:bg-dark-2"
+            />
+          </div>
+
           <input type="hidden" name="page" value="1" />
 
           <button
@@ -240,7 +262,7 @@ export default async function TransactionPage({ searchParams }: PageProps) {
           limit={limit}
           page={page}
           total={totalCount}
-          params={{ start: startParam, end: endParam }}
+          params={{ start: startParam, end: endParam, search: searchParam }}
         />
       </div>
     </div>

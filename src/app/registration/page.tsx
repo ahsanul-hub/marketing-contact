@@ -64,6 +64,7 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
   const defaultEndDate = endParam || today;
 
   const clientIdParam = normalizeParam(resolved?.client_id);
+  const searchParam = normalizeParam(resolved?.search);
   const isOrganic = clientIdParam === "organic";
   const clientId =
     clientIdParam && clientIdParam !== "organic" ? BigInt(clientIdParam) : undefined;
@@ -87,6 +88,13 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
   
   const dateFilterSql = Prisma.sql` AND r.created_at >= ${filterStartDate} AND r.created_at <= ${filterEndDate}`;
 
+  const searchFilterSql = searchParam
+    ? Prisma.sql` AND (
+        r.phone_number ILIKE ${`%${searchParam}%`} OR
+        c.name ILIKE ${`%${searchParam}%`}
+      )`
+    : Prisma.empty;
+
   const typeFilterSql =
     isOrganic
       ? Prisma.sql` AND NOT EXISTS (
@@ -105,8 +113,10 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
   const totalCountRow = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(*)::bigint as count
     FROM registration r
+    LEFT JOIN client c ON r.id_client = c.id
     WHERE 1=1
       ${dateFilterSql}
+      ${searchFilterSql}
       ${typeFilterSql}
   `;
 
@@ -123,6 +133,7 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
     LEFT JOIN client c ON r.id_client = c.id
     WHERE 1=1
       ${dateFilterSql}
+      ${searchFilterSql}
       ${typeFilterSql}
     ORDER BY r.created_at DESC NULLS LAST, r.id DESC
     LIMIT ${limit} OFFSET ${skip}
@@ -217,6 +228,20 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
             </select>
           </div>
 
+          <div className="flex flex-col gap-1">
+            <label className="text-neutral-600 dark:text-neutral-300" htmlFor="search">
+              Search
+            </label>
+            <input
+              id="search"
+              name="search"
+              type="text"
+              placeholder="Phone or Client"
+              defaultValue={searchParam || ""}
+              className="h-10 w-48 rounded-md border border-stroke px-3 text-sm dark:border-dark-3 dark:bg-dark-2"
+            />
+          </div>
+
           <input type="hidden" name="page" value="1" />
 
           <button
@@ -287,6 +312,7 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
             start: startParam,
             end: endParam,
             client_id: clientIdParam,
+            search: searchParam,
           }}
         />
       </div>
