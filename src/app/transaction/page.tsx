@@ -109,8 +109,6 @@ export default async function TransactionPage({ searchParams }: PageProps) {
 
       <TransactionImportForm />
 
-      <DownloadButtonWrapper type="transaction" />
-
       <div className="rounded-[10px] border border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>

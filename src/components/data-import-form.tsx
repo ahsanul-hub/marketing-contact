@@ -203,7 +203,7 @@ export function DataImportForm() {
   return (
     <div className="rounded-[10px] border border-dashed border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card sm:p-5">
       <h3 className="mb-2 text-base font-semibold text-dark dark:text-white">
-        Bulk import Data dari CSV/Excel
+        Bulk import Data dari Excel
       </h3>
       <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-300">
         Gunakan file Excel (.xlsx, .xls). Format: kolom <strong>Whatsapp</strong>,{" "}
