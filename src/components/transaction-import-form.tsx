@@ -181,8 +181,8 @@ export function TransactionImportForm() {
 
         <button
           type="submit"
-          disabled={uploading}
-          className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-white transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:bg-opacity-60"
+          disabled={uploading || !fileName}
+          className="h-10 rounded-md bg-primary px-4 text-sm font-medium text-white transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:bg-opacity-40"
         >
           {uploading ? "Mengupload..." : "Import"}
         </button>
