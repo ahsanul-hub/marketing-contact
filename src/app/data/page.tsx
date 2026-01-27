@@ -31,6 +31,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import dayjs from "dayjs";
 import type { Metadata } from "next";
+import { Prisma } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Data",
@@ -63,44 +64,43 @@ export default async function DataPage({ searchParams }: PageProps) {
     ? dayjs(endDate).endOf("day").toDate()
     : dayjs().endOf("day").toDate();
 
-  const where = {
-    createdAt: {
-      gte: filterStartDate,
-      lte: filterEndDate,
-    },
-    ...(searchParam && {
-      OR: [
-        { whatsapp: { contains: searchParam, mode: "insensitive" } },
-        { name: { contains: searchParam, mode: "insensitive" } },
-        { nik: { contains: searchParam, mode: "insensitive" } },
-        { client: { name: { contains: searchParam, mode: "insensitive" } } },
-      ],
-    }),
-  };
+  const dateFilterSql = Prisma.sql` AND d.created_at >= ${filterStartDate} AND d.created_at <= ${filterEndDate}`;
 
-  const totalCount = await prisma.data.count({ where });
+  const searchFilterSql = searchParam
+    ? Prisma.sql` AND (
+        d.whatsapp ILIKE ${`%${searchParam}%`} OR
+        d.name ILIKE ${`%${searchParam}%`} OR
+        d.nik ILIKE ${`%${searchParam}%`} OR
+        c.name ILIKE ${`%${searchParam}%`}
+      )`
+    : Prisma.empty;
+
+  const totalCountRow = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint as count
+    FROM data d
+    LEFT JOIN client c ON d.id_client = c.id
+    WHERE 1=1
+      ${dateFilterSql}
+      ${searchFilterSql}
+  `;
+
+  const totalCount = Number(totalCountRow?.[0]?.count ?? Number(0));
   const totalPages = Math.max(1, Math.ceil(totalCount / limit));
   const page = Math.min(rawPage, totalPages);
   const skip = (page - 1) * limit;
 
-  const rows = await prisma.data.findMany({
-    orderBy: { createdAt: "desc" },
-    skip,
-    take: limit,
-    where,
-    select: {
-      id: true,
-      whatsapp: true,
-      name: true,
-      nik: true,
-      createdAt: true,
-      client: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  });
+  const rows = await prisma.$queryRaw<
+    { id: bigint; whatsapp: string | null; name: string | null; nik: string | null; created_at: Date | null; client_name: string | null }[]
+  >`
+    SELECT d.id, d.whatsapp, d.name, d.nik, d.created_at, c.name as client_name
+    FROM data d
+    LEFT JOIN client c ON d.id_client = c.id
+    WHERE 1=1
+      ${dateFilterSql}
+      ${searchFilterSql}
+    ORDER BY d.created_at DESC NULLS LAST, d.id DESC
+    LIMIT ${limit} OFFSET ${skip}
+  `;
 
   return (
     <div className="space-y-6">
@@ -239,11 +239,11 @@ export default async function DataPage({ searchParams }: PageProps) {
                     {item.nik || "-"}
                   </TableCell>
                   <TableCell className="text-neutral-600 dark:text-neutral-300">
-                    {item.client?.name || "-"}
+                    {item.client_name || "-"}
                   </TableCell>
                   <TableCell className="text-neutral-600 dark:text-neutral-300">
-                    {item.createdAt
-                      ? dayjs(item.createdAt).format("YYYY-MM-DD HH:mm")
+                    {item.created_at
+                      ? dayjs(item.created_at).format("YYYY-MM-DD HH:mm")
                       : "-"}
                   </TableCell>
                 </TableRow>

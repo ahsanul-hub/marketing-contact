@@ -31,6 +31,7 @@ import {
 import { prisma } from "@/lib/prisma";
 import dayjs from "dayjs";
 import type { Metadata } from "next";
+import { Prisma } from "@prisma/client";
 
 export const metadata: Metadata = {
   title: "Transaction",
@@ -66,42 +67,41 @@ export default async function TransactionPage({ searchParams }: PageProps) {
     ? dayjs(endDate).endOf("day").toDate()
     : dayjs().add(1, "day").startOf("day").toDate();
 
-  const where = {
-    transactionDate: {
-      gte: filterStartDate,
-      lte: filterEndDate,
-    },
-    ...(searchParam && {
-      OR: [
-        { phoneNumber: { contains: searchParam, mode: "insensitive" } },
-        { client: { name: { contains: searchParam, mode: "insensitive" } } },
-      ],
-    }),
-  };
+  const dateFilterSql = Prisma.sql` AND t.transaction_date >= ${filterStartDate} AND t.transaction_date <= ${filterEndDate}`;
 
-  const totalCount = await prisma.transaction.count({ where });
+  const searchFilterSql = searchParam
+    ? Prisma.sql` AND (
+        t.phone_number ILIKE ${`%${searchParam}%`} OR
+        c.name ILIKE ${`%${searchParam}%`}
+      )`
+    : Prisma.empty;
+
+  const totalCountRow = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(*)::bigint as count
+    FROM transaction t
+    LEFT JOIN client c ON t.id_client = c.id
+    WHERE 1=1
+      ${dateFilterSql}
+      ${searchFilterSql}
+  `;
+
+  const totalCount = Number(totalCountRow?.[0]?.count ?? Number(0));
   const totalPages = Math.max(1, Math.ceil(totalCount / limit));
   const page = Math.min(rawPage, totalPages);
   const skip = (page - 1) * limit;
 
-  const transactions = await prisma.transaction.findMany({
-    orderBy: { transactionDate: "desc" },
-    skip,
-    take: limit,
-    where,
-    select: {
-      id: true,
-      phoneNumber: true,
-      transactionDate: true,
-      totalDeposit: true,
-      totalProfit: true,
-      client: {
-        select: {
-          name: true,
-        },
-      },
-    },
-  });
+  const transactions = await prisma.$queryRaw<
+    { id: bigint; phone_number: string | null; transaction_date: Date | null; total_deposit: bigint | null; total_profit: bigint | null; client_name: string | null }[]
+  >`
+    SELECT t.id, t.phone_number, t.transaction_date, t.total_deposit, t.total_profit, c.name as client_name
+    FROM transaction t
+    LEFT JOIN client c ON t.id_client = c.id
+    WHERE 1=1
+      ${dateFilterSql}
+      ${searchFilterSql}
+    ORDER BY t.transaction_date DESC NULLS LAST, t.id DESC
+    LIMIT ${limit} OFFSET ${skip}
+  `;
 
   return (
     <div className="space-y-6">
@@ -233,23 +233,23 @@ export default async function TransactionPage({ searchParams }: PageProps) {
                   className="border-[#eee] dark:border-dark-3"
                 >
                   <TableCell className="text-neutral-600 dark:text-neutral-300">
-                    {dayjs(item.transactionDate).format("YYYY-MM-DD HH:mm")}
+                    {dayjs(item.transaction_date).format("YYYY-MM-DD HH:mm")}
                   </TableCell>
                   <TableCell className="font-medium text-dark dark:text-white">
-                    {item.phoneNumber || "-"}
+                    {item.phone_number || "-"}
                   </TableCell>
                   <TableCell className="text-dark dark:text-white">
                     {numberFormatter.format(
-                      item.totalDeposit ? Number(item.totalDeposit) : 0,
+                      item.total_deposit ? Number(item.total_deposit) : 0,
                     )}
                   </TableCell>
                   <TableCell className="text-dark dark:text-white">
                     {numberFormatter.format(
-                      item.totalProfit ? Number(item.totalProfit) : 0,
+                      item.total_profit ? Number(item.total_profit) : 0,
                     )}
                   </TableCell>
                   <TableCell className="text-dark dark:text-white">
-                    {item.client?.name || "-"}
+                    {item.client_name || "-"}
                   </TableCell>
                 </TableRow>
               ))
