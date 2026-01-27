@@ -206,7 +206,7 @@ export function DataImportForm() {
         Bulk import Data dari CSV/Excel
       </h3>
       <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-300">
-        Gunakan file CSV (.csv) atau Excel (.xlsx, .xls). Format: kolom <strong>Whatsapp</strong>,{" "}
+        Gunakan file Excel (.xlsx, .xls). Format: kolom <strong>Whatsapp</strong>,{" "}
         <strong>Nama</strong>, <strong>NIK</strong> (opsional: <strong>Client</strong>). 
         Client akan dibuat otomatis jika belum ada. Header opsional - jika tidak ada header, 
         akan diasumsikan kolom pertama adalah Whatsapp, kedua Nama, ketiga NIK.
