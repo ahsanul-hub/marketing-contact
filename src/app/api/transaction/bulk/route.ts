@@ -29,6 +29,7 @@ export async function POST(request: Request) {
         const transactionDate = item.transactionDate || item.transaction_date || item.date;
         const totalDeposit = item.totalDeposit || item.total_deposit || item.deposit || 0;
         const totalProfit = item.totalProfit || item.total_profit || item.profit || 0;
+        const client = item.client || item.client_name || item.id_client;
 
         // Parse date
         let parsedDate: Date;
@@ -50,6 +51,7 @@ export async function POST(request: Request) {
           transactionDate: parsedDate,
           totalDeposit: deposit,
           totalProfit: profit,
+          client,
         };
       })
       .filter((item) => item.transactionDate);
@@ -61,8 +63,37 @@ export async function POST(request: Request) {
       );
     }
 
+    // Get all clients for mapping
+    const clients = await prisma.client.findMany({
+      select: { id: true, name: true },
+    });
+    const clientMap = new Map(clients.map(c => [c.name?.toLowerCase(), c.id]));
+
+    // Resolve clientId
+    const data = cleaned.map(item => {
+      let clientId: bigint | null = null;
+      if (item.client) {
+        if (typeof item.client === 'string') {
+          const lowerName = item.client.toLowerCase();
+          clientId = clientMap.get(lowerName) || null;
+        } else {
+          clientId = BigInt(item.client);
+        }
+      }
+      const record: any = {
+        phoneNumber: item.phoneNumber,
+        transactionDate: item.transactionDate,
+        totalDeposit: item.totalDeposit,
+        totalProfit: item.totalProfit,
+      };
+      if (clientId !== null) {
+        record.clientId = clientId;
+      }
+      return record;
+    });
+
     const result = await prisma.transaction.createMany({
-      data: cleaned,
+      data,
       skipDuplicates: false,
     });
 

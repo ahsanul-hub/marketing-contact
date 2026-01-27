@@ -57,8 +57,12 @@ export default async function TransactionPage({ searchParams }: PageProps) {
   const defaultEndDate = endParam || today;
 
   // Use today as default if no dates provided
-  const filterStartDate = startDate || dayjs().startOf("day").toDate();
-  const filterEndDate = endDate || dayjs().add(1, "day").startOf("day").toDate();
+  const filterStartDate = startDate
+    ? dayjs(startDate).startOf("day").toDate()
+    : dayjs().startOf("day").toDate();
+  const filterEndDate = endDate
+    ? dayjs(endDate).endOf("day").toDate()
+    : dayjs().add(1, "day").startOf("day").toDate();
 
   const where = {
     transactionDate: {
@@ -83,6 +87,11 @@ export default async function TransactionPage({ searchParams }: PageProps) {
       transactionDate: true,
       totalDeposit: true,
       totalProfit: true,
+      client: {
+        select: {
+          name: true,
+        },
+      },
     },
   });
 
@@ -91,6 +100,8 @@ export default async function TransactionPage({ searchParams }: PageProps) {
       <Breadcrumb pageName="Transaction" />
 
       <TransactionImportForm />
+
+      <DownloadButtonWrapper type="transaction" />
 
       <div className="rounded-[10px] border border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -179,6 +190,7 @@ export default async function TransactionPage({ searchParams }: PageProps) {
               <TableHead className="min-w-[180px]">Phone Number</TableHead>
               <TableHead className="min-w-[140px]">Total Deposit</TableHead>
               <TableHead className="min-w-[140px]">Total Profit</TableHead>
+              <TableHead className="min-w-[140px]">Client</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -187,7 +199,7 @@ export default async function TransactionPage({ searchParams }: PageProps) {
               <TableRow>
                 <TableCell
                   className="text-center text-neutral-500 dark:text-neutral-300"
-                  colSpan={4}
+                  colSpan={5}
                 >
                   Belum ada data transaksi.
                 </TableCell>
@@ -214,6 +226,9 @@ export default async function TransactionPage({ searchParams }: PageProps) {
                       item.totalProfit ? Number(item.totalProfit) : 0,
                     )}
                   </TableCell>
+                  <TableCell className="text-dark dark:text-white">
+                    {item.client?.name || "-"}
+                  </TableCell>
                 </TableRow>
               ))
             )}
@@ -231,4 +246,3 @@ export default async function TransactionPage({ searchParams }: PageProps) {
     </div>
   );
 }
-

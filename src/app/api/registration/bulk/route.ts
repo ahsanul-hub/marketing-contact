@@ -6,34 +6,69 @@ import { createActivityLog } from "@/lib/activity-log";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const rawList: unknown = body.phoneNumbers;
+    const rawList: unknown = body.registrations || body.phoneNumbers;
 
     if (!Array.isArray(rawList)) {
       return NextResponse.json(
-        { error: "phoneNumbers must be an array" },
+        { error: "registrations must be an array" },
         { status: 400 },
       );
     }
+
+    // Get all clients for mapping
+    const clients = await prisma.client.findMany({
+      select: { id: true, name: true },
+    });
+    const clientMap = new Map(clients.map(c => [c.name?.toLowerCase(), c.id]));
 
     const now = new Date();
     const cleaned = rawList
-      .map((v) => String(v || "").trim())
-      .filter((v) => v.length > 0);
+      .map((item: any) => {
+        if (typeof item === 'string') {
+          return { phoneNumber: String(item || "").trim(), client: null };
+        } else {
+          return {
+            phoneNumber: String(item.phoneNumber || item.phone_number || "").trim(),
+            client: item.client || item.client_name || item.id_client || null,
+          };
+        }
+      })
+      .filter((v) => v.phoneNumber.length > 0);
 
     if (cleaned.length === 0) {
       return NextResponse.json(
-        { error: "No valid phone numbers provided" },
+        { error: "No valid registrations provided" },
         { status: 400 },
       );
     }
 
-    const uniqueSet = Array.from(new Set(cleaned));
+    // Resolve clientId
+    const data = cleaned.map(item => {
+      let clientId: bigint | null = null;
+      if (item.client) {
+        if (typeof item.client === 'string') {
+          const lowerName = item.client.toLowerCase();
+          clientId = clientMap.get(lowerName) || null;
+        } else {
+          clientId = BigInt(item.client);
+        }
+      }
+      return {
+        phoneNumber: item.phoneNumber,
+        createdAt: now,
+        clientId,
+      };
+    });
+
+    const uniqueSet = Array.from(new Set(data.map(d => `${d.phoneNumber}-${d.clientId}`)))
+      .map(key => {
+        const [phone, clientId] = key.split('-');
+        return data.find(d => d.phoneNumber === phone && String(d.clientId) === clientId)!;
+      })
+      .filter((item) => item.clientId !== null) as Array<{ phoneNumber: string; createdAt: Date; clientId: bigint }>;
 
     const result = await prisma.registration.createMany({
-      data: uniqueSet.map((phone) => ({
-        phoneNumber: phone,
-        createdAt: now,
-      })),
+      data: uniqueSet,
       skipDuplicates: true,
     });
 
@@ -61,4 +96,3 @@ export async function POST(request: Request) {
     );
   }
 }
-

@@ -47,13 +47,16 @@ export function RegistrationImportForm() {
         defval: "",
       });
 
-      // Ambil semua nilai di kolom pertama (A) sebagai phone_number, skip header
-      const phones = rows
+      // Ambil phone_number dari kolom pertama, client dari kolom kedua, skip header
+      const registrations = rows
         .slice(1) // Skip the header row
-        .map((row) => String(row[0] ?? "").trim())
-        .filter((v) => v.length > 0);
+        .map((row) => ({
+          phoneNumber: String(row[0] ?? "").trim(),
+          client: String(row[1] ?? "").trim() || null,
+        }))
+        .filter((v) => v.phoneNumber.length > 0);
 
-      if (phones.length === 0) {
+      if (registrations.length === 0) {
         setError("Tidak ditemukan nomor telepon di kolom pertama file.");
         return;
       }
@@ -63,7 +66,7 @@ export function RegistrationImportForm() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ phoneNumbers: phones }),
+        body: JSON.stringify({ registrations }),
       });
 
       const result = await res.json().catch(() => ({}));
@@ -89,8 +92,7 @@ export function RegistrationImportForm() {
         Bulk import Registration dari Excel
       </h3>
       <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-300">
-        Gunakan file Excel (.xlsx). Sistem akan membaca nomor dari kolom
-        pertama (kolom A).
+        Gunakan file Excel (.xlsx). Format: <strong>phone_number</strong> (wajib), <strong>client</strong> (wajib).
       </p>
 
       <div className="mb-4">
@@ -134,4 +136,3 @@ export function RegistrationImportForm() {
     </div>
   );
 }
-

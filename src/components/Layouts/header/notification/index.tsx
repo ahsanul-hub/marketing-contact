@@ -18,7 +18,7 @@ type ActivityLog = {
   action: string;
   details: string | null;
   createdAt: Date;
-  admin: {
+  user: {
     id: number;
     username: string;
   };
@@ -128,7 +128,7 @@ export function Notification() {
                 <div className="flex items-start gap-3 rounded-lg px-2 py-2 outline-none hover:bg-gray-2 focus-visible:bg-gray-2 dark:hover:bg-dark-3 dark:focus-visible:bg-dark-3">
                   <div className="mt-1 flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <span className="text-xs font-bold">
-                      {log.admin.username[0]?.toUpperCase() || "A"}
+                      {log.user?.username?.[0]?.toUpperCase() || "A"}
                     </span>
                   </div>
 
@@ -138,7 +138,7 @@ export function Notification() {
                     </strong>
 
                     <span className="block text-xs text-dark-5 dark:text-dark-6">
-                      by {log.admin.username}
+                      by {log.user?.username || "Unknown"}
                     </span>
 
                     <span className="block text-xs text-dark-5 dark:text-dark-6">

@@ -30,7 +30,7 @@ CREATE TABLE "data" (
     CONSTRAINT "data_pkey" PRIMARY KEY ("id")
 );
 
--- CreateTable
+-- CreateTable atau merchant
 CREATE TABLE "client" (
     "id" BIGSERIAL NOT NULL,
     "name" TEXT,
@@ -40,22 +40,22 @@ CREATE TABLE "client" (
 );
 
 -- CreateTable
-CREATE TABLE "admin" (
+CREATE TABLE "user" (
     "id" SERIAL NOT NULL,
     "username" VARCHAR(30) NOT NULL,
     "password" BYTEA NOT NULL,
-    "role" TEXT NOT NULL DEFAULT 'user',
+    "role" TEXT NOT NULL DEFAULT 'client',
     "active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "admin_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "user_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
 CREATE TABLE "activity_log" (
     "id" BIGSERIAL NOT NULL,
-    "admin_id" INTEGER NOT NULL,
+    "user_id" INTEGER NOT NULL,
     "action" TEXT NOT NULL,
     "details" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -70,4 +70,4 @@ CREATE UNIQUE INDEX "admin_username_key" ON "admin"("username");
 ALTER TABLE "data" ADD CONSTRAINT "data_id_client_fkey" FOREIGN KEY ("id_client") REFERENCES "client"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "activity_log" ADD CONSTRAINT "activity_log_admin_id_fkey" FOREIGN KEY ("admin_id") REFERENCES "admin"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "activity_log" ADD CONSTRAINT "activity_log_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

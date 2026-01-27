@@ -86,6 +86,12 @@ export function TransactionImportForm() {
           h.includes("total_profit") ||
           h === "profit",
       );
+      const clientIdx = headers.findIndex(
+        (h: string) =>
+          h.includes("client") ||
+          h === "client" ||
+          h === "id_client",
+      );
 
       if (dateIdx === -1) {
         setError(
@@ -101,12 +107,14 @@ export function TransactionImportForm() {
         const date = row[dateIdx];
         const deposit = depositIdx >= 0 ? row[depositIdx] : 0;
         const profit = profitIdx >= 0 ? row[profitIdx] : 0;
+        const client = clientIdx >= 0 ? String(row[clientIdx] || "").trim() : "";
 
         return {
           phoneNumber: phoneNumber || null,
           transactionDate: date,
           totalDeposit: deposit,
           totalProfit: profit,
+          client: client || null,
         };
       });
 

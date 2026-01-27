@@ -26,6 +26,7 @@ import { Suspense } from "react";
 import { OverviewCardsGroup } from "./_components/overview-cards";
 import { OverviewCardsSkeleton } from "./_components/overview-cards/skeleton";
 import { DownloadButtonWrapper } from "@/components/DownloadButtonWrapper";
+import dayjs from "dayjs";
 
 type PropsType = {
   searchParams: Promise<{
@@ -45,6 +46,10 @@ export default async function Home({ searchParams }: PropsType) {
     end,
   });
 
+  // Adjust dates to include full day
+    const adjustedStartDate = startDate ? dayjs(startDate).startOf("day").toDate() : startDate;
+    const adjustedEndDate = endDate ? dayjs(endDate).endOf("day").toDate() : endDate;
+
   const clients = await prisma.client.findMany({
     orderBy: [{ name: "asc" }, { id: "asc" }],
     select: {
@@ -58,8 +63,8 @@ export default async function Home({ searchParams }: PropsType) {
     client_id && client_id !== "organic" ? BigInt(client_id) : undefined;
 
   const analyticsFilter = {
-    startDate,
-    endDate,
+    startDate: adjustedStartDate,
+    endDate: adjustedEndDate,
     clientId: clientFilterId,
     isOrganic,
   } as const;

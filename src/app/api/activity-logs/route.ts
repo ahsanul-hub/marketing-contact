@@ -25,7 +25,13 @@ export async function GET() {
       },
     });
 
-    return NextResponse.json(logs);
+  const safeLogs = logs.map(log => ({
+    ...log,
+    id: log.id.toString(),
+    user_id: log.userId?.toString(),
+  }));
+  return NextResponse.json(safeLogs);
+
   } catch (error) {
     console.error("Error fetching activity logs", error);
     return NextResponse.json(

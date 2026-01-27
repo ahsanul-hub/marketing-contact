@@ -47,11 +47,11 @@ export function generateExcelBuffer(
 }
 
 export function downloadRegistrationTemplate() {
-  const headers = ["phone_number"];
+  const headers = ["phone_number", "client"];
   const sampleData = [
-    ["081234567890"],
-    ["081234567891"],
-    ["081234567892"],
+    ["081234567890", "Client A"],
+    ["081234567891", "Client B"],
+    ["081234567892", ""],
   ];
 
   downloadExcelTemplate(headers, sampleData, "template-registration.xlsx");
@@ -63,11 +63,12 @@ export function downloadTransactionTemplate() {
     "transaction_date",
     "total_deposit",
     "total_profit",
+    "client",
   ];
   const sampleData = [
-    ["081234567890", "2024-01-15 10:30:00", "100000", "5000"],
-    ["081234567891", "2024-01-16 14:20:00", "200000", "10000"],
-    ["081234567892", "2024-01-17 09:15:00", "150000", "7500"],
+    ["081234567890", "2024-01-15 10:30:00", "100000", "5000", "Client A"],
+    ["081234567891", "2024-01-16 14:20:00", "200000", "10000", "Client B"],
+    ["081234567892", "2024-01-17 09:15:00", "150000", "7500", ""],
   ];
 
   downloadExcelTemplate(headers, sampleData, "template-transaction.xlsx");

@@ -11,6 +11,8 @@ model Registration {
   id          BigInt    @id @default(autoincrement())
   phoneNumber String?   @map("phone_number")
   createdAt   DateTime? @map("created_at")
+  clientId    BigInt    @map("id_client")
+  client      Client    @relation(fields: [clientId], references: [id])
 
   @@map("registration")
 }
@@ -21,6 +23,8 @@ model Transaction {
   transactionDate DateTime @map("transaction_date")
   totalDeposit    BigInt   @map("total_deposit")
   totalProfit     BigInt   @map("total_profit")
+  clientId        BigInt   @map("id_client")
+  client          Client   @relation(fields: [clientId], references: [id])
 
   @@map("transaction")
 }
@@ -42,6 +46,8 @@ model Client {
   name      String?
   createdAt DateTime? @map("created_at")
   data      Data[]
+  registrations Registration[]
+  transactions  Transaction[]
 
   @@map("client")
 }

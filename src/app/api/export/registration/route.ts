@@ -19,8 +19,12 @@ export async function GET(request: NextRequest) {
       clientIdParam && clientIdParam !== "organic" ? BigInt(clientIdParam) : undefined;
 
     // Use today as default if no dates provided
-    const filterStartDate = startDate || dayjs().startOf("day").toDate();
-    const filterEndDate = endDate || dayjs().add(1, "day").startOf("day").toDate();
+    const filterStartDate = startDate
+      ? dayjs(startDate).startOf("day").toDate()
+      : dayjs().startOf("day").toDate();
+    const filterEndDate = endDate
+      ? dayjs(endDate).endOf("day").toDate()
+      : dayjs().add(1, "day").startOf("day").toDate();
 
     const dateFilterSql = Prisma.sql` AND r.created_at >= ${filterStartDate} AND r.created_at <= ${filterEndDate}`;
 
@@ -40,20 +44,22 @@ export async function GET(request: NextRequest) {
           : Prisma.empty;
 
     const registrations = await prisma.$queryRaw<
-      { phone_number: string | null; created_at: Date | null }[]
+      { phone_number: string | null; created_at: Date | null; client_name: string | null }[]
     >`
-      SELECT r.phone_number, r.created_at
+      SELECT r.phone_number, r.created_at, c.name as client_name
       FROM registration r
+      LEFT JOIN client c ON r.id_client = c.id
       WHERE 1=1
         ${dateFilterSql}
         ${typeFilterSql}
       ORDER BY r.created_at DESC NULLS LAST, r.id DESC
     `;
 
-    const headers = ["Phone Number", "Created At"];
+    const headers = ["Phone Number", "Created At", "Client"];
     const data = registrations.map((item) => [
       item.phone_number || "",
       item.created_at ? dayjs(item.created_at).format("YYYY-MM-DD HH:mm:ss") : "",
+      item.client_name || "",
     ]);
 
     const buffer = generateExcelBuffer(headers, data, "Registration");

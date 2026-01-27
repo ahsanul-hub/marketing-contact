@@ -13,8 +13,12 @@ export async function GET(request: NextRequest) {
     });
 
     // Use today as default if no dates provided
-    const filterStartDate = startDate || dayjs().startOf("day").toDate();
-    const filterEndDate = endDate || dayjs().add(1, "day").startOf("day").toDate();
+    const filterStartDate = startDate
+      ? dayjs(startDate).startOf("day").toDate()
+      : dayjs().startOf("day").toDate();
+    const filterEndDate = endDate
+      ? dayjs(endDate).endOf("day").toDate()
+      : dayjs().add(1, "day").startOf("day").toDate();
 
     const where = {
       transactionDate: {
@@ -31,15 +35,21 @@ export async function GET(request: NextRequest) {
         transactionDate: true,
         totalDeposit: true,
         totalProfit: true,
+        client: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
 
-    const headers = ["Transaction Date", "Phone Number", "Total Deposit", "Total Profit"];
+    const headers = ["Transaction Date", "Phone Number", "Total Deposit", "Total Profit", "Client"];
     const data = transactions.map((item) => [
       dayjs(item.transactionDate).format("YYYY-MM-DD HH:mm:ss"),
       item.phoneNumber || "",
       item.totalDeposit ? Number(item.totalDeposit) : 0,
       item.totalProfit ? Number(item.totalProfit) : 0,
+      item.client?.name || "",
     ]);
 
     const buffer = generateExcelBuffer(headers, data, "Transaction");

@@ -78,8 +78,12 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
   // User requested: "organic = phone_number tidak ada di tabel data kolom phone_number".
   // In current schema, Data does not have phone_number; we use Data.whatsapp as the phone identifier.
   // Use today as default if no dates provided
-  const filterStartDate = startDate || dayjs().startOf("day").toDate();
-  const filterEndDate = endDate || dayjs().endOf("day").toDate();
+  const filterStartDate = startDate
+    ? dayjs(startDate).startOf("day").toDate()
+    : dayjs().startOf("day").toDate();
+  const filterEndDate = endDate
+    ? dayjs(endDate).endOf("day").toDate()
+    : dayjs().endOf("day").toDate();
   
   const dateFilterSql = Prisma.sql` AND r.created_at >= ${filterStartDate} AND r.created_at <= ${filterEndDate}`;
 
@@ -112,10 +116,11 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
   const skip = (page - 1) * limit;
 
   const registrations = await prisma.$queryRaw<
-    { id: bigint; phone_number: string | null; created_at: Date | null }[]
+    { id: bigint; phone_number: string | null; created_at: Date | null; client_name: string | null }[]
   >`
-    SELECT r.id, r.phone_number, r.created_at
+    SELECT r.id, r.phone_number, r.created_at, c.name as client_name
     FROM registration r
+    LEFT JOIN client c ON r.id_client = c.id
     WHERE 1=1
       ${dateFilterSql}
       ${typeFilterSql}
@@ -128,6 +133,8 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
       <Breadcrumb pageName="Registration" />
 
       <RegistrationImportForm />
+
+      <DownloadButtonWrapper type="registration" />
 
       <div className="rounded-[10px] border border-stroke bg-white p-4 shadow-1 dark:border-dark-3 dark:bg-gray-dark dark:shadow-card sm:p-7.5">
         <div className="mb-4 flex items-start justify-between gap-3">
@@ -234,6 +241,7 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
             <TableRow className="border-none bg-[#F7F9FC] dark:bg-dark-2 [&>th]:py-4 [&>th]:text-base [&>th]:text-dark [&>th]:dark:text-white">
               <TableHead className="min-w-[220px]">Phone Number</TableHead>
               <TableHead className="min-w-[180px]">Created At</TableHead>
+              <TableHead className="min-w-[140px]">Client</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -242,7 +250,7 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
               <TableRow>
                 <TableCell
                   className="text-center text-neutral-500 dark:text-neutral-300"
-                  colSpan={2}
+                  colSpan={3}
                 >
                   Belum ada data registrasi.
                 </TableCell>
@@ -260,6 +268,9 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
                     {item.created_at
                       ? dayjs(item.created_at).format("YYYY-MM-DD HH:mm")
                       : "-"}
+                  </TableCell>
+                  <TableCell className="text-dark dark:text-white">
+                    {item.client_name || "-"}
                   </TableCell>
                 </TableRow>
               ))
@@ -282,4 +293,3 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
     </div>
   );
 }
-
