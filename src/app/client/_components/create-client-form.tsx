@@ -75,7 +75,7 @@ export function CreateClientForm() {
 
       <button
         type="submit"
-        disabled={loading}
+        disabled={loading || !name.trim()}
         className="h-10 rounded-md bg-primary px-4 font-medium text-white transition hover:bg-opacity-90 disabled:cursor-not-allowed disabled:bg-opacity-60"
       >
         {loading ? "Menyimpan..." : "Simpan"}

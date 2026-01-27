@@ -64,7 +64,7 @@ CREATE TABLE "activity_log" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "admin_username_key" ON "admin"("username");
+CREATE UNIQUE INDEX "user_username_key" ON "user"("username");
 
 -- AddForeignKey
 ALTER TABLE "data" ADD CONSTRAINT "data_id_client_fkey" FOREIGN KEY ("id_client") REFERENCES "client"("id") ON DELETE SET NULL ON UPDATE CASCADE;

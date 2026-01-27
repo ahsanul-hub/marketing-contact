@@ -11,7 +11,7 @@ export function Logo() {
         className="dark:hidden"
         alt="NextAdmin logo"
         role="presentation"
-        quality={100}
+        quality={75}
       />
 
       <Image
@@ -20,7 +20,7 @@ export function Logo() {
         className="hidden dark:block"
         alt="NextAdmin logo"
         role="presentation"
-        quality={100}
+        quality={75}
       />
     </div>
   );

@@ -24,6 +24,10 @@ export const NAV_DATA = [
             title: "Data",
             url: "/data",
           },
+          {
+            title: "Client",
+            url: "/client",
+          },
         ],
       },
       // {

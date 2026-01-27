@@ -1,20 +1,20 @@
 /*
   Warnings:
 
-  - You are about to drop the column `admin_id` on the `activity_log` table. All the data in the column will be lost.
-  - You are about to drop the `admin` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the column `user_id` on the `activity_log` table. All the data in the column will be lost.
+  - You are about to drop the `user` table. If the table is not empty, all the data it contains will be lost.
   - Added the required column `user_id` to the `activity_log` table without a default value. This is not possible if the table is not empty.
 
 */
 -- DropForeignKey
-ALTER TABLE "activity_log" DROP CONSTRAINT "activity_log_admin_id_fkey";
+ALTER TABLE "activity_log" DROP CONSTRAINT "activity_log_user_id_fkey";
 
 -- AlterTable
-ALTER TABLE "activity_log" DROP COLUMN "admin_id",
+ALTER TABLE "activity_log" DROP COLUMN "user_id",
 ADD COLUMN     "user_id" INTEGER NOT NULL;
 
 -- DropTable
-DROP TABLE "admin";
+DROP TABLE "user";
 
 -- CreateTable
 CREATE TABLE "user" (
