@@ -21,15 +21,15 @@ export async function POST(request: Request) {
     });
     const clientMap = new Map(clients.map(c => [c.name?.toLowerCase(), c.id]));
 
-    const now = new Date();
     const cleaned = rawList
       .map((item: any) => {
         if (typeof item === 'string') {
-          return { phoneNumber: String(item || "").trim(), client: null };
+          return { phoneNumber: String(item || "").trim(), client: null, createdAt: null };
         } else {
           return {
             phoneNumber: String(item.phoneNumber || item.phone_number || "").trim(),
             client: item.client || item.client_name || item.id_client || null,
+            createdAt: item.createdAt || item.created_at || null,
           };
         }
       })
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Resolve clientId
+    // Resolve clientId and parse createdAt
     const data = cleaned.map(item => {
       let clientId: bigint | null = null;
       if (item.client) {
@@ -53,9 +53,19 @@ export async function POST(request: Request) {
           clientId = BigInt(item.client);
         }
       }
+
+      // Parse createdAt from the provided value
+      let createdAt = new Date();
+      if (item.createdAt) {
+        const parsedDate = new Date(item.createdAt);
+        if (!isNaN(parsedDate.getTime())) {
+          createdAt = parsedDate;
+        }
+      }
+
       return {
         phoneNumber: item.phoneNumber,
-        createdAt: now,
+        createdAt,
         clientId,
       };
     });

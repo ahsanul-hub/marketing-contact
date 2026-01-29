@@ -47,12 +47,13 @@ export function RegistrationImportForm() {
         defval: "",
       });
 
-      // Ambil phone_number dari kolom pertama, client dari kolom kedua, skip header
+      // Ambil phone_number dari kolom pertama, client dari kolom kedua, created_at dari kolom ketiga, skip header
       const registrations = rows
         .slice(1) // Skip the header row
         .map((row) => ({
           phoneNumber: String(row[0] ?? "").trim(),
           client: String(row[1] ?? "").trim() || null,
+          createdAt: String(row[2] ?? "").trim() || null,
         }))
         .filter((v) => v.phoneNumber.length > 0);
 
@@ -92,7 +93,7 @@ export function RegistrationImportForm() {
         Bulk import Registration dari Excel
       </h3>
       <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-300">
-        Gunakan file Excel (.xlsx). Format: <strong>phone_number</strong> (wajib), <strong>client</strong> (wajib).
+        Gunakan file Excel (.xlsx). Format: <strong>phone_number</strong> (wajib), <strong>client</strong> (wajib), <strong>created_at</strong> (wajib).
       </p>
 
       <div className="mb-4">
