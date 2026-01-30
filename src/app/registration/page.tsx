@@ -25,6 +25,7 @@ import {
 import { RegistrationImportForm } from "@/components/registration-import-form";
 import { DownloadButtonWrapper } from "@/components/DownloadButtonWrapper";
 import { DownloadButton } from "@/components/DownloadButton";
+import { RegistrationActions } from "./_components/registration-actions";
 import {
   MIN_LIMIT,
   MAX_LIMIT,
@@ -265,6 +266,7 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
               <TableHead className="min-w-[220px]">Phone Number</TableHead>
               <TableHead className="min-w-[180px]">Created At</TableHead>
               <TableHead className="min-w-[140px]">Client</TableHead>
+              <TableHead className="min-w-[120px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
 
@@ -294,6 +296,14 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
                   </TableCell>
                   <TableCell className="text-dark dark:text-white">
                     {item.client_name || "-"}
+                  </TableCell>
+                  <TableCell>
+                    <RegistrationActions
+                      registrationId={item.id}
+                      phoneNumber={item.phone_number || ""}
+                      clientName={item.client_name || undefined}
+                      createdAt={item.created_at ? item.created_at.toISOString() : undefined}
+                    />
                   </TableCell>
                 </TableRow>
               ))
