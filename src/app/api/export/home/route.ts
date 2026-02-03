@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     const clientIdParam = searchParams.get("client_id");
     const isOrganic = clientIdParam === "organic";
     const clientId =
-      clientIdParam && clientIdParam !== "organic" ? BigInt(clientIdParam) : undefined;
+      clientIdParam && clientIdParam !== "organic" ? Number(clientIdParam) : undefined;
 
     const filter: AnalyticsFilter = {
       startDate,
@@ -33,11 +33,7 @@ export async function GET(request: NextRequest) {
             WHERE d.whatsapp = t.phone_number
           )`
         : filter?.clientId
-          ? ` AND EXISTS (
-              SELECT 1 FROM data d
-              WHERE d.whatsapp = t.phone_number
-                AND d.id_client = ${filter.clientId}
-            )`
+          ? ` AND t.id_client = ${filter.clientId}`
           : "";
 
     const dateFilterSql =

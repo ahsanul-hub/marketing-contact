@@ -3,13 +3,14 @@
  * 
  * Halaman untuk menampilkan data registrasi dengan fitur:
  * - Pagination (default: 10 per page, bisa diubah)
- * - Filter: Date range (default: hari ini), Client (All/Organic/Specific)
+ * - Filter: Date range (default: hari ini), Organic/Non-Organic, Client (specific client)
  * - Bulk import dari Excel dengan template download
  * - Tampilan tabel dengan phone number dan created at
  * 
  * Query Logic:
  * - Organic = phone_number yang tidak ada di tabel data (whatsapp)
- * - Client filter = phone_number yang ada di data dengan client tertentu
+ * - Non-Organic = phone_number yang ada di tabel data
+ * - Client filter = Non-Organic registrations linked to specific client
  */
 
 import Breadcrumb from "@/components/Breadcrumbs/Breadcrumb";
@@ -65,10 +66,12 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
   const defaultEndDate = endParam || today;
 
   const clientIdParam = normalizeParam(resolved?.client_id);
+  const organicParam = normalizeParam(resolved?.organic);
   const searchParam = normalizeParam(resolved?.search);
-  const isOrganic = clientIdParam === "organic";
-  const clientId =
-    clientIdParam && clientIdParam !== "organic" ? BigInt(clientIdParam) : undefined;
+  
+  // Organic filter: "all" | "organic" | "non-organic" (default: "all")
+  const organicType = organicParam || "all";
+  const clientId = clientIdParam ? Number(clientIdParam) : undefined;
 
   // Dropdown list for client filter
   const clients = await prisma.client.findMany({
@@ -76,9 +79,6 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
     select: { id: true, name: true },
   });
 
-  // NOTE:
-  // User requested: "organic = phone_number tidak ada di tabel data kolom phone_number".
-  // In current schema, Data does not have phone_number; we use Data.whatsapp as the phone identifier.
   // Use today as default if no dates provided
   const filterStartDate = startDate
     ? dayjs(startDate).startOf("day").toDate()
@@ -96,29 +96,29 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
       )`
     : Prisma.empty;
 
-  const typeFilterSql =
-    isOrganic
+  // Organic/Non-Organic filter
+  const organicFilterSql =
+    organicType === "organic"
       ? Prisma.sql` AND NOT EXISTS (
           SELECT 1 FROM data d
           WHERE d.whatsapp = r.phone_number
         )`
-      : clientId
+      : organicType === "non-organic"
         ? Prisma.sql` AND EXISTS (
-            SELECT 1
-            FROM data d
+            SELECT 1 FROM data d
             WHERE d.whatsapp = r.phone_number
-              AND d.id_client = ${clientId}
           )`
         : Prisma.empty;
 
-  const totalCountRow = await prisma.$queryRaw<{ count: bigint }[]>`
-    SELECT COUNT(*)::bigint as count
+
+  const totalCountRow = await prisma.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(*)::int as count
     FROM registration r
     LEFT JOIN client c ON r.id_client = c.id
     WHERE 1=1
       ${dateFilterSql}
       ${searchFilterSql}
-      ${typeFilterSql}
+      ${organicFilterSql}
   `;
 
   const totalCount = Number(totalCountRow?.[0]?.count ?? Number(0));
@@ -135,7 +135,7 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
     WHERE 1=1
       ${dateFilterSql}
       ${searchFilterSql}
-      ${typeFilterSql}
+      ${organicFilterSql}
     ORDER BY r.created_at DESC NULLS LAST, r.id DESC
     LIMIT ${limit} OFFSET ${skip}
   `;
@@ -190,22 +190,18 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-neutral-600 dark:text-neutral-300" htmlFor="client_id">
-              Client
+            <label className="text-neutral-600 dark:text-neutral-300" htmlFor="organic">
+              Type
             </label>
             <select
-              id="client_id"
-              name="client_id"
-              defaultValue={clientIdParam || ""}
-              className="h-10 w-56 rounded-md border border-stroke px-3 text-sm dark:border-dark-3 dark:bg-dark-2"
+              id="organic"
+              name="organic"
+              defaultValue={organicParam || "all"}
+              className="h-10 w-48 rounded-md border border-stroke px-3 text-sm dark:border-dark-3 dark:bg-dark-2"
             >
-              <option value="">All</option>
+              <option value="all">All</option>
               <option value="organic">Organic</option>
-              {clients.map((c) => (
-                <option key={c.id.toString()} value={c.id.toString()}>
-                  {c.name || `Client #${c.id.toString()}`}
-                </option>
-              ))}
+              <option value="non-organic">Non-Organic</option>
             </select>
           </div>
 

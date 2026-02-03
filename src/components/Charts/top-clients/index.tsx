@@ -12,10 +12,16 @@ import { getTopClientsData } from "@/services/charts.services";
 
 type PropsType = {
   className?: string;
+  filter?: {
+    startDate?: Date;
+    endDate?: Date;
+    clientId?: number;
+    isOrganic?: boolean;
+  };
 };
 
-export async function TopClients({ className }: PropsType) {
-  const data = await getTopClientsData();
+export async function TopClients({ className, filter }: PropsType) {
+  const data = await getTopClientsData(filter);
 
   return (
     <div
@@ -34,6 +40,7 @@ export async function TopClients({ className }: PropsType) {
             <TableHead className="min-w-[180px] !text-left">Client</TableHead>
             <TableHead className="!text-right">Total Deposit</TableHead>
             <TableHead className="!text-right">Total Profit</TableHead>
+            <TableHead className="!text-right">Conversion Rate</TableHead>
           </TableRow>
         </TableHeader>
 
@@ -42,7 +49,7 @@ export async function TopClients({ className }: PropsType) {
             <TableRow>
               <TableCell
                 className="text-center text-neutral-500 dark:text-neutral-300"
-                colSpan={3}
+                colSpan={4}
               >
                 Belum ada data client.
               </TableCell>
@@ -63,6 +70,10 @@ export async function TopClients({ className }: PropsType) {
 
                 <TableCell className="!text-right text-green-light-1">
                   {formatIDR(item.totalProfit)}
+                </TableCell>
+
+                <TableCell className="!text-right">
+                  {item.conversionRate?.toFixed(2) ?? "0"}%
                 </TableCell>
               </TableRow>
             ))

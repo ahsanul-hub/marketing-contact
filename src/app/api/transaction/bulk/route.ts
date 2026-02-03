@@ -71,13 +71,13 @@ export async function POST(request: Request) {
 
     // Resolve clientId
     const data = cleaned.map(item => {
-      let clientId: bigint | null = null;
+      let clientId: number | null = null;
       if (item.client) {
         if (typeof item.client === 'string') {
           const lowerName = item.client.toLowerCase();
           clientId = clientMap.get(lowerName) || null;
         } else {
-          clientId = BigInt(item.client);
+          clientId = (item.client);
         }
       }
       const record: any = {

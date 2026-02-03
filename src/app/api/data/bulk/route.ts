@@ -24,80 +24,20 @@ export async function POST(request: Request) {
       const whatsapp = String(item.whatsapp || "").trim() || null;
       const name = String(item.name || "").trim() || null;
       const nik = String(item.nik || "").trim() || null;
-      const clientName = String(item.client || item.clientName || "").trim();
+      const ownerName = String(item.ownerName || item.owner_name || item.clientName || "").trim() || null;
 
       return {
         whatsapp,
         name,
         nik,
-        clientName: clientName || null,
+        ownerName,
         createdAt: now,
       };
     });
 
-    // Get or create clients
-    const clientMap = new Map<string, bigint>();
-    const uniqueClientNames = Array.from(
-      new Set(
-        cleaned
-          .map((item: any) => item.clientName)
-          .filter((name: any): name is string => !!name),
-      ),
-    );
-
-    if (uniqueClientNames.length > 0) {
-      // Fetch existing clients
-      const existingClients = await prisma.client.findMany({
-        where: {
-          name: { in: uniqueClientNames },
-        },
-      });
-
-      existingClients.forEach((client) => {
-        if (client.name) {
-          clientMap.set(client.name, client.id);
-        }
-      });
-
-      // Create missing clients
-      const missingClientNames = uniqueClientNames.filter(
-        (name) => !clientMap.has(name),
-      );
-
-      if (missingClientNames.length > 0) {
-        const newClients = await prisma.client.createMany({
-          data: missingClientNames.map((name) => ({
-            name,
-            createdAt: now,
-          })),
-        });
-
-        // Fetch the newly created clients to get their IDs
-        const createdClients = await prisma.client.findMany({
-          where: {
-            name: { in: missingClientNames },
-          },
-        });
-
-        createdClients.forEach((client) => {
-          if (client.name) {
-            clientMap.set(client.name, client.id);
-          }
-        });
-      }
-    }
-
-    // Prepare data for insertion
-    const dataToInsert = cleaned.map((item) => ({
-      whatsapp: item.whatsapp,
-      name: item.name,
-      nik: item.nik,
-      createdAt: item.createdAt,
-      clientId: item.clientName ? clientMap.get(item.clientName) || null : null,
-    }));
-
+    // Insert data directly with ownerName field
     const result = await prisma.data.createMany({
-      data: dataToInsert,
+      data: cleaned,
       skipDuplicates: false,
     });
 

@@ -44,13 +44,13 @@ export async function POST(request: Request) {
 
     // Resolve clientId and parse createdAt
     const data = cleaned.map(item => {
-      let clientId: bigint | null = null;
+      let clientId: number | null = null;
       if (item.client) {
         if (typeof item.client === 'string') {
           const lowerName = item.client.toLowerCase();
           clientId = clientMap.get(lowerName) || null;
         } else {
-          clientId = BigInt(item.client);
+          clientId = Number(item.client);
         }
       }
 
@@ -75,7 +75,7 @@ export async function POST(request: Request) {
         const [phone, clientId] = key.split('-');
         return data.find(d => d.phoneNumber === phone && String(d.clientId) === clientId)!;
       })
-      .filter((item) => item.clientId !== null) as Array<{ phoneNumber: string; createdAt: Date; clientId: bigint }>;
+      .filter((item) => item.clientId !== null) as Array<{ phoneNumber: string; createdAt: Date; clientId: number }>;
 
     const result = await prisma.registration.createMany({
       data: uniqueSet,

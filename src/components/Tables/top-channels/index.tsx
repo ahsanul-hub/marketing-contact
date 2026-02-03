@@ -11,8 +11,18 @@ import { compactFormat } from "@/lib/format-number";
 import { cn } from "@/lib/utils";
 import { getTopProfit } from "../fetch";
 
-export async function TopChannels({ className }: { className?: string }) {
-  const data = await getTopProfit();
+type PropsType = {
+  className?: string;
+  filter?: {
+    startDate?: Date;
+    endDate?: Date;
+    clientId?: number;
+    isOrganic?: boolean;
+  };
+};
+
+export async function TopChannels({ className, filter }: PropsType) {
+  const data = await getTopProfit(filter);
 
   return (
     <div

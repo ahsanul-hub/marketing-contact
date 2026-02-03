@@ -71,14 +71,13 @@ export default async function DataPage({ searchParams }: PageProps) {
         d.whatsapp ILIKE ${`%${searchParam}%`} OR
         d.name ILIKE ${`%${searchParam}%`} OR
         d.nik ILIKE ${`%${searchParam}%`} OR
-        c.name ILIKE ${`%${searchParam}%`}
+        d.owner_name ILIKE ${`%${searchParam}%`}
       )`
     : Prisma.empty;
 
-  const totalCountRow = await prisma.$queryRaw<{ count: bigint }[]>`
-    SELECT COUNT(*)::bigint as count
+  const totalCountRow = await prisma.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(*)::int as count
     FROM data d
-    LEFT JOIN client c ON d.id_client = c.id
     WHERE 1=1
       ${dateFilterSql}
       ${searchFilterSql}
@@ -92,9 +91,8 @@ export default async function DataPage({ searchParams }: PageProps) {
   const rows = await prisma.$queryRaw<
     { id: bigint; whatsapp: string | null; name: string | null; nik: string | null; created_at: Date | null; client_name: string | null }[]
   >`
-    SELECT d.id, d.whatsapp, d.name, d.nik, d.created_at, c.name as client_name
+    SELECT d.id, d.whatsapp, d.name, d.nik, d.created_at, d.owner_name as client_name
     FROM data d
-    LEFT JOIN client c ON d.id_client = c.id
     WHERE 1=1
       ${dateFilterSql}
       ${searchFilterSql}
@@ -177,7 +175,7 @@ export default async function DataPage({ searchParams }: PageProps) {
               id="search"
               name="search"
               type="text"
-              placeholder="Whatsapp, Name, NIK or Client"
+              placeholder="Whatsapp, Name, NIK or Owner"
               defaultValue={searchParam || ""}
               className="h-10 w-56 rounded-md border border-stroke px-3 text-sm dark:border-dark-3 dark:bg-dark-2"
             />
@@ -208,7 +206,7 @@ export default async function DataPage({ searchParams }: PageProps) {
               <TableHead className="min-w-[160px]">Whatsapp</TableHead>
               <TableHead className="min-w-[160px]">Name</TableHead>
               <TableHead className="min-w-[160px]">NIK</TableHead>
-              <TableHead className="min-w-[160px]">Client</TableHead>
+              <TableHead className="min-w-[160px]">Owner</TableHead>
               <TableHead className="min-w-[160px]">Created At</TableHead>
             </TableRow>
           </TableHeader>

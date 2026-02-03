@@ -8,41 +8,55 @@ import dayjs from "dayjs";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+
     const { startDate, endDate } = parseDateRangeParams({
-        start: searchParams.get("start") ?? "",
-        end: searchParams.get("end") ?? "",
+      start: searchParams.get("start") ?? "",
+      end: searchParams.get("end") ?? "",
     });
 
+    const searchParam = searchParams.get("search");
+    const organicParam = searchParams.get("organic");  
     const clientIdParam = searchParams.get("client_id");
-    const isOrganic = clientIdParam === "organic";
-    const clientId =
-      clientIdParam && clientIdParam !== "organic" ? BigInt(clientIdParam) : undefined;
 
-    // Use today as default if no dates provided
+    const organicType = organicParam || "all";
+    const clientId = clientIdParam ? Number(clientIdParam) : undefined;
+
+    // Date range
     const filterStartDate = startDate
       ? dayjs(startDate).startOf("day").toDate()
       : dayjs().startOf("day").toDate();
+
     const filterEndDate = endDate
       ? dayjs(endDate).endOf("day").toDate()
-      : dayjs().add(1, "day").startOf("day").toDate();
+      : dayjs().endOf("day").toDate();
 
-    const dateFilterSql = Prisma.sql` AND r.created_at >= ${filterStartDate} AND r.created_at <= ${filterEndDate}`;
+    const dateFilterSql = Prisma.sql`
+      AND r.created_at >= ${filterStartDate}
+      AND r.created_at <= ${filterEndDate}
+    `;
 
-    const typeFilterSql =
-      isOrganic
+    const searchFilterSql = searchParam
+      ? Prisma.sql` AND (
+          r.phone_number ILIKE ${`%${searchParam}%`} OR
+          c.name ILIKE ${`%${searchParam}%`}
+        )`
+      : Prisma.empty;
+
+    // ===== Organic / Non-organic =====
+    const organicFilterSql =
+      organicType === "organic"
         ? Prisma.sql` AND NOT EXISTS (
             SELECT 1 FROM data d
             WHERE d.whatsapp = r.phone_number
           )`
-        : clientId
+        : organicType === "non-organic"
           ? Prisma.sql` AND EXISTS (
-              SELECT 1
-              FROM data d
+              SELECT 1 FROM data d
               WHERE d.whatsapp = r.phone_number
-                AND d.id_client = ${clientId}
             )`
           : Prisma.empty;
 
+    // ===== Query =====
     const registrations = await prisma.$queryRaw<
       { phone_number: string | null; created_at: Date | null; client_name: string | null }[]
     >`
@@ -51,10 +65,12 @@ export async function GET(request: NextRequest) {
       LEFT JOIN client c ON r.id_client = c.id
       WHERE 1=1
         ${dateFilterSql}
-        ${typeFilterSql}
+        ${searchFilterSql}
+        ${organicFilterSql}
       ORDER BY r.created_at DESC NULLS LAST, r.id DESC
     `;
 
+    // Excel
     const headers = ["Phone Number", "Created At", "Client"];
     const data = registrations.map((item) => [
       item.phone_number || "",
@@ -66,7 +82,8 @@ export async function GET(request: NextRequest) {
 
     return new NextResponse(buffer, {
       headers: {
-        "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "Content-Type":
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "Content-Disposition": `attachment; filename="registration-export.xlsx"`,
       },
     });

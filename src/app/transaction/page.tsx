@@ -76,8 +76,8 @@ export default async function TransactionPage({ searchParams }: PageProps) {
       )`
     : Prisma.empty;
 
-  const totalCountRow = await prisma.$queryRaw<{ count: bigint }[]>`
-    SELECT COUNT(*)::bigint as count
+  const totalCountRow = await prisma.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(*)::int as count
     FROM transaction t
     LEFT JOIN client c ON t.id_client = c.id
     WHERE 1=1

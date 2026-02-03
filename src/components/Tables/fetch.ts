@@ -73,8 +73,34 @@ export async function getInvoiceTableData() {
 }
 
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
-export async function getTopProfit() {
+export async function getTopProfit(filter?: {
+  startDate?: Date;
+  endDate?: Date;
+  clientId?: number;
+  isOrganic?: boolean;
+}) {
+  const clientFilterSql =
+    filter?.isOrganic === true
+      ? Prisma.sql` AND NOT EXISTS (
+          SELECT 1 FROM data d
+          WHERE d.whatsapp = t.phone_number
+        )`
+      : filter?.clientId
+        ? Prisma.sql` AND t.id_client = ${filter.clientId}`
+        : Prisma.empty;
+
+  const dateFilterSql =
+    filter?.startDate || filter?.endDate
+      ? Prisma.sql`
+          AND t.transaction_date >= ${filter.startDate ?? new Date(0)}
+          AND t.transaction_date <= ${
+            filter.endDate ?? new Date("9999-12-31")
+          }
+        `
+      : Prisma.empty;
+
   // Get top profit by phone number, aggregated
   const topProfit = await prisma.$queryRaw<
     {
@@ -84,12 +110,14 @@ export async function getTopProfit() {
     }[]
   >`
     SELECT 
-      phone_number,
-      SUM(total_deposit)::bigint as total_deposit,
-      SUM(total_profit)::bigint as total_profit
-    FROM transaction
-    WHERE phone_number IS NOT NULL
-    GROUP BY phone_number
+      t.phone_number,
+      SUM(t.total_deposit)::bigint as total_deposit,
+      SUM(t.total_profit)::bigint as total_profit
+    FROM transaction t
+    WHERE t.phone_number IS NOT NULL
+      ${dateFilterSql}
+      ${clientFilterSql}
+    GROUP BY t.phone_number
     ORDER BY total_profit DESC
     LIMIT 10
   `;

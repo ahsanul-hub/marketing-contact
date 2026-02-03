@@ -21,7 +21,7 @@ type TimeFrame = "monthly" | "yearly" | (string & {});
 export type AnalyticsFilter = {
   startDate?: Date;      // Start date untuk filter
   endDate?: Date;        // End date untuk filter
-  clientId?: bigint;     // Filter by specific client ID
+  clientId?: number;     // Filter by specific client ID (int)
   isOrganic?: boolean;   // Filter untuk organic (tanpa client)
 };
 
@@ -45,11 +45,7 @@ export async function getDepositProfitSeries(
           WHERE d.whatsapp = t.phone_number
         )`
       : filter?.clientId
-        ? Prisma.sql` AND EXISTS (
-            SELECT 1 FROM data d
-            WHERE d.whatsapp = t.phone_number
-              AND d.id_client = ${filter.clientId}
-          )`
+        ? Prisma.sql` AND t.id_client = ${filter.clientId}`
         : Prisma.empty;
 
   const dateFilterSql = Prisma.sql`
@@ -127,11 +123,7 @@ export async function getWeeklyProfitBars(timeFrame?: string, filter?: Analytics
           WHERE d.whatsapp = t.phone_number
         )`
       : filter?.clientId
-        ? Prisma.sql` AND EXISTS (
-            SELECT 1 FROM data d
-            WHERE d.whatsapp = t.phone_number
-              AND d.id_client = ${filter.clientId}
-          )`
+        ? Prisma.sql` AND t.id_client = ${filter.clientId}`
         : Prisma.empty;
 
   const dateFilterSql = Prisma.sql`
@@ -181,11 +173,7 @@ export async function getOverviewMetrics(filter?: AnalyticsFilter) {
           WHERE d.whatsapp = t.phone_number
         )`
       : filter?.clientId
-        ? Prisma.sql` AND EXISTS (
-            SELECT 1 FROM data d
-            WHERE d.whatsapp = t.phone_number
-              AND d.id_client = ${filter.clientId}
-          )`
+        ? Prisma.sql` AND t.id_client = ${filter.clientId}`
         : Prisma.empty;
 
   const dateFilterSql =
@@ -198,26 +186,34 @@ export async function getOverviewMetrics(filter?: AnalyticsFilter) {
         `
       : Prisma.empty;
 
-  // Get unique phone numbers count for contacts
+  // Get transaction data filtered
+  const txAgg = await prisma.$queryRaw<{ sum_deposit: bigint | null; sum_profit: bigint | null }[]>`
+    SELECT
+      SUM(t.total_deposit)::bigint AS sum_deposit,
+      SUM(t.total_profit)::bigint AS sum_profit
+    FROM transaction t
+    WHERE 1=1
+      ${dateFilterSql}
+      ${clientFilterSql}
+  `;
+
+  // Get registrations with date filter
+  const registrationsData = await prisma.$queryRaw<{ count: number }[]>`
+    SELECT COUNT(*)::int as count
+    FROM registration
+    WHERE phone_number IS NOT NULL
+      AND created_at >= ${filter?.startDate ?? new Date(0)}
+      AND created_at <= ${filter?.endDate ?? new Date("9999-12-31")}
+  `;
+
+  // Get unique phone numbers (contacts) with date filter
   const uniquePhones = await prisma.$queryRaw<{ count: bigint }[]>`
     SELECT COUNT(DISTINCT phone_number)::bigint as count
     FROM registration
     WHERE phone_number IS NOT NULL
+      AND created_at >= ${filter?.startDate ?? new Date(0)}
+      AND created_at <= ${filter?.endDate ?? new Date("9999-12-31")}
   `;
-
-  const [txAgg, registrations, clients] = await Promise.all([
-    prisma.$queryRaw<{ sum_deposit: bigint | null; sum_profit: bigint | null }[]>`
-      SELECT
-        SUM(t.total_deposit)::bigint AS sum_deposit,
-        SUM(t.total_profit)::bigint AS sum_profit
-      FROM transaction t
-      WHERE 1=1
-        ${dateFilterSql}
-        ${clientFilterSql}
-    `,
-    prisma.registration.count(),
-    prisma.client.count(),
-  ]);
 
   const txRow = txAgg[0] ?? { sum_deposit: 0n, sum_profit: 0n };
 
@@ -231,11 +227,11 @@ export async function getOverviewMetrics(filter?: AnalyticsFilter) {
       growthRate: 0,
     },
     registrations: {
-      value: registrations,
+      value: Number(registrationsData[0]?.count ?? 0n),
       growthRate: 0,
     },
     clients: {
-      value: Number(uniquePhones[0]?.count ?? 0n), // Unique phone numbers
+      value: Number(uniquePhones[0]?.count ?? 0n),
       growthRate: 0,
     },
   };
@@ -261,3 +257,46 @@ function buildMonthlyBuckets(start: dayjs.Dayjs, end: dayjs.Dayjs) {
   return map;
 }
 
+export async function getConversionRateData(filter?: AnalyticsFilter) {
+  // Count total registrations
+  const totalRegistrations = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(DISTINCT id_client)::bigint as count
+    FROM registration
+    WHERE created_at >= ${filter?.startDate ?? new Date(0)}
+      AND created_at <= ${filter?.endDate ?? new Date("9999-12-31")}
+  `;
+
+  // Count clients that have transactions
+  const clientFilterSql =
+    filter?.isOrganic === true
+      ? Prisma.sql` AND NOT EXISTS (
+          SELECT 1 FROM data d
+          WHERE d.whatsapp = t.phone_number
+        )`
+      : filter?.clientId
+        ? Prisma.sql` AND EXISTS (
+            SELECT 1 FROM data d
+            WHERE d.whatsapp = t.phone_number
+              AND d.id_client = ${filter.clientId}
+          )`
+        : Prisma.empty;
+
+  const clientsWithTransactions = await prisma.$queryRaw<{ count: bigint }[]>`
+    SELECT COUNT(DISTINCT id_client)::bigint as count
+    FROM transaction t
+    WHERE t.transaction_date >= ${filter?.startDate ?? new Date(0)}
+      AND t.transaction_date <= ${filter?.endDate ?? new Date("9999-12-31")}
+      ${clientFilterSql}
+  `;
+
+  const totalReg = Number(totalRegistrations[0]?.count ?? 0);
+  const withTx = Number(clientsWithTransactions[0]?.count ?? 0);
+
+  const conversionRate = totalReg > 0 ? (withTx / totalReg) * 100 : 0;
+
+  return {
+    conversionRate: parseFloat(conversionRate.toFixed(2)),
+    registrations: totalReg,
+    transactions: withTx,
+  };
+}

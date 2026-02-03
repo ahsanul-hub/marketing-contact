@@ -119,31 +119,32 @@ export function DataImportForm() {
           h.includes("nik") ||
           h === "nik",
       );
-      const clientIdx = headers.findIndex(
+      const ownerNameIdx = headers.findIndex(
         (h: string) =>
-          h.includes("client") ||
-          h.includes("klien") ||
-          h === "client",
+          h.includes("owner") ||
+          h.includes("owner_name") ||
+          h.includes("owner name") ||
+          h === "owner_name",
       );
 
       // If no headers found, assume first 3 columns are Whatsapp, Nama, NIK (based on user's format)
-      const hasHeaders = whatsappIdx >= 0 || nameIdx >= 0 || nikIdx >= 0;
+      const hasHeaders = whatsappIdx >= 0 || nameIdx >= 0 || nikIdx >= 0 || ownerNameIdx >= 0;
       
       let dataRows: any[];
       
       if (!hasHeaders && rows[0].length >= 3) {
-        // Assume first row is data, not header (format: Whatsapp, Nama, NIK)
+        // Assume first row is data, not header (format: Whatsapp, Nama, NIK, Owner Name)
         dataRows = rows.map((row: any[]) => {
           const whatsapp = String(row[0] || "").trim();
           const name = String(row[1] || "").trim();
           const nik = String(row[2] || "").trim();
-          const client = row[3] ? String(row[3] || "").trim() : "";
+          const ownerName = row[3] ? String(row[3] || "").trim() : "";
 
           return {
             whatsapp: whatsapp || null,
             name: name || null,
             nik: nik || null,
-            client: client || null,
+            ownerName: ownerName || null,
           };
         });
       } else {
@@ -153,13 +154,13 @@ export function DataImportForm() {
             whatsappIdx >= 0 ? String(row[whatsappIdx] || "").trim() : "";
           const name = nameIdx >= 0 ? String(row[nameIdx] || "").trim() : "";
           const nik = nikIdx >= 0 ? String(row[nikIdx] || "").trim() : "";
-          const client = clientIdx >= 0 ? String(row[clientIdx] || "").trim() : "";
+          const ownerName = ownerNameIdx >= 0 ? String(row[ownerNameIdx] || "").trim() : "";
 
           return {
             whatsapp: whatsapp || null,
             name: name || null,
             nik: nik || null,
-            client: client || null,
+            ownerName: ownerName || null,
           };
         });
       }
@@ -207,9 +208,9 @@ export function DataImportForm() {
       </h3>
       <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-300">
         Gunakan file Excel (.xlsx, .xls). Format: kolom <strong>Whatsapp</strong>,{" "}
-        <strong>Nama</strong>, <strong>NIK</strong> (opsional: <strong>Client</strong>). 
-        Client akan dibuat otomatis jika belum ada. Header opsional - jika tidak ada header, 
-        akan diasumsikan kolom pertama adalah Whatsapp, kedua Nama, ketiga NIK.
+        <strong>Nama</strong>, <strong>NIK</strong> (opsional: <strong>Owner Name</strong>). 
+        Owner Name akan dibuat otomatis jika belum ada. Header opsional - jika tidak ada header, 
+        akan diasumsikan kolom pertama adalah Whatsapp, kedua Nama, ketiga NIK, keempat Owner Name.
       </p>
 
       <div className="mb-4">

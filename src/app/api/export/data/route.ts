@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { parseDateRangeParams } from "@/lib/pagination";
 import { generateExcelBuffer } from "@/lib/excel-template";
+import { Prisma } from "@prisma/client";
 import dayjs from "dayjs";
 
 export async function GET(request: NextRequest) {
@@ -12,40 +13,44 @@ export async function GET(request: NextRequest) {
       end: searchParams.get("end") || "",
     });
 
-    // Use today as default if no dates provided
-    const filterStartDate = startDate || dayjs().startOf("day").toDate();
-    const filterEndDate = endDate || dayjs().add(1, "day").startOf("day").toDate();
+    const searchParam = searchParams.get("search");
 
-    const where = {
-      createdAt: {
-        gte: filterStartDate,
-        lte: filterEndDate,
-      },
-    };
+    // Build the date filter - only apply if dates are provided
+    let dateFilterSql = Prisma.empty;
+    if (startDate && endDate) {
+      const filterStartDate = dayjs(startDate).startOf("day").toDate();
+      const filterEndDate = dayjs(endDate).endOf("day").toDate();
+      dateFilterSql = Prisma.sql` AND created_at >= ${filterStartDate} AND created_at <= ${filterEndDate}`;
+    }
 
-    const rows = await prisma.data.findMany({
-      orderBy: { createdAt: "desc" },
-      where,
-      select: {
-        whatsapp: true,
-        name: true,
-        nik: true,
-        createdAt: true,
-        client: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
+    // Build the search filter - only apply if search param is provided
+    const searchFilterSql = searchParam
+      ? Prisma.sql` AND (
+          whatsapp ILIKE ${`%${searchParam}%`} OR
+          name ILIKE ${`%${searchParam}%`} OR
+          nik ILIKE ${`%${searchParam}%`} OR
+          owner_name ILIKE ${`%${searchParam}%`}
+        )`
+      : Prisma.empty;
 
-    const headers = ["Whatsapp", "Name", "NIK", "Client", "Created At"];
+    const rows = await prisma.$queryRaw<
+      { id: bigint; whatsapp: string | null; name: string | null; nik: string | null; owner_name: string | null; created_at: Date | null }[]
+    >`
+      SELECT id, whatsapp, name, nik, owner_name, created_at
+      FROM data
+      WHERE 1=1
+      ${dateFilterSql}
+      ${searchFilterSql}
+      ORDER BY created_at DESC
+    `;
+
+    const headers = ["Whatsapp", "Name", "NIK", "Owner", "Created At"];
     const data = rows.map((item) => [
       item.whatsapp || "",
       item.name || "",
       item.nik || "",
-      item.client?.name || "",
-      item.createdAt ? dayjs(item.createdAt).format("YYYY-MM-DD HH:mm:ss") : "",
+      item.owner_name || "",
+      item.created_at ? dayjs(item.created_at).format("YYYY-MM-DD HH:mm:ss") : "",
     ]);
 
     const buffer = generateExcelBuffer(headers, data, "Data");

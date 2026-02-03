@@ -7,7 +7,7 @@ import * as icons from "./icons";
 type Props = {
   startDate?: Date;
   endDate?: Date;
-  clientId?: bigint;
+  clientId?: number;
   isOrganic?: boolean;
 };
 
