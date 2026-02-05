@@ -12,18 +12,18 @@ jobs:
     steps:
       - name: Sync project with repo
         run: |
-          cd /var/www/marketing-contact/marketing-contact
+          cd /var/www//marketing-contact
           git fetch origin
           git reset --hard origin/main
 
       - name: Install dependencies
         run: |
-          cd /var/www/marketing-contact/marketing-contact
+          cd /var/www/marketing-contact
           npm install
 
       - name: Build Next.js app
         run: |
-          cd /var/www/marketing-contact/marketing-contact
+          cd /var/www/marketing-contact
           npm run build
 
       - name: Restart App (PM2)
