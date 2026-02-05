@@ -47,11 +47,11 @@ export function generateExcelBuffer(
 }
 
 export function downloadRegistrationTemplate() {
-  const headers = ["phone_number", "client", "created_at"];
+  const headers = ["phone_number", "client", "registered_at"];
   const sampleData = [
-    ["081234567890", "Client A", "2024-01-15 10:30:00"],
-    ["081234567891", "Client B", "2024-01-16 14:20:00"],
-    ["081234567892", "", "2024-01-17 09:15:00"],
+    ["081234567890", "Client A", "05-02-2026"],
+    ["081234567891", "Client B", "05-02-2026"],
+    ["081234567892", "", "05-02-2026"],
   ];
 
   downloadExcelTemplate(headers, sampleData, "template-registration.xlsx");

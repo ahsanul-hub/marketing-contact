@@ -54,14 +54,20 @@ export async function POST(request: Request) {
         }
       }
 
-      // Parse createdAt from the provided value
-      let createdAt = new Date();
-      if (item.createdAt) {
-        const parsedDate = new Date(item.createdAt);
-        if (!isNaN(parsedDate.getTime())) {
-          createdAt = parsedDate;
+    let createdAt = new Date();
+
+    if (item.createdAt) {
+      const parts = String(item.createdAt).split("-");
+
+      if (parts.length === 3) {
+        const [dd, mm, yyyy] = parts.map(Number);
+
+        // validasi sederhana
+        if (dd && mm && yyyy) {
+          createdAt = new Date(yyyy, mm - 1, dd, 12, 0, 0);
         }
       }
+    }
 
       return {
         phoneNumber: item.phoneNumber,

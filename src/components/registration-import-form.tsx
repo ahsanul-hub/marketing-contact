@@ -93,7 +93,7 @@ export function RegistrationImportForm() {
         Bulk import Registration dari Excel
       </h3>
       <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-300">
-        Gunakan file Excel (.xlsx). Format: <strong>phone_number</strong> (wajib), <strong>client</strong> (wajib), <strong>created_at</strong> (wajib).
+        Gunakan file Excel (.xlsx). Format: <strong>phone_number</strong> (wajib), <strong>client</strong> (wajib), <strong>registered_at</strong> (wajib).
       </p>
 
       <div className="mb-4">

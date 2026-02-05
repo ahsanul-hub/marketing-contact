@@ -259,8 +259,8 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
         <Table>
           <TableHeader>
             <TableRow className="border-none bg-[#F7F9FC] dark:bg-dark-2 [&>th]:py-4 [&>th]:text-base [&>th]:text-dark [&>th]:dark:text-white">
+              <TableHead className="min-w-[180px]">Registered At</TableHead>
               <TableHead className="min-w-[220px]">Phone Number</TableHead>
-              <TableHead className="min-w-[180px]">Created At</TableHead>
               <TableHead className="min-w-[140px]">Client</TableHead>
               <TableHead className="min-w-[120px]">Actions</TableHead>
             </TableRow>
@@ -271,7 +271,7 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
               <TableRow>
                 <TableCell
                   className="text-center text-neutral-500 dark:text-neutral-300"
-                  colSpan={3}
+                  colSpan={4}
                 >
                   Belum ada data registrasi.
                 </TableCell>
@@ -282,13 +282,13 @@ export default async function RegistrationPage({ searchParams }: PageProps) {
                   key={item.id.toString()}
                   className="border-[#eee] dark:border-dark-3"
                 >
-                  <TableCell className="font-medium text-dark dark:text-white">
-                    {item.phone_number || "-"}
-                  </TableCell>
                   <TableCell className="text-neutral-600 dark:text-neutral-300">
                     {item.created_at
-                      ? dayjs(item.created_at).format("YYYY-MM-DD HH:mm")
+                      ? dayjs(item.created_at).format("DD-MM-YYYY")
                       : "-"}
+                  </TableCell>
+                  <TableCell className="font-medium text-dark dark:text-white">
+                    {item.phone_number || "-"}
                   </TableCell>
                   <TableCell className="text-dark dark:text-white">
                     {item.client_name || "-"}
