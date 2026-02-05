@@ -18,7 +18,7 @@ jobs:
         run: npm run build
 
       - name: Sync files to server app folder
-        run: sudo rsync -a --delete ./ /var/www/marketing-contact/
+        run: rsync -a --delete ./ /var/www/marketing-contact/
 
       - name: Restart Linux service
         run: sudo systemctl restart marketing-contact
