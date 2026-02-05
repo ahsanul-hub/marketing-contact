@@ -1,4 +1,4 @@
-name: Deploy NextJS
+name: Deploy NextJS (Self Hosted)
 
 on:
   push:
@@ -7,25 +7,24 @@ on:
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Setup SSH
+      - name: Sync project with repo
         run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.VM_HOST }} >> ~/.ssh/known_hosts
+          cd /var/www/marketing-contact/marketing-contact
+          git fetch origin
+          git reset --hard origin/main
 
-      - name: Deploy to VM
+      - name: Install dependencies
         run: |
-          ssh ${{ secrets.VM_USER }}@${{ secrets.VM_HOST }} << 'EOF'
-          cd /var/www/nextjs-app
-          git pull origin main
+          cd /var/www/marketing-contact/marketing-contact
           npm install
+
+      - name: Build Next.js app
+        run: |
+          cd /var/www/marketing-contact/marketing-contact
           npm run build
-          pm2 restart nextjs-app
-          EOF
+
+      - name: Restart App (PM2)
+        run: pm2 restart nextjs-app
