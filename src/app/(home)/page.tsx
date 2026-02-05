@@ -180,8 +180,6 @@ export default async function Home({ searchParams }: PropsType) {
 
         <UsedDevices
           className="col-span-12 lg:col-span-6 xl:col-span-8"
-          key={extractTimeFrame("used_devices")}
-          timeFrame={extractTimeFrame("used_devices")?.split(":")[1]}
         />
 
         <div className="col-span-12 grid xl:col-span-8">
