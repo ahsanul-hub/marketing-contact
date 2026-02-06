@@ -2,6 +2,7 @@
 
 import * as XLSX from "xlsx";
 import { useState } from "react";
+import dayjs from "dayjs";
 import { TemplateDownloadButton } from "@/components/template-download-button";
 
 export function TransactionImportForm() {
@@ -109,9 +110,24 @@ export function TransactionImportForm() {
         const profit = profitIdx >= 0 ? row[profitIdx] : 0;
         const client = clientIdx >= 0 ? String(row[clientIdx] || "").trim() : "";
 
+        // Format date to DD-MM-YYYY
+        let formattedDate: string;
+        if (date instanceof Date) {
+          formattedDate = dayjs(date).format("DD-MM-YYYY");
+        } else if (typeof date === "string") {
+          // Try to parse the date and reformat it
+          const parsed = dayjs(date);
+          formattedDate = parsed.isValid() ? parsed.format("DD-MM-YYYY") : date;
+        } else if (typeof date === "number") {
+          // Excel numeric date format
+          formattedDate = dayjs(date, "x").format("DD-MM-YYYY");
+        } else {
+          formattedDate = String(date || "");
+        }
+
         return {
           phoneNumber: phoneNumber || null,
-          transactionDate: date,
+          transactionDate: formattedDate,
           totalDeposit: deposit,
           totalProfit: profit,
           client: client || null,
@@ -154,7 +170,7 @@ export function TransactionImportForm() {
         Bulk import Transaction dari Excel
       </h3>
       <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-300">
-        Gunakan file Excel (.xlsx). Format: kolom <strong>date/transaction_date</strong> (wajib),{" "}
+        Gunakan file Excel (.xlsx). Format: kolom <strong>date/transaction_date</strong> (format: DD-MM-YYYY) (wajib),{" "}
         <strong>phone_number</strong> (opsional), <strong>total_deposit</strong> (opsional),{" "}
         <strong>total_profit</strong> (opsional).
       </p>

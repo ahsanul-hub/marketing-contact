@@ -31,13 +31,28 @@ export async function POST(request: Request) {
         const totalProfit = item.totalProfit || item.total_profit || item.profit || 0;
         const client = item.client || item.client_name || item.id_client;
 
-        // Parse date
+        // Parse date with DD-MM-YYYY format and set time to 12:00 noon
         let parsedDate: Date;
         if (transactionDate instanceof Date) {
-          parsedDate = transactionDate;
+          // If Date object, set time to 12:00 noon
+          parsedDate = dayjs(transactionDate)
+            .hour(12)
+            .minute(0)
+            .second(0)
+            .millisecond(0)
+            .toDate();
         } else if (typeof transactionDate === "string") {
-          const d = dayjs(transactionDate);
-          parsedDate = d.isValid() ? d.toDate() : new Date();
+          // Try parsing with DD-MM-YYYY format first
+          const d = dayjs(transactionDate, "DD-MM-YYYY");
+          if (d.isValid()) {
+            parsedDate = d.hour(12).minute(0).second(0).millisecond(0).toDate();
+          } else {
+            // Fallback to default parsing
+            const fallback = dayjs(transactionDate);
+            parsedDate = fallback.isValid()
+              ? fallback.hour(12).minute(0).second(0).millisecond(0).toDate()
+              : new Date();
+          }
         } else {
           parsedDate = new Date();
         }

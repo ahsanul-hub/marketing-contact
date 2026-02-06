@@ -231,7 +231,7 @@ export default async function TransactionPage({ searchParams }: PageProps) {
                   className="border-[#eee] dark:border-dark-3"
                 >
                   <TableCell className="text-neutral-600 dark:text-neutral-300">
-                    {dayjs(item.transaction_date).format("YYYY-MM-DD HH:mm")}
+                    {dayjs(item.transaction_date).format("DD-MM-YYYY")}
                   </TableCell>
                   <TableCell className="font-medium text-dark dark:text-white">
                     {item.phone_number || "-"}
