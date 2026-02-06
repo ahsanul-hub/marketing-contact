@@ -70,7 +70,6 @@ export default async function DataPage({ searchParams }: PageProps) {
     ? Prisma.sql` AND (
         d.whatsapp ILIKE ${`%${searchParam}%`} OR
         d.name ILIKE ${`%${searchParam}%`} OR
-        d.nik ILIKE ${`%${searchParam}%`} OR
         d.owner_name ILIKE ${`%${searchParam}%`}
       )`
     : Prisma.empty;
@@ -89,9 +88,9 @@ export default async function DataPage({ searchParams }: PageProps) {
   const skip = (page - 1) * limit;
 
   const rows = await prisma.$queryRaw<
-    { id: bigint; whatsapp: string | null; name: string | null; nik: string | null; created_at: Date | null; client_name: string | null }[]
+    { id: bigint; whatsapp: string | null; name: string | null; created_at: Date | null; client_name: string | null }[]
   >`
-    SELECT d.id, d.whatsapp, d.name, d.nik, d.created_at, d.owner_name as client_name
+    SELECT d.id, d.whatsapp, d.name, d.created_at, d.owner_name as client_name
     FROM data d
     WHERE 1=1
       ${dateFilterSql}
@@ -175,7 +174,7 @@ export default async function DataPage({ searchParams }: PageProps) {
               id="search"
               name="search"
               type="text"
-              placeholder="Whatsapp, Name, NIK or Owner"
+              placeholder="Whatsapp, Name or Owner"
               defaultValue={searchParam || ""}
               className="h-10 w-56 rounded-md border border-stroke px-3 text-sm dark:border-dark-3 dark:bg-dark-2"
             />
@@ -205,7 +204,6 @@ export default async function DataPage({ searchParams }: PageProps) {
             <TableRow className="border-none bg-[#F7F9FC] dark:bg-dark-2 [&>th]:py-4 [&>th]:text-base [&>th]:text-dark [&>th]:dark:text-white">
               <TableHead className="min-w-[160px]">Whatsapp</TableHead>
               <TableHead className="min-w-[160px]">Name</TableHead>
-              <TableHead className="min-w-[160px]">NIK</TableHead>
               <TableHead className="min-w-[160px]">Owner</TableHead>
               <TableHead className="min-w-[160px]">Created At</TableHead>
             </TableRow>
@@ -234,14 +232,11 @@ export default async function DataPage({ searchParams }: PageProps) {
                     {item.name || "-"}
                   </TableCell>
                   <TableCell className="text-neutral-600 dark:text-neutral-300">
-                    {item.nik || "-"}
-                  </TableCell>
-                  <TableCell className="text-neutral-600 dark:text-neutral-300">
                     {item.client_name || "-"}
                   </TableCell>
                   <TableCell className="text-neutral-600 dark:text-neutral-300">
                     {item.created_at
-                      ? dayjs(item.created_at).format("YYYY-MM-DD HH:mm")
+                      ? dayjs(item.created_at).format("DD-MM-YYYY HH:mm")
                       : "-"}
                   </TableCell>
                 </TableRow>

@@ -75,11 +75,11 @@ export function downloadTransactionTemplate() {
 }
 
 export function downloadDataTemplate() {
-  const headers = ["whatsapp", "name", "nik", "owner_name"];
+  const headers = ["whatsapp", "name", "owner_name"];
   const sampleData = [
-    ["081234567890", "John Doe", "3201010101010001", "Pak A"],
-    ["081234567891", "Jane Smith", "3201010101010002", "Pak B"],
-    ["081234567892", "Bob Johnson", "3201010101010003", "Pak C"],
+    ["081234567890", "John Doe", "Pak A"],
+    ["081234567891", "Jane Smith", "Pak B"],
+    ["081234567892", "Bob Johnson", "Pak C"],
   ];
 
   downloadExcelTemplate(headers, sampleData, "template-data.xlsx");

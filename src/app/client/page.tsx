@@ -179,7 +179,7 @@ export default async function ClientPage({ searchParams }: PageProps) {
                   </TableCell>
                   <TableCell className="text-neutral-600 dark:text-neutral-300">
                     {client.createdAt
-                      ? dayjs(client.createdAt).format("YYYY-MM-DD HH:mm")
+                      ? dayjs(client.createdAt).format("DD-MM-YYYY HH:mm")
                       : "-"}
                   </TableCell>
                 </TableRow>

@@ -128,7 +128,7 @@ export function DataImportForm() {
       );
 
       // If no headers found, assume first 3 columns are Whatsapp, Nama, NIK (based on user's format)
-      const hasHeaders = whatsappIdx >= 0 || nameIdx >= 0 || nikIdx >= 0 || ownerNameIdx >= 0;
+      const hasHeaders = whatsappIdx >= 0 || nameIdx >= 0  || ownerNameIdx >= 0;
       
       let dataRows: any[];
       
@@ -137,13 +137,11 @@ export function DataImportForm() {
         dataRows = rows.map((row: any[]) => {
           const whatsapp = String(row[0] || "").trim();
           const name = String(row[1] || "").trim();
-          const nik = String(row[2] || "").trim();
-          const ownerName = row[3] ? String(row[3] || "").trim() : "";
+          const ownerName = row[2] ? String(row[2] || "").trim() : "";
 
           return {
             whatsapp: whatsapp || null,
             name: name || null,
-            nik: nik || null,
             ownerName: ownerName || null,
           };
         });
@@ -208,9 +206,9 @@ export function DataImportForm() {
       </h3>
       <p className="mb-4 text-sm text-neutral-500 dark:text-neutral-300">
         Gunakan file Excel (.xlsx, .xls). Format: kolom <strong>Whatsapp</strong>,{" "}
-        <strong>Nama</strong>, <strong>NIK</strong> (opsional: <strong>Owner Name</strong>). 
+        <strong>Nama</strong>, <strong>Owner Name</strong> (opsional). 
         Owner Name akan dibuat otomatis jika belum ada. Header opsional - jika tidak ada header, 
-        akan diasumsikan kolom pertama adalah Whatsapp, kedua Nama, ketiga NIK, keempat Owner Name.
+        akan diasumsikan kolom pertama adalah Whatsapp, kedua Nama, ketiga Owner Name.
       </p>
 
       <div className="mb-4">

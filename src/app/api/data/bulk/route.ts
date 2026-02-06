@@ -23,13 +23,11 @@ export async function POST(request: Request) {
     const cleaned = rawList.map((item: any) => {
       const whatsapp = String(item.whatsapp || "").trim() || null;
       const name = String(item.name || "").trim() || null;
-      const nik = String(item.nik || "").trim() || null;
       const ownerName = String(item.ownerName || item.owner_name || item.clientName || "").trim() || null;
 
       return {
         whatsapp,
         name,
-        nik,
         ownerName,
         createdAt: now,
       };
